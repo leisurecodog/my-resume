@@ -1,0 +1,148 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[a4paper,margin=0.5in]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage{mdwlist}
+\usepackage[default]{lato}
+\usepackage[T1]{fontenc}
+\usepackage{textcomp}
+\usepackage{fontawesome}
+\usepackage{enumitem}
+\usepackage{newunicodechar}
+\newunicodechar{（}{(}
+\newunicodechar{）}{)}
+\DeclareFontFamily{U}{fontawesomeOne}{}
+\DeclareFontShape{U}{fontawesomeOne}{m}{n}
+{<-> FontAwesome--fontawesomeone}{}
+\DeclareRobustCommand\FAone{\fontencoding{U}\fontfamily{fontawesomeOne}\selectfont}
+\pagestyle{empty}
+\setlength{\tabcolsep}{0em}
+
+% indentsection style, used for sections that aren't already in lists
+% that need indentation to the level of all text in the document
+\newenvironment{indentsection}[1]%
+{\begin{list}{}%
+{\setlength{\leftmargin}{#1}}%
+     \item[]
+}
+{\end{list}}
+
+% opposite of above; bump a section back toward the left margin
+\newenvironment{unindentsection}[1]%
+{\begin{list}{}%
+{\setlength{\leftmargin}{-0.5#1}}%
+\item[]%
+}
+{\end{list}}
+
+% format two pieces of text, one left aligned and one right aligned
+\newcommand{\headerrow}[2]
+{\begin{tabular*}{\linewidth}{l@{\extracolsep{\fill}}r}
+#1 &
+#2 \\
+\end{tabular*}}
+
+% make "C++" look pretty when used in text by touching up the plus signs
+\newcommand{\CPP}
+{C\nolinebreak[4]\hspace{-.05em}\raisebox{.22ex}{\footnotesize\bf ++}}
+
+% and the actual content starts here
+\begin{document}
+
+\begin{center}
+	{\LARGE \textbf{FENG-AN (Alan) HSIEH}}\\
+	Zhubei, Hsinchu, Taiwan
+	\vspace{0.05cm}
+	\\
+	\raisebox{-0.2\height}{\Large \faPhoneSquare} \ \ (+886) 986161907 
+    \raisebox{-0.2\height}{\Large \faEnvelopeSquare} \ \ xiefengan013@gmail.com 
+    \raisebox{-0.2\height}{\Large \faLinkedinSquare} \ \ linkedin.com/in/feng-an-hsieh-a0a69a15a/
+\end{center}
+
+\subsection*{\large Summary}
+\hrule
+\vspace{0.3em}
+
+\hyphenpenalty=1000
+\begin{itemize}[leftmargin=1em,noitemsep]
+	\item[]
+    ESL Modeling Engineer with 4 years of experience building C++/SystemC TLM-2.0 functional models (LT / behavior-level) and integrating them into Synopsys VDK virtual platforms for enterprise and client SSD controllers. End-to-end owner of 6 peripheral and controller IP models, delivered to firmware teams and external customers to enable software bring-up ahead of silicon. Python automation builder for trace analysis, regression, and model delivery.
+\end{itemize}
+
+% ======================== Experience Section ==========================
+\subsection*{\large Experience}
+\hrule
+\vspace{0.3em}
+
+\renewcommand\labelitemi{}
+\renewcommand\labelitemii{$\bullet$}
+\begin{itemize}[leftmargin=1em]
+	\parskip=0.1em
+		
+	\item
+	      \headerrow
+	      {\textbf{SiliconMotion} -- \textbf{ESL Modeling Team}}
+	      {\textbf{Zhubei, Hsinchu}}
+	      \headerrow
+	      {\emph{Chief Engineer}}
+	      {\emph{July 2026 -- Present}}
+	      \begin{itemize*}
+	      	\item Architect and maintain 6 C++/SystemC TLM IP models (4 enterprise, 2 client), including the shared inter-engine messaging IP and core NAND Flash Controller (register map, interrupt, arbitration, DMA, command decode).
+	      	\item Deliver verified virtual platform releases and model documentation to 5+ firmware engineers and external customers; mentor engineers on ESL design patterns and TLM-2.0 modeling standards.
+	      	\item Built agentic developer workflows (Claude Code, Cursor) for model boilerplate generation, spec-to-model scaffolding, and automated regression, reducing new NAND model delivery from $\sim$2 weeks to 2--3 days.
+	      \end{itemize*}
+	      \headerrow
+	      {\emph{Senior Engineer}}
+	      {\emph{November 2022 -- June 2026}}
+	      \begin{itemize*}
+	      	\item Integrated peripheral TLM models with processor fast models into full-system virtual platforms on Synopsys VDK, enabling firmware teams to bring up software months ahead of silicon tape-out.
+	      	\item Conducted hardware-software co-simulation with DV test suites; verified CModels against RTL specs to isolate and resolve complex boundary bugs across HW and FW.
+	      	\item Automated RTL waveform parsing (FSDB/VCD) with Python and shell scripts, speeding up test creation by 3x and saving $\sim$1 week of manual effort per cycle.
+	      	\item Built internal Python utilities for platform trace analysis and debugging, accelerating issue isolation for firmware teams.
+	      \end{itemize*}
+\end{itemize}
+
+% ============================ Skill Section ===============================
+\subsection*{\large Skills}
+\hrule
+\vspace{0.3em}
+
+\hyphenpenalty=1000
+\begin{itemize}[leftmargin=1em,noitemsep]
+	\item \textbf{Languages \& Modeling:}
+	      C/C++ (C++14), SystemC, TLM-2.0 (LT / behavior-level modeling), Python, Shell, Verilog, Assembly
+	\item \textbf{EDA \& Virtual Platforms:}
+	      Synopsys VDK, Virtual Prototyping, HW/SW Co-simulation, Linux, Git
+	\item \textbf{Protocols \& Architecture:}
+	      AMBA (AXI, AHB, APB, CHI), NAND Flash Controller Architecture, DMA, Register Maps, Interrupts, State Machines
+	\item \textbf{Engineering Tooling:}
+	      Debugging (gdb, Platform Trace Analysis), Automated Regression, Claude Code, Cursor, Waveform Parsing (FSDB/VCD)
+    \item \textbf{Languages:}
+          Mandarin (Native), English (TOEIC 780)
+\end{itemize}
+
+% ======================== Education Section ==========================
+\subsection*{\large Education}
+\hrule
+\vspace{0.3em}
+
+\begin{itemize}[leftmargin=1em]
+	\parskip=0.1em
+		
+	\item
+	      \headerrow
+	      {\textbf{National Chung Cheng University}}
+	      {\textbf{Chiayi, Taiwan}}
+	      \headerrow
+	      {\emph{M.E. in Electrical Engineering}}
+	      {\emph{August 2020 -- July 2022}}
+          \par\noindent{\emph{Thesis: An End-To-End System For Road Agent Behavior Classification (CNN, LSTM, Object Detection, Tracking)}}\par
+          
+	      \headerrow
+          {\textbf{National University of Kaohsiung}}
+	      {\textbf{Kaohsiung, Taiwan}}
+          \headerrow
+	      {\emph{B.E. in Computer Science and Information Engineering}}
+	      {\emph{September 2016 -- June 2020}}
+\end{itemize}
+
+\end{document}

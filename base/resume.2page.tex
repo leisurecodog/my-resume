@@ -1,0 +1,203 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[a4paper,margin=0.5in]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage{mdwlist}
+\usepackage[default]{lato}
+\usepackage[T1]{fontenc}
+\usepackage{textcomp}
+\usepackage{fontawesome}
+\usepackage{enumitem}
+\usepackage{newunicodechar}
+\newunicodechar{（}{(}
+\newunicodechar{）}{)}
+\DeclareFontFamily{U}{fontawesomeOne}{}
+\DeclareFontShape{U}{fontawesomeOne}{m}{n}
+{<-> FontAwesome--fontawesomeone}{}
+\DeclareRobustCommand\FAone{\fontencoding{U}\fontfamily{fontawesomeOne}\selectfont}
+\pagestyle{empty}
+\setlength{\tabcolsep}{0em}
+
+% indentsection style, used for sections that aren't already in lists
+% that need indentation to the level of all text in the document
+\newenvironment{indentsection}[1]%
+{\begin{list}{}%
+{\setlength{\leftmargin}{#1}}%
+     \item[]
+}
+{\end{list}}
+
+% opposite of above; bump a section back toward the left margin
+\newenvironment{unindentsection}[1]%
+{\begin{list}{}%
+{\setlength{\leftmargin}{-0.5#1}}%
+\item[]%
+}
+{\end{list}}
+
+% format two pieces of text, one left aligned and one right aligned
+\newcommand{\headerrow}[2]
+{\begin{tabular*}{\linewidth}{l@{\extracolsep{\fill}}r}
+#1 &
+#2 \\
+\end{tabular*}}
+
+% make "C++" look pretty when used in text by touching up the plus signs
+\newcommand{\CPP}
+{C\nolinebreak[4]\hspace{-.05em}\raisebox{.22ex}{\footnotesize\bf ++}}
+
+% and the actual content starts here
+\begin{document}
+
+\begin{center}
+	{\LARGE \textbf{FENG-AN (Alan) HSIEH}}\\
+	Zhubei, Hsinchu, Taiwan
+	\vspace{0.05cm}
+	\\
+	\raisebox{-0.2\height} {\Large \faPhoneSquare} \ \  (+886) 986161907 
+    \raisebox{-0.2\height}{\Large \faEnvelopeSquare} \ \ xiefengan013@gmail.com %\raisebox{-0.2\height}{\Large \faGithubSquare} \ \ leisurecodog.github.io
+    \raisebox{-0.2\height}{\Large \faLinkedinSquare} \ \ linkedin.com/in/feng-an-hsieh-a0a69a15a/
+\end{center}
+
+\subsection*{\Large Summary}
+\hrule
+\vspace{1em}
+
+\hyphenpenalty=1000
+\begin{itemize}[leftmargin=1em,noitemsep]
+	
+    Chief Engineer with 4 years of experience in \textbf{C++/SystemC} system modeling and virtual platforms for storage controllers, bridging hardware and firmware development. Own six IP models end to end; cut NAND model delivery from about 2 weeks to 2--3 days with agent-driven workflows (\textbf{Claude Code}, \textbf{Cursor}), and cut test creation time by more than 3x with Python automation. M.E. in Electrical Engineering (Deep Learning, Computer Vision).
+          
+\end{itemize}
+% ======================== Experience Section ==========================
+\subsection*{\Large Experience}
+\hrule
+\vspace{1em}
+
+\renewcommand\labelitemi{}
+\renewcommand\labelitemii{$\bullet$}
+\begin{itemize}[leftmargin=1em]
+	\parskip=0.1em
+		
+		
+	\item
+	      \headerrow
+	      {\textbf{SiliconMotion} - \textbf{ESL Modeling Team}}
+	      {\textbf{Zhubei, Hsinchu}}
+	      \headerrow
+	      {\emph{Chief Engineer}}
+	      {\emph{July 2026 -- Present}}
+	      \begin{itemize*}
+	      	\item Independently own six \textbf{C++/SystemC} and TLM IP models (four enterprise, two client), aligned with \textbf{RTL} design specifications and delivered to 5+ firmware engineers; models are also packaged into complete platforms delivered to external customers.
+	      	\item Modeled the \textbf{NAND flash controller (NFC)}, covering the arbiter, DMA, error handling, and NAND command decode and processing, and the shared \textbf{message-flow IP}, which sends and receives messages and handshakes with every engine.
+	      	\item Built \textbf{agent skills} for NAND model development, replacing most manual steps and cutting full NAND model delivery from about 2 weeks to 2--3 days.
+	      	\item Built, maintain, and continuously improve an \textbf{AI agent harness} (\textbf{Claude Code}, \textbf{Cursor}) for IP maintenance, covering documentation sync, regression testing, and code updates.
+	      	\item Serve as designated mentor, guiding engineers on IP modeling and development workflows.
+	      \end{itemize*}
+	      \headerrow
+	      {\emph{Senior Engineer}}
+	      {\emph{November 2022 -- June 2026}}
+	      \begin{itemize*}
+	      	\item Developed and maintained \textbf{C++/SystemC} and TLM models for peripheral IPs, aligned with \textbf{RTL} design specifications; ran \textbf{hardware-software co-simulation} with DV patterns and later verified against HW and specs, identifying and resolving CModel and firmware bugs.
+	      	\item Developed and maintained \textbf{virtual platform (VP)} using \textbf{Synopsys VDK}, reducing the development schedule of the FW team.
+	      	\item Profiled and deployed processor fast models on virtual platforms, and collaborated with hardware and firmware teams to integrate multiple TLM models, enabling rapid software prototyping and improving simulation stability and performance.
+                \item Developed Python utilities to assist the firmware team in rapid platform-level debugging, accelerating issue isolation.
+                \item Engineered a Python-based automation script to parse RTL waveforms for IP model verification. Optimized the test creation workflow, reducing development time by over 3x and saving approximately one week of manual effort per cycle.
+                % TODO: add the most-proud technical challenge (problem -> approach -> result); ask the owner later
+                % TODO: count of FW bugs found via co-sim / HW verification (not yet tallied)
+                % TODO: agent harness metrics (time saved, IPs covered, adoption), if any
+                % \item Automated VCD waveform parsing for IP model verification by integrating fsdb2vcd, \textbf{shell scripts, and Python}, reducing test creation time by over 3x and saving approximately one week of manual effort.
+	      \end{itemize*}
+	      	      
+	% \item
+	      % \headerrow
+	      % {\textbf{Amazon.com}}
+	      % {\textbf{Seattle, WA}}
+	      % \headerrow
+	      % {\emph{Software Development Engineer II}}
+	      % {\emph{October 2016 -- January 2019}}
+	      % \begin{itemize*}
+	      % 	\item Designed and implemented ordering and accounting workflows to launch Prime Wardrobe US/UK/JP, a try-before-you-buy program for clothing, jewelry, and shoes.
+	      % \end{itemize*}
+	      % \headerrow
+	      % {\emph{Software Development Engineer I}}
+	      % {\emph{June 2014 -- October 2016}}
+	      % \begin{itemize*}
+	      % 	\item Implemented critical detail page and globalized item publishing features to help launch the \emph{Rest of World} project, which enabled customers from 200+ countries to purchase digital software and video games.
+	      % \end{itemize*}
+	      	      
+\end{itemize}
+% ============================ Skill Section ===============================
+\subsection*{\Large Skills}
+\hrule
+\vspace{1em}
+
+\hyphenpenalty=1000
+\begin{itemize}[leftmargin=1em,noitemsep]
+	\item \textbf{Programming:}
+	      C/C++, SystemC, Python, Shell, Assembly, Verilog
+	\item \textbf{Tools:}
+	       Git, Synopsys VDK
+	\item \textbf{Protocols:}
+	      AMBA (AXI, APB, AHB, ACE, CHI) -- working knowledge
+	\item \textbf{AI / Agent:}
+	      Claude Code, Cursor, agent skills, agent harness
+    \item \textbf{Languages:}
+            Mandarin (native), English (TOEIC 780)
+          
+\end{itemize}
+% ======================== Education Section ==========================
+\subsection*{\Large Education}
+\hrule
+\vspace{1em}
+
+\begin{itemize}[leftmargin=1em]
+	\parskip=0.1em
+		
+	\item
+	      \headerrow
+	      {\textbf{National Chung Cheng University}}
+	      {\textbf{Chiayi, Taiwan}}
+	      \headerrow
+	      {\emph{M.E. Electrical Engineering} %(\textbf{GPA:} 3.30/4.00)
+            }
+	      {\emph{August 2020 -- July 2022}}
+            \headerrow
+            {\emph{Thesis: An End-To-End System For Road Agent Behavior Classification}}
+            {\emph{}}
+          
+	      \headerrow
+            {\textbf{National University of Kaohsiung}}
+	      {\textbf{Kaohsiung, Taiwan}}
+            \headerrow
+	      {\emph{B.E. Computer Science and Information Engineering} % (\textbf{GPA:} 3.77/4.00)
+            }
+	      {\emph{September 2016 -- June 2020}}
+	      	      
+\end{itemize}
+% ======================== Projects Section ==========================
+% \subsection*{\Large Projects(TODO)}
+% \hrule
+% \vspace{0.5em}
+
+% \begin{itemize}[leftmargin=1em]
+% 	\parskip=0.1em
+		
+% 	\item
+% 	      \headerrow
+% 	      {\textbf{Stock Value Investment}}
+%             {\emph{}}
+% 	      \headerrow
+% 	      {\emph{Techniques: Python, Asyncio, Web Crawler, Telegram Bot API（python-telegram-bot）}}
+%             {\emph{}}
+          
+% 	      \headerrow
+%             {\textbf{National University of Kaohsiung}}
+% 	      {\textbf{Kaohsiung, Taiwan}}
+%             \headerrow
+% 	      {\emph{B.E. Computer Science and Information Engineering} % (\textbf{GPA:} 3.77/4.00)
+%             }
+% 	      {\emph{September 2016 -- June 2020}}
+	      	      
+% \end{itemize}
+
+\end{document}

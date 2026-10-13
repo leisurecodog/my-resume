@@ -1,0 +1,191 @@
+\documentclass[11pt,letterpaper]{article}
+\usepackage[letterpaper,margin=0.5in]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage{mdwlist}
+\usepackage[default]{lato}
+\usepackage[T1]{fontenc}
+\usepackage{textcomp}
+\usepackage{fontawesome}
+\usepackage{enumitem}
+\usepackage{newunicodechar}
+\newunicodechar{（}{(}
+\newunicodechar{）}{)}
+\DeclareFontFamily{U}{fontawesomeOne}{}
+\DeclareFontShape{U}{fontawesomeOne}{m}{n}
+{<-> FontAwesome--fontawesomeone}{}
+\DeclareRobustCommand\FAone{\fontencoding{U}\fontfamily{fontawesomeOne}\selectfont}
+\pagestyle{empty}
+\setlength{\tabcolsep}{0em}
+
+% indentsection style, used for sections that aren't already in lists
+% that need indentation to the level of all text in the document
+\newenvironment{indentsection}[1]%
+{\begin{list}{}%
+{\setlength{\leftmargin}{#1}}%
+     \item[]
+}
+{\end{list}}
+
+% opposite of above; bump a section back toward the left margin
+\newenvironment{unindentsection}[1]%
+{\begin{list}{}%
+{\setlength{\leftmargin}{-0.5#1}}%
+\item[]%
+}
+{\end{list}}
+
+% format two pieces of text, one left aligned and one right aligned
+\newcommand{\headerrow}[2]
+{\begin{tabular*}{\linewidth}{l@{\extracolsep{\fill}}r}
+#1 &
+#2 \\
+\end{tabular*}}
+
+% make "C++" look pretty when used in text by touching up the plus signs
+\newcommand{\CPP}
+{C\nolinebreak[4]\hspace{-.05em}\raisebox{.22ex}{\footnotesize\bf ++}}
+
+% and the actual content starts here
+\begin{document}
+
+\begin{center}
+	{\LARGE \textbf{FENG-AN (Alan) HSIEH}}\\
+	Tainan, Taiwan
+	\vspace{0.05cm}
+	\\
+	\raisebox{-0.2\height} {\Large \faPhoneSquare} \ \  (+886) 986161907 
+    \raisebox{-0.2\height}{\Large \faEnvelopeSquare} \ \ xiefengan013@gmail.com %\raisebox{-0.2\height}{\Large \faGithubSquare} \ \ leisurecodog.github.io
+    \raisebox{-0.2\height}{\Large \faLinkedinSquare} \ \ linkedin.com/in/feng-an-hsieh-a0a69a15a/
+\end{center}
+
+\subsection*{\Large Summary}
+\hrule
+\vspace{1em}
+
+\hyphenpenalty=1000
+\begin{itemize}[leftmargin=1em,noitemsep]
+	
+    Software Development Engineer with 3+ years of experience specializing in high-performance SystemC/C++ system modeling and software architecture. Proven track record in bridging the gap between underlying hardware and software through virtual platforms. Strong expertise in developing Python-based automation tools, successfully accelerating test creation and system debugging workflows by more than 3x. Armed with a M.S. focused on Deep Learning and Computer Vision, I am passionate about optimizing software performance, solving complex system bottlenecks, and driving efficient development cycles.
+          
+\end{itemize}
+% ======================== Experience Section ==========================
+\subsection*{\Large Experience}
+\hrule
+\vspace{1em}
+
+\renewcommand\labelitemi{}
+\renewcommand\labelitemii{$\bullet$}
+\begin{itemize}[leftmargin=1em]
+	\parskip=0.1em
+		
+		
+	\item
+	      \headerrow
+	      {\textbf{SiliconMotion} - \textbf{ESL Modeling Team}}
+	      {\textbf{Zhubei, Hsinchu}}
+	      \headerrow
+	      {\emph{Senior Engineer}}
+	      {\emph{November 2022 -- Present}}
+	      \begin{itemize*}
+	      	\item Developed and maintained \textbf{C++/SystemC} and TLM models for peripheral IPs, ensuring alignment with \textbf{RTL} design specifications.
+                \item Developed and maintained \textbf{virtual platform(VP)} using Synopsys tools, reducing the development schedule of the FW team.
+                \item Profiled and deployed processor fast models on virtual platforms, enabling rapid software prototyping and system-level design validation.
+                \item{Executed Design Verification (DV) tests within hardware-software co-simulation environments, actively identifying and resolving CModel bugs to ensure design accuracy.}
+                \item Collaborated with hardware and firmware teams to integrate multiple TLM models, improving simulation stability and performance.
+                \item Developed Python utilities to assist the firmware team in rapid platform-level debugging, significantly accelerating the issue isolation process.
+                \item Engineered a Python-based automation script to parse RTL waveforms for IP model verification. Optimized the test creation workflow, reducing development time by over 3x and saving approximately one week of manual effort per cycle.
+                % \item Automated VCD waveform parsing for IP model verification by integrating fsdb2vcd, \textbf{shell scripts, and Python}, reducing test creation time by over 3x and saving approximately one week of manual effort.
+	      \end{itemize*}
+	      	      
+	% \item
+	      % \headerrow
+	      % {\textbf{Amazon.com}}
+	      % {\textbf{Seattle, WA}}
+	      % \headerrow
+	      % {\emph{Software Development Engineer II}}
+	      % {\emph{October 2016 -- January 2019}}
+	      % \begin{itemize*}
+	      % 	\item Designed and implemented ordering and accounting workflows to launch Prime Wardrobe US/UK/JP, a try-before-you-buy program for clothing, jewelry, and shoes.
+	      % \end{itemize*}
+	      % \headerrow
+	      % {\emph{Software Development Engineer I}}
+	      % {\emph{June 2014 -- October 2016}}
+	      % \begin{itemize*}
+	      % 	\item Implemented critical detail page and globalized item publishing features to help launch the \emph{Rest of World} project, which enabled customers from 200+ countries to purchase digital software and video games.
+	      % \end{itemize*}
+	      	      
+\end{itemize}
+% ============================ Skill Section ===============================
+\subsection*{\Large Skills}
+\hrule
+\vspace{1em}
+
+\hyphenpenalty=1000
+\begin{itemize}[leftmargin=1em,noitemsep]
+	\item \textbf{Programming:}
+	      C/C++, SystemC, Python, Shell, Assembly, Verilog
+	\item \textbf{Tools:}
+	       Vim, Git, Confluence, Synopsys VDK
+    \item \textbf{Certification:}
+            TOEIC 780
+          
+\end{itemize}
+% ======================== Education Section ==========================
+\subsection*{\Large Education}
+\hrule
+\vspace{1em}
+
+\begin{itemize}[leftmargin=1em]
+	\parskip=0.1em
+		
+	\item
+	      \headerrow
+	      {\textbf{National Chung Cheng University}}
+	      {\textbf{Chaiyi, Taiwan}}
+	      \headerrow
+	      {\emph{M.E. Electrical Engineering} %(\textbf{GPA:} 3.30/4.00)
+            }
+	      {\emph{August 2020 -- July 2022}}
+            \headerrow
+            {\emph{Thesis: An End-To-End System For Road Agent Behavior Classification}}
+            {\emph{}}
+            \headerrow
+            {\emph{Keywords: Deep Learning/Machine Learning, Computer Vision}}
+            {\emph{}}
+          
+	      \headerrow
+            {\textbf{National University of Kaohsiung}}
+	      {\textbf{Kaohsiung, Taiwan}}
+            \headerrow
+	      {\emph{B.E. Computer Science and Information Engineering} % (\textbf{GPA:} 3.77/4.00)
+            }
+	      {\emph{September 2016 -- June 2020}}
+	      	      
+\end{itemize}
+% ======================== Projects Section ==========================
+% \subsection*{\Large Projects(TODO)}
+% \hrule
+% \vspace{0.5em}
+
+% \begin{itemize}[leftmargin=1em]
+% 	\parskip=0.1em
+		
+% 	\item
+% 	      \headerrow
+% 	      {\textbf{Stock Value Investment}}
+%             {\emph{}}
+% 	      \headerrow
+% 	      {\emph{Techniques: Python, Asyncio, Web Crawler, Telegram Bot API（python-telegram-bot）}}
+%             {\emph{}}
+          
+% 	      \headerrow
+%             {\textbf{National University of Kaohsiung}}
+% 	      {\textbf{Kaohsiung, Taiwan}}
+%             \headerrow
+% 	      {\emph{B.E. Computer Science and Information Engineering} % (\textbf{GPA:} 3.77/4.00)
+%             }
+% 	      {\emph{September 2016 -- June 2020}}
+	      	      
+% \end{itemize}
+
+\end{document}

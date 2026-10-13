@@ -1,0 +1,130 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[a4paper,margin=0.5in]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage{mdwlist}
+\usepackage[default]{lato}
+\usepackage[T1]{fontenc}
+\usepackage{textcomp}
+\usepackage{fontawesome}
+\usepackage{enumitem}
+\usepackage{newunicodechar}
+\newunicodechar{（}{(}
+\newunicodechar{）}{)}
+\DeclareFontFamily{U}{fontawesomeOne}{}
+\DeclareFontShape{U}{fontawesomeOne}{m}{n}
+{<-> FontAwesome--fontawesomeone}{}
+\DeclareRobustCommand\FAone{\fontencoding{U}\fontfamily{fontawesomeOne}\selectfont}
+\pagestyle{empty}
+\setlength{\tabcolsep}{0em}
+
+% format two pieces of text, one left aligned and one right aligned
+\newcommand{\headerrow}[2]
+{\begin{tabular*}{\linewidth}{l@{\extracolsep{\fill}}r}
+#1 &
+#2 \\
+\end{tabular*}}
+
+\begin{document}
+
+\begin{center}
+	{\LARGE \textbf{FENG-AN (Alan) HSIEH}}\\
+	Zhubei, Hsinchu, Taiwan
+	\vspace{0.05cm}
+	\\
+	\raisebox{-0.2\height}{\Large \faPhoneSquare} \ \ (+886) 986161907
+    \raisebox{-0.2\height}{\Large \faEnvelopeSquare} \ \ xiefengan013@gmail.com
+    \raisebox{-0.2\height}{\Large \faLinkedinSquare} \ \ linkedin.com/in/feng-an-hsieh-a0a69a15a/
+\end{center}
+
+\subsection*{\large Summary}
+\hrule
+\vspace{0.3em}
+
+\hyphenpenalty=1000
+\begin{itemize}[leftmargin=1em,noitemsep]
+	\item[]
+    Pre-silicon modeling engineer with 4 years of experience building C++/SystemC and TLM-2.0 models and virtual platforms for high-throughput SoCs. Own 6 IP models end to end, aligned to RTL specifications and verified against RTL through HW/SW co-simulation, delivered to firmware teams and external customers. Strong in Python automation and in building AI-agent workflows that shorten model delivery and regression cycles.
+\end{itemize}
+
+% ======================== Experience Section ==========================
+\subsection*{\large Experience}
+\hrule
+\vspace{0.3em}
+
+\renewcommand\labelitemi{}
+\renewcommand\labelitemii{$\bullet$}
+\begin{itemize}[leftmargin=1em]
+	\parskip=0.1em
+
+	\item
+	      \headerrow
+	      {\textbf{SiliconMotion} -- \textbf{ESL Modeling Team}}
+	      {\textbf{Zhubei, Hsinchu}}
+	      \headerrow
+	      {\emph{Chief Engineer}}
+	      {\emph{July 2026 -- Present}}
+	      \begin{itemize*}
+	      	\item Independently own 6 C++/SystemC TLM IP models, written from RTL design specifications and delivered to 5+ firmware engineers; the models are also packaged into complete virtual platforms for external customers.
+	      	\item Architected the data-path and control-path models of a high-throughput controller: command arbitration, DMA, error handling, command decode, and a shared inter-engine messaging IP that handshakes with every engine.
+	      	\item Built an AI agent harness and reusable agent skills (Claude Code, Cursor) for spec-to-model scaffolding, documentation sync, and automated regression, cutting new model delivery from $\sim$2 weeks to 2--3 days.
+	      	\item Mentor engineers on TLM-2.0 modeling standards and development workflow.
+	      \end{itemize*}
+	      \headerrow
+	      {\emph{Senior Engineer}}
+	      {\emph{November 2022 -- June 2026}}
+	      \begin{itemize*}
+	      	\item Developed and maintained C++/SystemC TLM models of peripheral and controller IPs against RTL design specifications; ran HW/SW co-simulation with DV patterns and verified models against RTL, resolving CModel and firmware bugs at the HW/FW boundary.
+	      	\item Built and maintained full-system virtual platforms on Synopsys VDK, integrating processor fast models with multiple TLM models, so firmware teams could bring up software months ahead of silicon.
+	      	\item Profiled and tuned processor fast models and platform integration to improve simulation speed and stability.
+	      	\item Automated RTL waveform (FSDB/VCD) parsing with Python and shell for model verification, speeding up test creation by 3x and saving $\sim$1 week of manual effort per cycle.
+	      	\item Built Python tools for platform trace analysis and debugging, shortening issue isolation for firmware teams.
+	      \end{itemize*}
+\end{itemize}
+
+% ============================ Skill Section ===============================
+\subsection*{\large Skills}
+\hrule
+\vspace{0.3em}
+
+\hyphenpenalty=1000
+\begin{itemize}[leftmargin=1em,noitemsep]
+	\item \textbf{Languages \& Modeling:}
+	      C/C++, SystemC, TLM-2.0, Python, Shell, Verilog, Assembly
+	\item \textbf{Pre-silicon \& Verification:}
+	      Virtual Prototyping (Synopsys VDK), HW/SW Co-simulation, RTL-vs-model Verification, Waveform Analysis (FSDB/VCD), Git
+	\item \textbf{Protocols \& Architecture:}
+	      AMBA (AXI, AHB, APB, CHI), DMA, Arbitration, Inter-engine Messaging
+	\item \textbf{Automation \& AI:}
+	      Claude Code, Cursor, Agent Skills, Automated Test Generation, Regression Flows
+    \item \textbf{Languages:}
+          Mandarin (Native), English (TOEIC 780)
+\end{itemize}
+
+% ======================== Education Section ==========================
+\subsection*{\large Education}
+\hrule
+\vspace{0.3em}
+
+\begin{itemize}[leftmargin=1em]
+	\parskip=0.1em
+
+	\item
+	      \headerrow
+	      {\textbf{National Chung Cheng University}}
+	      {\textbf{Chiayi, Taiwan}}
+	      \headerrow
+	      {\emph{M.E. in Electrical Engineering}}
+	      {\emph{August 2020 -- July 2022}}
+          \headerrow
+          {\emph{Thesis: An End-To-End System For Road Agent Behavior Classification (Deep Learning, Computer Vision)}}
+          {\emph{}}
+
+	      \headerrow
+          {\textbf{National University of Kaohsiung}}
+	      {\textbf{Kaohsiung, Taiwan}}
+          \headerrow
+	      {\emph{B.E. in Computer Science and Information Engineering}}
+	      {\emph{September 2016 -- June 2020}}
+\end{itemize}
+
+\end{document}
