@@ -87,6 +87,7 @@
 	      {\emph{July 2026 -- Present}}
 	      \begin{itemize*}
 	      	\item Architect and maintain 6 C++/SystemC TLM IP models (4 enterprise, 2 client), including the shared inter-engine messaging IP and core NAND Flash Controller (register map, interrupt, arbitration, DMA, command decode).
+	      	\item Profiled the messaging IP model with VDK top-down profiling and Valgrind, and replaced per-clock-cycle \texttt{wait()} polling with coarser time-based waits, reducing scheduler wake-ups and speeding up simulation.
 	      	\item Deliver verified virtual platform releases and model documentation to 5+ firmware engineers and external customers; mentor engineers on ESL design patterns and TLM-2.0 modeling standards.
 	      	\item Built agentic developer workflows (Claude Code, Cursor) for model boilerplate generation, spec-to-model scaffolding, and automated regression, reducing new NAND model delivery from $\sim$2 weeks to 2--3 days.
 	      \end{itemize*}
@@ -113,7 +114,7 @@
 	\item \textbf{EDA \& Virtual Platforms:}
 	      Synopsys VDK, Virtual Prototyping, HW/SW Co-simulation, Linux, Git
 	\item \textbf{Protocols \& Architecture:}
-	      AMBA (AXI, AHB, APB, CHI), NAND Flash Controller Architecture, DMA, Register Maps, Interrupts, State Machines
+	      AMBA spec \& bus integration (AXI, AHB, APB, CHI), NAND Flash Controller Architecture, DMA, Register Maps, Interrupts, State Machines
 	\item \textbf{Engineering Tooling:}
 	      Debugging (gdb, Platform Trace Analysis), Automated Regression, Claude Code, Cursor, Waveform Parsing (FSDB/VCD)
     \item \textbf{Languages:}
