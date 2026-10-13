@@ -1,6 +1,11 @@
 # Progress
 
 ## Done
+- 2026-10-13: `tasks/learning-plan.md` 新增第 10 項（C/C++ 基礎題與 bit 操作）、第 11 項（Co-sim 框架與 bit-true 驗證）、第 12 項（VDK 流程與 debug），並補缺口統計與建議做法。
+- 2026-10-13: 新增 `tasks/learning-plan.md`（跨 JD 學習順序與缺口統計），`mediatek/prep-notes.md` 第四部分移除第 7–9 項與統計表並指向該檔；CLAUDE.md 同步。
+- 2026-10-13: 把 JD 缺口共通項排序寫進 `mediatek/prep-notes.md` 第四部分「學習優先順序」（新增第 7–9 項與缺口統計表）。
+- 2026-10-13: `JD/fit-ranking.md` 新增「每份職缺缺少的能力」（15 份各一張表：缺的能力、必要或加分、補法）與缺口共通項統計。
+- 2026-10-13: 重新評分 `JD/` 全部 15 份職缺，結果寫在 `JD/fit-ranking.md`（A 級：MediaTek VDK 兩份 92/90；B 級：耐能 Co-Sim 71、MediaTek Designer 68、耐能 C-Model 67、群聯竹南 66）。`mediatek/prep-notes.md` 的定位段已對齊（Designer 由「低」改為 B 級可投）。
 - 2026-10-13: 四份履歷（base、mediatek、credo 兩份）Skills 的 `AMBA (AXI, AHB, APB, CHI)` 改為 `AMBA spec \& bus integration (AXI, AHB, APB, CHI)`，全部重新編譯確認仍為 1 頁。
 - 2026-10-13: 在 `mediatek/prep-notes.md` 第四部分加入「何時可以投效能相關職缺」的判準與投遞策略。
 - 2026-10-13: 在 `mediatek/prep-notes.md` 新增「四、學習方向與建議」（定位、simulation speed 案例追問、學習優先順序、履歷措辭、不要做的事），並同步更新第三部分缺口表。
@@ -10,6 +15,7 @@
 - 2026-10-13: 使用者回答 `mediatek/prep-notes.md` 第二部分的自我檢查問題（見下方結論）。
 
 ## In progress
+- 向 HR 確認技術面形式：是否有手寫 coding、題型（C/C++ 基礎、演算法、bit 操作）、是否以英文進行。結果決定 `tasks/learning-plan.md` 第 10 項的練習量。投遞後才能確認。
 - 複習順序：C++14 → TLM-2.0 → VDK 流程（尚未開始勾選）。
 
 ## Blocked / open questions

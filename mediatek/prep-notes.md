@@ -72,7 +72,7 @@ Skills 有列 AXI / AHB / APB / CHI，但 bullet 裡沒有實際證據。
 
 ### 定位
 - 主投 VDK Modeling Engineer。你的實際強項是 IP model + VDK 整合 + 優化 simulation speed。
-- SystemC Modeling Designer（bus 建模、效能分析）與純效能驗證類吻合度低，除非補上下面的小專案，否則不主投。
+- SystemC Modeling Designer（bus 建模、效能分析）與純效能驗證類吻合度較低（Designer 68 分屬 B 級可投，Performance 驗證 58 分屬 C 級），除非補上下面的小專案，否則不主投。完整評分見 `JD/fit-ranking.md`。
 
 ### 要能講的案例：simulation speed 優化（msg IP）
 - 做法：用 VDK top-down profiling 與 valgrind 找到每個 clock cycle 都 `wait()` 造成的不必要喚醒，改成 `wait(time, SC_MS)` 等較粗的時間單位。
@@ -92,6 +92,8 @@ Skills 有列 AXI / AHB / APB / CHI，但 bullet 裡沒有實際證據。
 | 4 | Bus 建模 | 從整合者提升到會寫簡單 interconnect | 個人小專案：一個 router（address decoder）加簡單 arbiter 的 TLM model，2 initiator 對 3 target，附測試。做完才可在履歷寫 bus 建模 |
 | 5 | 效能建模入門 | 能解釋 latency / throughput 如何加到 model | 在上面的 router 加固定 latency 與 bandwidth 限制，用 trace 量出差異 |
 | 6 | CI | 能講自己的 CI 流程 | 整理個人專案 CI 的工具與觸發方式，面試時能說明 |
+
+第 7 項以後（AI / NPU、記憶體系統、RTL）以及跨 JD 的缺口排序，見 `tasks/learning-plan.md`。
 
 ### 何時可以投效能相關職缺
 只讀完清單不夠，效能類看的是做過什麼。以下全部達成才算：
