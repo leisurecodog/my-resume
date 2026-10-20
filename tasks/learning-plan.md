@@ -7,7 +7,7 @@ VDK 面試複習（C++14、TLM-2.0、VDK 流程）的細項清單在 `mediatek/p
 
 | 順序 | 主題 | 目標 | 細節與做法 | 影響的職缺 |
 |---|---|---|---|---|
-| 1 | C++14 | 能說明自己 model 的類別設計 | `mediatek/prep-notes.md` 第一部分與第四部分 | VDK、耐能 C-Model（OOP / 設計模式） |
+| 1 | C++14 | 能說明自己 model 的類別設計，並能手寫 C++11/14 常考寫法 | `mediatek/prep-notes.md` 第一部分與第四部分；動手練習見下方「第 1 項：C++11/14 最小練習」 | VDK、耐能 C-Model（OOP / 設計模式） |
 | 2 | TLM-2.0 LT、DMI、quantum | 能畫出 read/write 流程並解釋加速原理 | 同上 | VDK 兩份 |
 | 3 | AT / non-blocking | 能說明四個 phase 與回傳值 | 同上，第四部分第 3 項 | VDK（加分）、Designer、Performance 驗證 |
 | 4 | Bus 建模 | 會寫簡單 interconnect | 同上，第四部分第 4 項（router + arbiter 小專案） | Designer、Performance 驗證、群聯、記憶體系統 |
@@ -20,6 +20,28 @@ VDK 面試複習（C++14、TLM-2.0、VDK 流程）的細項清單在 `mediatek/p
 | 11 | Co-sim 框架與 bit-true 驗證 | 能說明 C model 與 RTL 如何通訊、同步與自動比對，並解釋定點與浮點差異 | 讀 DPI-C / PLI 基礎，做一個小範例（C model 與簡單 RTL module 以 DPI-C 互呼並比對輸出）；讀 fixed-point 表示與捨入、溢位處理；整理過去 CModel vs RTL 驗證中自己負責的部分 | 耐能 Co-Sim（4 項必要缺口都在此）、千逢、耐能 C-Model |
 | 12 | VDK 流程與 debug | 能講清楚 FW 在 VDK 上出 bug 時的 debug 流程 | 依 `mediatek/prep-notes.md` 第三部分清單；實際整理一個你處理過的 bug（現象、gdb / log / trace 怎麼用、root cause、怎麼確認修好）作為可講的案例 | VDK 兩份（JD 第 4 條 solid debugging skills） |
 | 13 | Computer architecture 與 ACE / CHI | 能說明 cache 階層、coherency、memory ordering，以及 CHI 一次 read / write 的交易流程 | 複習 cache（associativity、write policy）、MESI、memory ordering；讀 CHI 交易流程（requester / home / snoop）並準備一個能講的案例。你有 spec 閱讀與 IP 接線，目標是「familiar」層級 | Performance 驗證（條件 2、3 是必要的「familiar」）、群聯、記憶體系統 |
+
+## 第 1 項：C++11/14 最小練習
+
+C++11 已讀過、C++14 是小改版（約 1 到 2 天讀完），但兩者都只有讀、沒有實際寫過。只讀過的話，口頭概念題大致可以過，手寫題和實務追問容易卡住，所以補一輪最小量的動手練習（約 3 到 5 天）。
+
+C++14 要會的差異：`std::make_unique`（以及為什麼不直接 `new`）、lambda init capture（`[p = std::move(ptr)]`）、generic lambda（`auto` 參數）、放寬的 `constexpr`。知道就好：回傳型別推導與 `decltype(auto)`、binary literal 與數字分隔符（`0b1010`、`1'000'000`，可接第 10 項的 bit 操作）、chrono literals。
+
+| 步驟 | 練習 | 涵蓋 |
+|---|---|---|
+| 1 | 手寫資源類別 `Buffer`（包 `new[]` 陣列），寫完 rule of five 並加 `noexcept`，放進 `std::vector` 觀察 resize 時呼叫 move 還是 copy | move semantics、RAII、`noexcept`（面試最常考） |
+| 2 | 把 `Buffer` 改成用 `std::unique_ptr` 管理 | rule of zero、smart pointer |
+| 3 | `std::sort`、`std::find_if` 搭配 lambda；練 capture by value / by reference / init capture，最後把 `unique_ptr` move 進 lambda | lambda、C++14 init capture |
+| 4 | 寫一個小的 TLM initiator / target，刻意用 `auto`、range-for、lambda、`make_unique` | C++ 與第 2 項 TLM 一起複習，面試可講「在 TLM model 裡這樣用」 |
+
+練習方式：
+- 每個 C++14 特性分別用 `-std=c++11` 與 `-std=c++14` 編譯，看 C++11 的錯誤訊息，記住它補的是什麼洞。
+- 至少一部分練習不開 IDE 補全，模擬手寫。
+- 編譯加 `-Wall -Wextra -fsanitize=address`。
+- 每題寫完用一句話講出「這個特性解決什麼問題」，當作口頭回答練習。
+- 教材：*Effective Modern C++* 第 4 章（smart pointers）、第 5 章（move）、第 6 章（lambda）；細節查 cppreference 的 C++14 頁面。
+- SystemC 3.0 要求 C++17。面試時若得知對方用 3.0，再花約半天看 `std::optional`、structured bindings、`if constexpr`。
+- 若向 HR 確認技術面有手寫 coding，練習量要增加，並與第 10 項一起練。
 
 ## 缺口統計（對應上表）
 
