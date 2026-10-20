@@ -72,7 +72,7 @@ Skills 有列 AXI / AHB / APB / CHI，但 bullet 裡沒有實際證據。
 
 ### 定位
 - 主投 VDK Modeling Engineer。你的實際強項是 IP model + VDK 整合 + 優化 simulation speed。
-- SystemC Modeling Designer（bus 建模、效能分析）與純效能驗證類吻合度較低（Designer 68 分屬 B 級可投，Performance 驗證 58 分屬 C 級），除非補上下面的小專案，否則不主投。完整評分見 `JD/fit-ranking.md`。
+- SystemC Modeling Designer（bus 建模、效能分析）與 Performance 驗證吻合度較 VDK 低，但都是 B 級可投（Designer 68、Performance 驗證 70；2026-10-20 重評，Performance 原 58，條件區只要求「familiar」，sign-off 與 cycle approximate model 是職責不是資格）。AI 處理器建模 62（C 級上緣，RTL design 是唯一非加分條件）。純效能分析類仍需面試時誠實說明範圍。完整評分見 `JD/fit-ranking.md`。
 
 ### 要能講的案例：simulation speed 優化（msg IP）
 - 做法：用 VDK top-down profiling 與 valgrind 找到每個 clock cycle 都 `wait()` 造成的不必要喚醒，改成 `wait(time, SC_MS)` 等較粗的時間單位。

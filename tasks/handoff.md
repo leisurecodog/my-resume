@@ -2,10 +2,12 @@
 
 ## Current state
 - 針對聯發科 SystemC/TLM Modeling Engineer (VDK) 備戰，學習順序見 `mediatek/prep-notes.md`。
+- 複習進度：C++11 已複習，C++14 差異待看；目前進行 TLM-2.0 LT、Quantum、DMI 複習。
 - 使用者已回答缺口問題，結論在 `progress.md`，並已寫進 `mediatek/prep-notes.md` 第三部分（缺口表）與第四部分（學習方向與建議）。
 - 已完成：四份履歷的 AMBA 措辭改為整合與 spec 閱讀層級（見 `progress.md`）；`prep-notes.md` 第三部分 CI/CD 說法已改為「個人專案自己架過 CI，工作上沒用過」。
 
 ## Files touched
+- 2026-10-20：`JD/fit-ranking.md`（全面重評、重新編號、截斷註記更正）、`mediatek/prep-notes.md`（定位段分數）、`tasks/learning-plan.md`（新增第 13 項 computer architecture 與 ACE/CHI）、`tasks/progress.md`、`tasks/lesson.md`。
 - `tasks/learning-plan.md`（新增第 10–12 項）、`tasks/progress.md`（新增待辦：向 HR 確認技術面形式）
 - `tasks/learning-plan.md`（新增）、`mediatek/prep-notes.md`（第 7–9 項移出）、`CLAUDE.md`（Layout 兩處）
 - `mediatek/prep-notes.md` 第四部分學習優先順序（新增 AI/NPU、記憶體系統、RTL 三項與缺口統計）
@@ -19,6 +21,9 @@
 - `mediatek/resume-mediatek-vdk.tex`（加一條 bullet）與重新編譯的 `mediatek/resume-mediatek-vdk.pdf`
 
 ## Next steps
+- 新排名（`JD/fit-ranking.md`，編號已重排）：#1–2 VDK 92、#3 耐能 Co-Sim 71、#4 Performance 70、#5 Designer 68、#6 耐能 C-Model 67、#7 群聯竹南 66、#8 AI 處理器 62。使用者對 Performance 與 AI 處理器有興趣，建議跟 VDK 一起投；尚未做這兩份的客製履歷（可放 `mediatek/`），使用者要求才動。
+- 被截斷、投遞前須到 104 看完整條件的 JD：6G/5G、群聯兩份、耐能三份、晶心、Designer、記憶體系統。其餘六份條件區完整。
+- `tasks/learning-plan.md` 的職缺名稱對照仍有效（用名稱而非編號），不需改。
 - 學習順序以 `tasks/learning-plan.md` 為準；第 1–6 項的細項仍在 `mediatek/prep-notes.md`，改動時兩邊對照。
 - `JD/fit-ranking.md` 缺口表的「補法」是準備方向，不是履歷可寫的經驗；做完小專案後再回頭改分數與缺口。
 - 評分只依 PDF 可見文字；多份 JD 在「顯示全部」處被截斷（01、06、07、09、10、11、14、15），投遞前到 104 看完整條件再校正分數。

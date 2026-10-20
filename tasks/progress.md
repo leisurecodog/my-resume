@@ -1,6 +1,8 @@
 # Progress
 
 ## Done
+- 2026-10-20: `tasks/learning-plan.md` 新增第 13 項（Computer architecture 與 ACE/CHI，對應 Performance 驗證條件 2、3），第 9 項說明與建議做法依重評更新。
+- 2026-10-20: 重讀 `JD/` 全部 15 份 PDF 並重評 `JD/fit-ranking.md`：Performance 驗證 58→70（B）、AI 處理器建模 55→62（C 上緣）、VDK 第 2 份 90→92、記憶體系統 50→55、6G/5G 38→40，其餘不變；排名與編號重排；截斷註記更正（VDK 兩份、Performance、AI、千逢、百仕聯條件區其實完整；被截斷的是 6G、群聯兩份、耐能三份、晶心、Designer、記憶體）。`mediatek/prep-notes.md` 定位段同步。
 - 2026-10-13: `tasks/learning-plan.md` 新增第 10 項（C/C++ 基礎題與 bit 操作）、第 11 項（Co-sim 框架與 bit-true 驗證）、第 12 項（VDK 流程與 debug），並補缺口統計與建議做法。
 - 2026-10-13: 新增 `tasks/learning-plan.md`（跨 JD 學習順序與缺口統計），`mediatek/prep-notes.md` 第四部分移除第 7–9 項與統計表並指向該檔；CLAUDE.md 同步。
 - 2026-10-13: 把 JD 缺口共通項排序寫進 `mediatek/prep-notes.md` 第四部分「學習優先順序」（新增第 7–9 項與缺口統計表）。
@@ -15,9 +17,10 @@
 - 2026-10-13: 使用者回答 `mediatek/prep-notes.md` 第二部分的自我檢查問題（見下方結論）。
 
 ## In progress
+- 複習進行中：
+  - C++11 已讀（C++14 差異待補：`std::make_unique`、generic lambda、放寬的 `constexpr` 等）。
+  - TLM-2.0 複習中：LT (`b_transport`)、Quantum (temporal decoupling)、DMI。
 - 向 HR 確認技術面形式：是否有手寫 coding、題型（C/C++ 基礎、演算法、bit 操作）、是否以英文進行。結果決定 `tasks/learning-plan.md` 第 10 項的練習量。投遞後才能確認。
-- 複習順序：C++14 → TLM-2.0 → VDK 流程（尚未開始勾選）。
-
 ## Blocked / open questions
 - simulation speed 案例：加速倍數忘記了，只確定有變快。可從舊 profiling 報告、commit 紀錄或同事回憶找數字；找不到就不寫數字。
 - 文件：只寫過 msg IP 的文件，平台層沒寫過（與先前「三種都寫過」對照，以此為準）。

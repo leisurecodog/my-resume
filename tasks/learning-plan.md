@@ -15,10 +15,11 @@ VDK 面試複習（C++14、TLM-2.0、VDK 流程）的細項清單在 `mediatek/p
 | 6 | CI | 能講自己的 CI 流程 | 同上，第四部分第 6 項 | VDK（職責 5）、晶心 |
 | 7 | AI / NPU 基礎 | 能說明 CNN / Transformer 的 compute 與 memory 需求、operator tiling | 讀 PyTorch operator 流程；手算 matmul tiling 的 buffer 與頻寬；寫一個 conv 的 C model。長期項目 | 群聯兩份、耐能 C-Model、MediaTek AI 處理器建模、千逢 |
 | 8 | 記憶體系統 | 能說明 DRAM bank / row buffer 與 roofline | 讀 DRAM 時序基礎，把 roofline 套到一個 workload | MediaTek 記憶體系統架構 |
-| 9 | RTL 小專案 | 能寫簡單 RTL 並與自己的 C model 比對 | 用同一個 router 或 DMA 寫 RTL，與 TLM 版本比對 | MediaTek AI 處理器建模（必要）、Performance 驗證（加分） |
+| 9 | RTL 小專案 | 能寫簡單 RTL 並與自己的 C model 比對 | 用同一個 router 或 DMA 寫 RTL，與 TLM 版本比對 | MediaTek AI 處理器建模（條件 1 必要，但未寫年資與程度，可先用 CModel vs RTL 驗證經驗說明，不必等做完才投）、Performance 驗證（加分） |
 | 10 | C/C++ 基礎題與 bit 操作 | 能在白板上寫出並解釋基礎題與 register field 操作 | C/C++：pointer 與 reference、memory layout、`virtual` 與 vtable、copy / move、`volatile`、`const`、struct 對齊。Bit：mask、set / clear field、endianness、位址對齊。再加約 20 到 30 題簡單到中等的 LeetCode（C++，陣列、字串、linked list、hash map、queue / stack），不練 DP 與進階 graph。每週 2 到 3 題維持手感，面試前兩週加量，總量不超過學習時間約 15% | 所有職缺的技術面（群聯、耐能、千逢較可能出現手寫題） |
 | 11 | Co-sim 框架與 bit-true 驗證 | 能說明 C model 與 RTL 如何通訊、同步與自動比對，並解釋定點與浮點差異 | 讀 DPI-C / PLI 基礎，做一個小範例（C model 與簡單 RTL module 以 DPI-C 互呼並比對輸出）；讀 fixed-point 表示與捨入、溢位處理；整理過去 CModel vs RTL 驗證中自己負責的部分 | 耐能 Co-Sim（4 項必要缺口都在此）、千逢、耐能 C-Model |
 | 12 | VDK 流程與 debug | 能講清楚 FW 在 VDK 上出 bug 時的 debug 流程 | 依 `mediatek/prep-notes.md` 第三部分清單；實際整理一個你處理過的 bug（現象、gdb / log / trace 怎麼用、root cause、怎麼確認修好）作為可講的案例 | VDK 兩份（JD 第 4 條 solid debugging skills） |
+| 13 | Computer architecture 與 ACE / CHI | 能說明 cache 階層、coherency、memory ordering，以及 CHI 一次 read / write 的交易流程 | 複習 cache（associativity、write policy）、MESI、memory ordering；讀 CHI 交易流程（requester / home / snoop）並準備一個能講的案例。你有 spec 閱讀與 IP 接線，目標是「familiar」層級 | Performance 驗證（條件 2、3 是必要的「familiar」）、群聯、記憶體系統 |
 
 ## 缺口統計（對應上表）
 
@@ -35,7 +36,7 @@ VDK 面試複習（C++14、TLM-2.0、VDK 流程）的細項清單在 `mediatek/p
 ## 建議做法
 
 - 第 3 到 5 項用同一個 router 專案串起來（AT 版本、interconnect、latency 量測），第 9 項再沿用同一個 router 寫 RTL。
-- 第 7、8 項等前面做完再開始。
+- 第 7、8 項等前面做完再開始。第 13 項在第 5 項之後做，準備投 Performance 驗證前完成（該職缺 2026-10-20 重評為 70 分 B 級，不必等學完才投，面試前補上即可）。
 - 第 10、12 項跟著第 1、2 項一起準備（VDK 是主投）；第 11 項在第 5 項之後、準備投耐能 Co-Sim 前完成。
 - 投遞後向 HR 確認技術面形式，再決定第 10 項要加多少量（見 `tasks/progress.md`）。
 - 做完才可在履歷寫對應能力，且標明是個人專案（規則見 `mediatek/prep-notes.md`「何時可以投效能相關職缺」）。
@@ -43,4 +44,4 @@ VDK 面試複習（C++14、TLM-2.0、VDK 流程）的細項清單在 `mediatek/p
 
 ## 進度
 
-- [ ] 1 C++14　[ ] 2 TLM-2.0　[ ] 3 AT　[ ] 4 Bus　[ ] 5 效能建模　[ ] 6 CI　[ ] 7 AI/NPU　[ ] 8 記憶體系統　[ ] 9 RTL　[ ] 10 C/C++ 基礎與 bit　[ ] 11 Co-sim 與 bit-true　[ ] 12 VDK debug
+- [ ] 1 C++14　[ ] 2 TLM-2.0　[ ] 3 AT　[ ] 4 Bus　[ ] 5 效能建模　[ ] 6 CI　[ ] 7 AI/NPU　[ ] 8 記憶體系統　[ ] 9 RTL　[ ] 10 C/C++ 基礎與 bit　[ ] 11 Co-sim 與 bit-true　[ ] 12 VDK debug　[ ] 13 Computer architecture 與 ACE/CHI
