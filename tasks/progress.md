@@ -1,6 +1,7 @@
 # Progress
 
 ## Done
+- 2026-10-21: `study/tlm-quiz.md` 新增「選擇題」段（MC1–MC22：L1 6 題、L2 10 題、L3 6 題，放在口述題 Q1–Q8 之前），涵蓋 generic payload 預設值與 response status、`delay` 累加、bus 位址與延遲、`tlm_quantumkeeper`（忘了 `reset()`、對齊整數倍、預設 quantum 為 0）、`transport_dbg`、b/nb 轉換、extension、引用計數、multi socket id、AT 的 return path、`TLM_COMPLETED`、temporal decoupling 的因果問題、`SC_METHOD` 呼叫 `b_transport`、DMI 與領先時間。22 題程式碼用腳本抽出編譯執行，輸出與答案逐行比對一致，並對照 SystemC 2.3.3 原始碼（核對範圍在該段末尾的驗證紀錄）。
 - 2026-10-21: `study/systemc-core-quiz.md` 新增「選擇題」段（MC1–MC23：L1 7 題、L2 10 題、L3 6 題，放在問答題之前）。從檔案抽出程式碼用腳本編譯執行，22 題的輸出與答案區塊逐行比對全部一致（MC23 是 wall-clock，另跑兩個版本確認喚醒次數）。
 - 2026-10-21: `study/cpp11-14-quiz.md` 新增「選擇題」段（MC1–MC25，L1 8 題、L2 11 題、L3 6 題，放在檔案最前面），問答題與手寫題移到後面並加分隔標題。每題程式碼與結論在本機 g++ 實跑（含 ASan、-std=c++11 對照、volatile/atomic 計數實驗）。
 - 2026-10-21: 增加漸進式難度的考題。`study/cpp11-14-quiz.md` 新增第零模組（L1-1 auto/range-for、L1-2 nullptr/enum class/override、L1-3 左值右值與 std::move、L1-4 unique_ptr、L2-1 copy/move 輸出預測、L2-2 lambda 懸空參考、L2-3 shared_ptr 循環參考、L2-4 Rule of Zero 動手題），舊題 Q1–Q15、C1–C2 標上 L3/L4。新增 `study/systemc-core-quiz.md`（L1-1–L1-3、L2-1–L2-3、L3-1 scheduler 口述、L4-1 msg IP simulation speed）。L2 預測輸出與 L4 的 wall-clock 數字都在本機實跑；L2-4 的測試以私下寫的參考解驗證（舊版會觸發 4 個 static_assert）。

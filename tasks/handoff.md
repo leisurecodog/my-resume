@@ -7,6 +7,7 @@
 - 已完成：四份履歷的 AMBA 措辭改為整合與 spec 閱讀層級（見 `progress.md`）；`prep-notes.md` 第三部分 CI/CD 說法已改為「個人專案自己架過 CI，工作上沒用過」。
 
 ## Files touched
+- 2026-10-21（TLM 選擇題）：`study/tlm-quiz.md`（新增 MC1–MC22，放在 Q1 之前）、`CLAUDE.md`（study/ 一行）、`tasks/progress.md`、`tasks/handoff.md`、`tasks/lesson.md`。
 - 2026-10-21（SystemC 選擇題）：`study/systemc-core-quiz.md`（新增 MC1–MC23）、`CLAUDE.md`（study/ 一行）、`tasks/progress.md`、`tasks/handoff.md`、`tasks/lesson.md`。
 - 2026-10-21（選擇題）：`study/cpp11-14-quiz.md`（新增 MC1–MC25，放在問答題之前）、`tasks/progress.md`、`tasks/handoff.md`、`tasks/task.md`。
 - 2026-10-21（難度分級題庫）：`study/cpp11-14-quiz.md`（新增第零模組 L1–L2、舊題補級別標籤、難度分級說明、驗證紀錄）；新增 `study/systemc-core-quiz.md`；`CLAUDE.md`（study/ 一行）、`tasks/task.md`、`tasks/progress.md`、`tasks/handoff.md`、`tasks/lesson.md`。
@@ -28,6 +29,7 @@
 
 ## Next steps
 - 新題庫：先做 `study/cpp11-14-quiz.md` 選擇題 MC1–MC25（可自己手打程式碼驗證），再做第零模組 L1→L2，L2-4（Rule of Zero）自己寫完貼來 review，不要先給解。接著 `study/systemc-core-quiz.md` 先做選擇題 MC1–MC23，再由問答題 L1 往 L4。使用者做完後再補 TLM-2.0 的 L1–L2（入門與 AT 細節），並把口試結果記回各檔的「上次的弱點」。
+- `study/tlm-quiz.md` 先做選擇題 MC1–MC22（可自己手打程式碼驗證），再做口述題 Q1–Q8。
 - TLM-2.0 口試已做一輪（結果在 `progress.md` Done 2026-10-20）。下次複習要練「元件、事件、軟體看到的現象」三段式具體情境（例如 DMA+CPU contention、boot remap、debugger watchpoint、DMA 完成 interrupt 延遲），以及 30 秒講完 `b_transport` 完整路徑。`study/tlm-quiz.md` 已補 Q6–Q8（`transport_dbg`、socket binding、payload 進階），尚未口試。Q7 第 4 小題要使用者用自己 msg IP 接 bus 的實際細節回答，不要替使用者編。可以再口試一輪，重點放 Q6–Q8 與 AT 細節（`tlm_sync_enum`、fw/bw 各走哪些 phase）。
 - C++：利用 `study/cpp11-14-quiz.md` 口頭與白板自測，並依 `tasks/learning-plan.md`「第 1 項：C++11/14 最小練習」做 4 步練習（Buffer rule of five → unique_ptr → lambda → 小 TLM initiator/target），第 4 步可與 TLM-2.0 複習合併。
 - 新排名（`JD/fit-ranking.md`，編號已重排）：#1–2 VDK 92、#3 耐能 Co-Sim 71、#4 Performance 70、#5 Designer 68、#6 耐能 C-Model 67、#7 群聯竹南 66、#8 AI 處理器 62。使用者對 Performance 與 AI 處理器有興趣，建議跟 VDK 一起投；尚未做這兩份的客製履歷（可放 `mediatek/`），使用者要求才動。
