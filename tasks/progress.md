@@ -1,6 +1,8 @@
 # Progress
 
 ## Done
+- 2026-10-21: 增加漸進式難度的考題。`study/cpp11-14-quiz.md` 新增第零模組（L1-1 auto/range-for、L1-2 nullptr/enum class/override、L1-3 左值右值與 std::move、L1-4 unique_ptr、L2-1 copy/move 輸出預測、L2-2 lambda 懸空參考、L2-3 shared_ptr 循環參考、L2-4 Rule of Zero 動手題），舊題 Q1–Q15、C1–C2 標上 L3/L4。新增 `study/systemc-core-quiz.md`（L1-1–L1-3、L2-1–L2-3、L3-1 scheduler 口述、L4-1 msg IP simulation speed）。L2 預測輸出與 L4 的 wall-clock 數字都在本機實跑；L2-4 的測試以私下寫的參考解驗證（舊版會觸發 4 個 static_assert）。
+- 2026-10-21: 整理 C++11 / C++14 面試與核心觀念題庫（`study/cpp11-14-quiz.md`，涵蓋智慧指標與 control block、Move semantics 與 noexcept 原理、Lambda/std::function 性能陷阱、C++14 特性如 make_unique/init capture/generic lambda/constexpr 放寬、atomic vs volatile、手寫 Buffer 與 Code Review 題，共 15 題問答 + 2 題手寫實作題，均附可折疊式詳細參考答案）。派發 3 位 subagent 針對 ISO C++11/C++14 標準條文與編譯器底層審查，修正 2 處事實失準（auto 函式回傳值推導為 C++14、move-only 類別於 vector resize 之降級行為），並強化 Copy-and-Swap、decltype(auto) 懸空引用等陷阱，核對紀錄寫在該檔末。
 - 2026-10-20: TLM-2.0 LT / quantum / DMI 口試 5 題（路徑、LT vs AT、quantum 代價、DMI 生命週期、總結）。機制觀念完整，Q2–Q4 達面試水準；Q1 第一次答得太簡略（payload 欄位、bus 也加 delay、兩種 wait 做法）。共通弱點：題目要具體情境時只給類別。Q5 「資料內容是準的」與 Q3 自己舉的讀到舊資料矛盾，需加前提（軟體正確同步、peripheral 存取前 sync）。題目與參考答案整理在 `study/tlm-quiz.md`，之後補了 Q6 `transport_dbg`、Q7 socket 與 binding、Q8 generic payload 進階（尚未口試）。Q4、Q6–Q8 已對照本機 SystemC 2.3.3 原始碼核對並修正，結果在檔案末的「核對紀錄」。
 - 2026-10-20: `tasks/learning-plan.md` 第 1 項新增「C++11/14 最小練習」小節（C++14 差異清單、4 步動手練習、練習方式），因為 C++11/14 目前只讀過、沒實際寫過。
 - 2026-10-20: `tasks/learning-plan.md` 新增第 13 項（Computer architecture 與 ACE/CHI，對應 Performance 驗證條件 2、3），第 9 項說明與建議做法依重評更新。
@@ -19,8 +21,8 @@
 - 2026-10-13: 使用者回答 `mediatek/prep-notes.md` 第二部分的自我檢查問題（見下方結論）。
 
 ## In progress
-- 複習進行中：
-  - C++11 已讀（C++14 差異待補：`std::make_unique`、generic lambda、放寬的 `constexpr` 等）。只讀過、沒寫過，下一步做 `tasks/learning-plan.md`「第 1 項：C++11/14 最小練習」的 4 步（約 3 到 5 天）。
+  - 使用者要依序做新題：C++ 第零模組 L1→L2（L2-4 要自己寫並貼來 review），SystemC 核心 L1→L4；L3-1、L4-1 第 3 點要用自己的案例回答，不要替使用者編。
+  - C++11/14 考題已整理完畢（`study/cpp11-14-quiz.md`），進行題目演練並搭配 `tasks/learning-plan.md`「第 1 項：C++11/14 最小練習」的 4 步動手練習。
   - TLM-2.0 複習中：LT (`b_transport`)、Quantum (temporal decoupling)、DMI。2026-10-20 口試已過一輪（見 Done），剩下補每個概念的具體情境，並用 C++ 練習第 4 步實作驗證。
 - 向 HR 確認技術面形式：是否有手寫 coding、題型（C/C++ 基礎、演算法、bit 操作）、是否以英文進行。結果決定 `tasks/learning-plan.md` 第 10 項與 C++11/14 最小練習的練習量。投遞後才能確認。
 ## Blocked / open questions
