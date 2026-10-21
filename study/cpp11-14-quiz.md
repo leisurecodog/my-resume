@@ -4,11 +4,12 @@
 
 用法：先看題目，嘗試在紙上或白板口頭作答/手寫，再展開 `<details><summary>參考答案</summary>` 對照。每題標記常考公司/類型（觀念題、手寫題、陷阱題）。
 
-**難度分級**（標在每題標題後）：L1 學習（看懂概念，附提示）→ L2 應用（預測輸出、找錯、動手改）→ L3 面試（開放式問答與白板題）→ L4 深入（陷阱、效能、原理）。建議從第零模組（L1–L2）開始，再做第一模組之後的 L3、L4 題。
+**難度分級**（標在每題標題後）：L1 學習（看懂概念，附提示）→ L2 應用（預測輸出、找錯、動手改）→ L3 面試（開放式問答與白板題）→ L4 深入（陷阱、效能、原理）。建議順序：先做選擇題（MC1–MC25，由淺到深），再做「問答題與手寫題」：第零模組（L1–L2），最後是第一模組之後的 L3、L4 題。
 
 ---
 
 ## 目錄
+- [選擇題：先建立直覺 (MC1–MC25)](#選擇題先建立直覺mc1mc25)（先做這一段，再做下面的問答題）
 - [第零模組：L1 入門 與 L2 應用 (L1-1–L1-4、L2-1–L2-4)](#第零模組l1-入門-與-l2-應用)
 - [第一模組：記憶體管理與智慧指標 (Q1–Q3)](#第一模組記憶體管理與智慧指標)
 - [第二模組：Move Semantics、右值與生命週期 (Q4–Q6)](#第二模組move-semantics右值與生命週期)
@@ -16,6 +17,719 @@
 - [第四模組：物件導向、型別推導與編譯期計算 (Q10–Q13)](#第四模組物件導向型別推導與編譯期計算)
 - [第五模組：底層系統、並行與 Bit 操作 (Q14–Q15)](#第五模組底層系統並行與-bit-操作)
 - [第六模組：白板手寫實作題 (C1–C2)](#第六模組白板手寫實作題)
+
+---
+
+## 選擇題：先建立直覺（MC1–MC25）
+
+只讀過沒寫過的人，最快的學法是「先猜、再看編譯器怎麼說」。這一段全是單選題，由淺到深。建議做法：
+
+1. 先在紙上選答案，不要馬上展開。
+2. 展開後看每個選項為什麼對或錯。
+3. 挑幾題自己把程式碼打進編譯器跑一遍（指令：`g++ -std=c++14 -Wall x.cpp -o x && ./x`），看輸出是不是跟你猜的一樣。**手打一次比讀十次有用。**
+
+每題的程式碼與結論都在本機用 g++（`-std=c++14`，另有標明的除外）實際編譯、執行過，驗證紀錄在文末。
+
+---
+
+### 入門（L1）
+
+#### MC1：`auto` 推導出什麼型別？〔L1〕
+
+```cpp
+auto x = 5.0f * 2;
+```
+
+`x` 的型別是？
+
+- A. `int`
+- B. `float`
+- C. `double`
+- D. `long`
+
+<details>
+<summary>答案</summary>
+
+**B. `float`。** `5.0f` 是 `float`，`2` 是 `int`，運算時 `int` 被轉成 `float`，結果是 `float`。`auto` 只是照運算式的型別，不會自己「升級」成 `double`。要 `double` 要寫 `5.0`。
+
+</details>
+
+---
+
+#### MC2：`auto`、`auto&`、`decltype` 對 `const` 的處理〔L1〕
+
+```cpp
+const int ci = 1;
+auto a = ci;
+auto& b = ci;
+decltype(ci) c = 2;
+```
+
+哪一個變數之後可以被賦值（例如 `x = 10;`）？
+
+- A. 只有 `a`
+- B. 只有 `b`
+- C. `a` 和 `c`
+- D. 三個都可以
+
+<details>
+<summary>答案</summary>
+
+**A. 只有 `a`。**
+
+- `a` 是 `int`：`auto` 是「複製出一個新物件」，頂層 `const` 被丟掉。
+- `b` 是 `const int&`：`auto&` 綁定到 `const int` 時，`const` 會保留（不然就能透過參考改 `const` 物件了）。
+- `c` 是 `const int`：`decltype` 照原樣取型別，包含 `const`。
+
+實測用 `static_assert` 確認了三個型別。
+
+</details>
+
+---
+
+#### MC3：`enum class` 的大小〔L1〕
+
+```cpp
+enum class E  { A, B };
+enum class E8 : std::uint8_t { A };
+```
+
+`sizeof(E)` 和 `sizeof(E8)` 在一般 x86-64 g++ 上各是多少？
+
+- A. 都是 `1`
+- B. `4` 和 `4`
+- C. `8` 和 `1`
+- D. `4` 和 `1`
+
+<details>
+<summary>答案</summary>
+
+**D. `4` 和 `1`。** `enum class` 不指定時底層型別預設是 `int`（標準保證），所以 `E` 是 `sizeof(int)`（通常 4）；寫 `: std::uint8_t` 後就是 1 byte。這在寫暫存器欄位或封包格式時很有用：要控制大小就明確指定底層型別。實測輸出 `sizeof(E)=4`、`sizeof(E8)=1`。
+
+</details>
+
+---
+
+#### MC4：哪一個是 C++11 就有的？〔L1〕
+
+下面四個，哪一個在 `g++ -std=c++11` 下可以編譯？
+
+- A. `auto p = std::make_unique<int>(1);`
+- B. `auto f = [](auto a) { return a; };`
+- C. `auto x = 1; auto f = [](int a) -> int { return a; };`
+- D. `int x = 1'000;`
+
+<details>
+<summary>答案</summary>
+
+**C。** `auto` 變數和 lambda 是 C++11；其他三個是 C++14：
+
+- A：`std::make_unique` 是 C++14（C++11 有 `make_shared` 沒有 `make_unique`），實測 `'make_unique' is not a member of 'std'`。
+- B：generic lambda（lambda 參數寫 `auto`）是 C++14，實測 `use of 'auto' in lambda parameter declaration only available with '-std=c++14'`。
+- D：數字分隔符 `'` 是 C++14，C++11 模式下實測報 `missing terminating ' character`。
+
+順帶一提：`auto f(int x) { return x*2; }`（函式回傳型別推導）也是 C++14，C++11 只能寫 `-> decltype(...)`。
+
+</details>
+
+---
+
+#### MC5：`()` 和 `{}` 初始化不一樣〔L1〕
+
+```cpp
+std::vector<int> v1(3, 1);
+std::vector<int> v2{3, 1};
+int x{3.5};
+```
+
+下列敘述哪個正確？
+
+- A. `v1` 是三個 1、`v2` 是 `{3, 1}` 兩個元素，`int x{3.5}` 是編譯錯誤
+- B. `v1`、`v2` 都是 `{1, 1, 1}`，`int x{3.5}` 得到 3
+- C. `v1` 是 `{3, 1}`、`v2` 是三個 1，`int x{3.5}` 得到 3
+- D. 兩者都是 `{3, 1}`，`int x{3.5}` 是編譯錯誤
+
+<details>
+<summary>答案</summary>
+
+**A。**
+
+- `v1(3, 1)` 呼叫「個數、值」的建構子，三個 `1`（size 3）；`v2{3, 1}` 優先匹配 `std::initializer_list<int>` 建構子，元素是 `3` 和 `1`（size 2）。實測 `v1.size=3 v2.size=2`。這是 `{}` 最常見的陷阱：**只要有接受 `initializer_list` 的建構子，`{}` 會優先選它**。
+- `int x{3.5};` 是 narrowing conversion（`double` 轉 `int` 會丟資料），`{}` 初始化禁止，編譯錯誤（實測 `narrowing conversion of '3.5e+0' from 'double' to 'int'`）；`int y = 3.5;` 用 `=` 則允許（可能只有警告）。
+
+</details>
+
+---
+
+#### MC6：lambda 的 `[=]` 與 `[&]` 什麼時候讀值？〔L1〕
+
+```cpp
+int cap = 1;
+auto f = [=] { return cap; };
+cap = 2;
+std::cout << f() << "\n";
+
+auto g = [&] { return cap; };
+cap = 3;
+std::cout << g() << "\n";
+```
+
+輸出是？
+
+- A. `2`、`3`
+- B. `1`、`2`
+- C. `1`、`3`
+- D. `2`、`2`
+
+<details>
+<summary>答案</summary>
+
+**C. `1` 和 `3`。** `[=]` 在**建立 lambda 的當下**就把 `cap` 複製進去（複製的是 1），之後改外面的 `cap` 不影響它；`[&]` 存的是參考，每次呼叫才去讀 `cap` 目前的值（3）。實測輸出 `f()=1`、`g()=3`。
+
+</details>
+
+---
+
+#### MC7：智慧指標有多大？〔L1〕
+
+在 64-bit 的 g++ 上，下面四個 `sizeof` 分別是？
+
+```cpp
+sizeof(std::unique_ptr<int>)
+sizeof(std::shared_ptr<int>)
+sizeof(std::unique_ptr<int, void(*)(int*)>)
+sizeof(int*)
+```
+
+- A. `8, 8, 8, 8`
+- B. `8, 16, 8, 8`
+- C. `16, 16, 16, 8`
+- D. `8, 16, 16, 8`
+
+<details>
+<summary>答案</summary>
+
+**D. `8, 16, 16, 8`。**
+
+- `unique_ptr<int>`：預設的 deleter 是空物件，不占空間，所以跟裸指標一樣大（8）。這就是 zero-overhead。
+- `shared_ptr<int>`：兩個指標，一個指向物件、一個指向 control block（16）。
+- `unique_ptr<int, void(*)(int*)>`：deleter 是函式指標，要多存一個指標（16）。如果 deleter 是沒有捕獲的 lambda 或空的 functor，則仍是 8。
+
+實測輸出 `8 16 16 8`；無捕獲 lambda 當 deleter 實測是 8，有捕獲一個 `int` 的 lambda 是 16。
+
+</details>
+
+---
+
+#### MC8：`push_back` 和 `emplace_back` 差在哪？〔L1〕
+
+```cpp
+struct P {
+  P(int a, int b) { std::cout << "ctor "; }
+  P(const P&)     { std::cout << "copy "; }
+  P(P&&) noexcept { std::cout << "move "; }
+};
+
+std::vector<P> v;
+v.reserve(4);
+v.push_back(P(1, 2));  std::cout << "| ";
+v.emplace_back(3, 4);  std::cout << "| ";
+v.push_back({5, 6});   std::cout << "\n";
+```
+
+輸出是？（`reserve(4)` 保證沒有重新配置）
+
+- A. `ctor | ctor | ctor`
+- B. `ctor move | ctor | ctor move`
+- C. `ctor copy | ctor | ctor copy`
+- D. `ctor move | ctor move | ctor move`
+
+<details>
+<summary>答案</summary>
+
+**B。** `push_back(P(1,2))`：先在外面建一個暫時物件（`ctor`），再 move 進 vector（`move`）；`emplace_back(3,4)`：把引數直接傳給建構子，**就地建構**，只有 `ctor`；`push_back({5,6})`：`{5,6}` 先建出一個暫時的 `P`，再 move 進去。暫時物件是右值，所以是 `move` 不是 `copy`。實測輸出 `ctor move | ctor | ctor move`。
+
+注意：對於 `int`、指標這類便宜的型別，兩者沒有差別；差異在建構成本高、或不可複製的型別。
+
+</details>
+
+---
+
+### 應用（L2）
+
+#### MC9：有名字的右值參考，是左值嗎？〔L2〕
+
+```cpp
+void f(std::string&&);
+void g(std::string&& s) { f(s); }
+```
+
+這段程式的結果？
+
+- A. 編譯通過，`f` 收到右值
+- B. 編譯通過，但 `s` 會被複製一份
+- C. 編譯錯誤：不能把左值 `s` 綁定到 `std::string&&`
+- D. 執行期錯誤
+
+<details>
+<summary>答案</summary>
+
+**C。** 型別是 `std::string&&`，但 `s` 是**有名字的變數，運算式 `s` 是左值**。想轉傳要明確寫 `f(std::move(s))`（只有你確定之後不再用 `s`）或 `f(std::forward<T>(s))`（在 template 裡）。實測報 `cannot bind rvalue reference of type 'std::string&&' to lvalue of type 'std::string'`。
+
+一句話記：「看有沒有名字，有名字的就是左值，跟型別怎麼寫無關。」
+
+</details>
+
+---
+
+#### MC10：多載決議選哪一個？〔L2〕
+
+```cpp
+void f(const std::string&) { std::cout << "const&\n"; }
+void f(std::string&&)      { std::cout << "&&\n"; }
+void g(std::string&& s)    { f(s); }
+std::string make() { return "x"; }
+
+std::string s = "a";
+const std::string cs = "c";
+f(std::string("tmp"));   // (1)
+f(s);                    // (2)
+f(std::move(s));         // (3)
+f(std::move(cs));        // (4)
+f(make());               // (5)
+g(make());               // (6)
+```
+
+(1)–(6) 各印什麼？
+
+- A. `&&, const&, &&, &&, &&, &&`
+- B. `&&, &&, &&, const&, &&, &&`
+- C. `const&, const&, const&, const&, const&, const&`
+- D. `&&, const&, &&, const&, &&, const&`
+
+<details>
+<summary>答案</summary>
+
+**D。**
+
+1. 暫時物件是右值 → `&&`。
+2. `s` 是左值 → `const&`。
+3. `std::move(s)` 是右值 → `&&`。
+4. `std::move(cs)` 是 `const std::string&&`，`std::string&&` 收不下 const 右值，只能選 `const&` → `const&`（呼應 L1-3：對 `const` 物件 `std::move` 沒有效果）。
+5. `make()` 回傳暫時值 → `&&`。
+6. `g` 裡的 `s` 有名字，是左值 → `const&`（呼應 MC9）。
+
+實測輸出順序是 `&&, const&, &&, const&, &&, const&`（實測時另外多測了 `f(cs)`，結果是 `const&`）。
+
+</details>
+
+---
+
+#### MC11：`return std::move(local)` 會更快嗎？〔L2〕
+
+```cpp
+struct T { T(){ std::cout << "ctor "; } T(const T&){ std::cout << "copy "; } T(T&&) noexcept { std::cout << "move "; } };
+T a() { T t; return t; }
+T b() { T t; return std::move(t); }
+
+T x = a(); std::cout << "| ";
+T y = b();
+```
+
+輸出是？
+
+- A. `ctor | ctor move`
+- B. `ctor | ctor`
+- C. `ctor move | ctor move`
+- D. `ctor copy | ctor move`
+
+<details>
+<summary>答案</summary>
+
+**A。** `return t;` 編譯器可以做 NRVO（具名回傳值最佳化），`t` 直接建在呼叫端的 `x`，沒有 move 也沒有 copy。`return std::move(t);` 回傳的運算式不再是區域變數本身，而是一個右值參考，**NRVO 不成立**，反而多一次 move。實測輸出 `ctor | ctor move`。
+
+規則：回傳區域變數就直接 `return t;`，不要寫 `std::move`。（g++ 的 `-Wpessimizing-move` 也會警告。）
+
+</details>
+
+---
+
+#### MC12：被 move 走之後，原物件是什麼狀態？〔L2〕
+
+下列哪一個敘述正確？
+
+- A. 對 `std::string` 做了 move 之後，來源字串一定是空字串
+- B. 對 `std::vector<int>` 做 move construction 之後，來源 vector 保證是空的
+- C. moved-from 物件已經被解構，不能再賦值
+- D. moved-from 物件在 move 之後不能對它呼叫 `size()`
+
+<details>
+<summary>答案</summary>
+
+**B。** 標準對 `std::vector` 的 move constructor 保證來源會是空的。
+
+- A 錯：標準只說 `std::string` 的 moved-from 是「有效但未指定的狀態」，libstdc++ 實測剛好是空的，但不要依賴。
+- C 錯：物件還活著，只是內容被搬走；對它賦值、解構都合法。
+- D 錯：moved-from 物件是有效的，可以呼叫不需要前置條件的成員函式（如 `size()`、`empty()`）。
+
+通則：moved-from 物件只做兩件事，**賦新值、或讓它被解構**。實測 `vector moved-from size=0`。
+
+</details>
+
+---
+
+#### MC13：`auto` 搭配 `{}`〔L2〕
+
+```cpp
+auto x = {1, 2, 3};
+auto y{1};
+```
+
+在 `g++ -std=c++14` 下，`x` 和 `y` 的型別是？
+
+- A. `std::vector<int>` 和 `int`
+- B. `std::initializer_list<int>` 和 `int`
+- C. `std::initializer_list<int>` 和 `std::initializer_list<int>`
+- D. 兩者都是編譯錯誤
+
+<details>
+<summary>答案</summary>
+
+**B。** `auto x = {1,2,3}` 推導成 `std::initializer_list<int>`（這是 `auto` 唯一特別處理 `{}` 的地方，跟你直覺的 `vector` 無關）；`auto y{1}` 在採用 N3922 規則的編譯器（g++ 5 以上，包含 C++14 模式）是 `int`，更早的編譯器曾經推成 `initializer_list<int>`，這是一個「會因編譯器版本而改變」的角落，不要在程式裡依賴，要 `int` 就寫 `int y = 1;`。實測 `static_assert` 兩者皆成立。
+
+</details>
+
+---
+
+#### MC14：`unique_ptr<int>` 配上 `new int[3]`〔L2〕
+
+```cpp
+std::unique_ptr<int> p(new int[3]);
+```
+
+哪個敘述正確？
+
+- A. 編譯錯誤，因為 `new int[3]` 不是 `int*`
+- B. 編譯通過，解構時自動呼叫 `delete[]`
+- C. 編譯通過，解構時呼叫 `delete`（不是 `delete[]`），是未定義行為
+- D. 編譯通過，而且沒有任何問題，因為 `int` 是 trivial 型別
+
+<details>
+<summary>答案</summary>
+
+**C。** `new int[3]` 回傳 `int*`，所以能編譯；但 `unique_ptr<int>` 預設的 deleter 是 `delete`，與 `new[]` 不配對，是**未定義行為**，即使 `int` 是 trivial，標準也不允許。AddressSanitizer 實測報 `alloc-dealloc-mismatch (operator new [] vs operator delete)`。
+
+正確寫法是 `std::unique_ptr<int[]> p(new int[3]);`（或 `std::make_unique<int[]>(3)`，C++14），它的 deleter 是 `delete[]`。
+
+</details>
+
+---
+
+#### MC15：同一個裸指標交給兩個 `shared_ptr`〔L2〕
+
+```cpp
+auto* raw = new int(1);
+std::shared_ptr<int> p(raw), q(raw);
+```
+
+會發生什麼事？
+
+- A. 編譯錯誤
+- B. `p`、`q` 共用同一個 control block，沒有問題
+- C. 第二個建構會拋出 `std::bad_alloc`
+- D. 各自有獨立的 control block（use_count 都是 1），離開 scope 時 `raw` 被 delete 兩次
+
+<details>
+<summary>答案</summary>
+
+**D。** 每次用裸指標建構 `shared_ptr` 都會建立**新的 control block**，兩個 `shared_ptr` 互相不知道對方，各自在 count 歸零時 delete 一次，**double free**。AddressSanitizer 實測報 `attempting double-free`。
+
+規則：用 `std::make_shared` 建立；如果一定要從已有的 `shared_ptr` 拿到另一個，要用複製（`auto q = p;`），不要從 `.get()` 重新包一個。需要「在成員函式裡取得 `shared_ptr<this>`」時，用 `std::enable_shared_from_this`。
+
+</details>
+
+---
+
+#### MC16：`weak_ptr` 之後的狀態〔L2〕
+
+```cpp
+auto sp = std::make_shared<int>(1);
+std::weak_ptr<int> w = sp;
+std::cout << sp.use_count() << " " << w.use_count() << " " << w.expired() << "\n";
+sp.reset();
+std::cout << w.use_count() << " " << w.expired() << " " << (w.lock() == nullptr) << "\n";
+```
+
+兩行輸出是？（`bool` 印成 `0` / `1`）
+
+- A. `1 1 0` 和 `0 1 1`
+- B. `1 2 0` 和 `0 1 1`
+- C. `1 1 0` 和 `1 0 0`
+- D. `2 1 0` 和 `0 1 1`
+
+<details>
+<summary>答案</summary>
+
+**A。** `weak_ptr` 不增加 strong count，所以 `sp.use_count()` 和 `w.use_count()` 都是 1（`use_count` 數的是 strong reference），`expired()` 是 `false`（0）。`sp.reset()` 之後物件釋放，strong count 歸零：`w.use_count()` 是 0、`expired()` 是 `true`（1）、`w.lock()` 回傳空的 `shared_ptr`（`== nullptr` 為 1）。實測輸出 `1 1 0` 和 `0 1 1`。
+
+</details>
+
+---
+
+#### MC17：lambda 的 `mutable`〔L2〕
+
+```cpp
+int x = 0;
+auto f = [x]() mutable { return ++x; };
+std::cout << f() << " " << f() << " " << x << "\n";
+auto g = f;
+std::cout << g() << " " << f() << "\n";
+```
+
+兩行輸出是？
+
+- A. `1 2 2` 和 `3 3`
+- B. `1 2 0` 和 `1 3`
+- C. `1 1 0` 和 `1 1`
+- D. `1 2 0` 和 `3 3`
+
+<details>
+<summary>答案</summary>
+
+**D。** 值捕獲的 `x` 是 lambda 內部自己的一份複本，預設 `operator()` 是 `const`，不能改它，要加 `mutable`（沒加會編譯錯誤，實測 `increment of read-only variable 'x'`）。修改的是內部那份，外面的 `x` 仍是 0。`f()` 兩次得到 1、2；`auto g = f;` **複製整個 closure，連內部狀態（目前是 2）一起複製**，所以 `g()` 得到 3，`f()` 也得到 3。這就是為什麼「有狀態的 lambda 被複製」會出乎意料。
+
+</details>
+
+---
+
+#### MC18：range-for 遍歷 `std::map` 的隱藏複製〔L2〕
+
+```cpp
+std::map<K, int> m;   // K 是一個會計算 copy 次數的型別，m 裡有 3 個元素
+
+for (const auto& kv : m) { }                          // (1)
+for (const std::pair<K, int>& kv : m) { }             // (2)
+for (const std::pair<const K, int>& kv : m) { }       // (3)
+```
+
+三種寫法分別發生幾次 `K` 的複製？
+
+- A. (1) 0 次、(2) 3 次、(3) 0 次
+- B. 都是 0 次
+- C. (1) 3 次、(2) 3 次、(3) 0 次
+- D. (1) 0 次、(2) 0 次、(3) 3 次
+
+<details>
+<summary>答案</summary>
+
+**A。** `std::map` 的元素型別是 `std::pair<const K, int>`，key 是 `const`。(2) 寫成 `std::pair<K, int>`，型別不同，編譯器要把每個元素**轉換成一個新的暫時 pair**，每次迭代複製一次 `K`（3 個元素 = 3 次），然後 `const&` 綁到那個暫時物件上，編譯通過，沒有任何警告。(1) 用 `auto` 自動推出正確型別、(3) 寫對了，都不會複製。實測 `copies=0`、`3`、`0`。
+
+建議：遍歷 map 用 `const auto&`，不要手寫 pair 型別。
+
+</details>
+
+---
+
+#### MC19：沒有 `virtual` 解構子〔L2〕
+
+```cpp
+struct Base    { ~Base()    { std::cout << "~Base\n"; } };
+struct Derived : Base { ~Derived() { std::cout << "~Derived\n"; } };
+
+Base* b = new Derived;
+delete b;
+```
+
+哪個敘述正確？
+
+- A. 印 `~Derived`、`~Base`
+- B. 未定義行為（g++ 上通常只印 `~Base`，`Derived` 的成員沒有被解構）
+- C. 只印 `~Base`，這是定義明確的行為
+- D. 編譯錯誤
+
+<details>
+<summary>答案</summary>
+
+**B。** 透過基底類別的指標 delete 衍生類別的物件，而基底的解構子不是 `virtual`，標準規定是**未定義行為**。g++ 實測只印 `~Base`，衍生類別的部分沒有被解構，資源洩漏。把 `Base` 的解構子改成 `virtual ~Base()`，就會印 `~Derived`、`~Base`；`unique_ptr<VBase>` 持有 `new VDerived` 時也需要 `VBase` 有 virtual 解構子（實測有 virtual 時兩個都有印）。
+
+規則：只要類別有 `virtual` 函式、而且會被當基底用，解構子就要是 `virtual`。
+
+</details>
+
+---
+
+### 進階（L3）
+
+#### MC20：`vector` 擴容時會 copy 還是 move？〔L3〕
+
+```cpp
+struct A { A(){} A(const A&){ std::cout << "copy "; } A(A&&)          { std::cout << "move "; } };
+struct B { B(){} B(const B&){ std::cout << "copy "; } B(B&&) noexcept { std::cout << "move "; } };
+
+std::vector<A> va; va.reserve(1); va.emplace_back(); va.emplace_back();
+std::vector<B> vb; vb.reserve(1); vb.emplace_back(); vb.emplace_back();
+```
+
+第二次 `emplace_back` 需要重新配置，各印什麼？
+
+- A. `A` 印 `move`，`B` 印 `move`
+- B. `A` 印 `copy`，`B` 印 `copy`
+- C. `A` 印 `move`，`B` 印 `copy`
+- D. `A` 印 `copy`，`B` 印 `move`
+
+<details>
+<summary>答案</summary>
+
+**D。** 搬移元素到新記憶體時，`std::vector` 用 `std::move_if_noexcept`：move constructor 如果不是 `noexcept`、而且有可用的 copy constructor，就**選擇 copy**，才能維持 strong exception guarantee（搬到一半拋例外，舊的資料還在）。`A` 的 move 沒標 `noexcept`，所以印 `copy`；`B` 標了，所以印 `move`。實測 `A(no noexcept): copy`、`B(noexcept): move`。
+
+這就是 Q5「move constructor 為什麼一定要標 `noexcept`」的實驗版本：忘了寫 `noexcept`，程式不會錯，只是悄悄變慢。
+
+</details>
+
+---
+
+#### MC21：宣告了解構子，move 就沒了？〔L3〕
+
+```cpp
+struct X { std::vector<int> v; ~X() {} };
+struct Y { std::vector<int> v; };
+
+X a{{1,2,3}}; X b = std::move(a);
+Y c{{1,2,3}}; Y d = std::move(c);
+```
+
+`a.v.size()` 和 `c.v.size()` 各是多少？
+
+- A. `0` 和 `0`
+- B. `3` 和 `0`
+- C. `0` 和 `3`
+- D. `3` 和 `3`
+
+<details>
+<summary>答案</summary>
+
+**B。** 只要自己宣告了 destructor（即使 `{}`），編譯器就**不會隱含產生 move constructor / move assignment**，`std::move(a)` 退回到 copy constructor，`a.v` 仍是 3。`Y` 什麼都沒宣告（Rule of Zero），move 自動產生，`c.v` 被搬空變 0。實測 `X: a.v.size=3`、`Y: c.v.size=0`。
+
+規則：要嘛什麼都不寫（Rule of Zero），要嘛 5 個一起寫或 `= default`（Rule of Five）。
+
+</details>
+
+---
+
+#### MC22：init capture 搬進 lambda，能放進 `std::function` 嗎？〔L3〕
+
+```cpp
+auto p = std::make_unique<int>(5);
+auto f = [q = std::move(p)] { return *q; };
+std::function<int()> h = std::move(f);
+```
+
+結果是？
+
+- A. 編譯通過，`h()` 回傳 5
+- B. 編譯通過，但 `h()` 執行時當掉
+- C. 編譯錯誤：`std::function` 要求可呼叫物件可以複製，而 `f` 只能 move
+- D. 編譯錯誤：init capture 不能搬移 `unique_ptr`
+
+<details>
+<summary>答案</summary>
+
+**C。** init capture（C++14）可以把 `unique_ptr` 搬進 closure，沒有問題（D 錯）；closure 因此變成 move-only（可以 `auto g = std::move(f);`）。但 `std::function` 要求存進去的物件 **CopyConstructible**，實測報 `std::function target must be copy-constructible`。
+
+如果一定要型別擦除又只能 move，C++23 才有 `std::move_only_function`；C++14 可以改用 `std::shared_ptr` 捕獲，或自己寫一個 task wrapper，或用 template 參數接收 callable 而不經過 `std::function`。
+
+</details>
+
+---
+
+#### MC23：generic lambda 的回傳型別〔L3〕
+
+```cpp
+auto add = [](auto a, auto b) { return a + b; };
+```
+
+哪一個型別對應是正確的？
+
+- A. `add(1, 2)` 是 `int`；`add(1, 2.5f)` 是 `double`
+- B. `add(1, 2)` 是 `int`；`add(1, 2.5f)` 是 `float`；`add('a', 'b')` 是 `char`
+- C. 三者都是 `auto`，沒有確定型別
+- D. `add(1, 2)` 是 `int`；`add(1, 2.5f)` 是 `float`；`add('a', 'b')` 是 `int`
+
+<details>
+<summary>答案</summary>
+
+**D。** generic lambda 是個有 template `operator()` 的 closure，每種引數型別組合會實例化一份，回傳型別就是 `a + b` 的型別：`int + int = int`、`int + float = float`（算術轉換）、`char + char`：整數提升後是 `int`，不是 `char`。實測用 `static_assert` 確認；`add(1, 2.5)` 是 `double`，`add(std::string("a"), "b")` 是 `std::string`。
+
+</details>
+
+---
+
+#### MC24：`constexpr` 函式內可以寫迴圈嗎？〔L3〕
+
+```cpp
+constexpr int fact(int n) {
+  int r = 1;
+  for (int i = 2; i <= n; ++i) r *= i;
+  return r;
+}
+static_assert(fact(5) == 120, "");
+```
+
+這段在哪個標準下開始可以編譯？
+
+- A. C++11
+- B. C++14
+- C. C++17
+- D. C++20
+
+<details>
+<summary>答案</summary>
+
+**B. C++14。** C++11 的 `constexpr` 函式**只能有一個 return 敘述**（要寫遞迴），不能有區域變數、迴圈；C++14 放寬為可以有區域變數、`if`、迴圈。實測 `-std=c++11` 報 `body of 'constexpr' function ... not a return-statement`，`-std=c++14` 通過。
+
+</details>
+
+---
+
+#### MC25：`volatile` 能讓多執行緒計數安全嗎？〔L3〕
+
+```cpp
+volatile int vc = 0;
+std::atomic<int> ac{0};
+// 兩個 thread 各執行 100 萬次：
+//   vc = vc + 1;
+//   ac.fetch_add(1);
+```
+
+結果是？
+
+- A. `vc` 和 `ac` 都保證是 2000000
+- B. `vc` 保證 2000000，`ac` 不保證
+- C. `ac` 保證 2000000，`vc` 不保證（data race，未定義行為）
+- D. 兩者都不保證
+
+<details>
+<summary>答案</summary>
+
+**C。** `volatile` 只告訴編譯器「每次都要真的讀寫記憶體、不要把這個存取最佳化掉」，它**不提供原子性**（`vc = vc + 1` 是 load、加、store 三步，兩個 thread 會互相覆蓋），也不保證 thread 之間的記憶體順序；多個 thread 沒同步地存取同一個非 atomic 變數是 data race，屬未定義行為。`std::atomic` 才提供原子性與記憶體順序。
+
+在本機（`-O2`、兩個 thread）跑三次，`vc` 分別是 1954002、1884501、1933205，`ac` 每次都是 2000000。`volatile` 的正確用途是 memory-mapped I/O 暫存器之類（不是 thread 同步）。
+
+</details>
+
+---
+
+### 選擇題驗證紀錄（2026-10-21）
+
+- 環境：`g++ -std=c++14 -Wall`（MC4、MC24 另用 `-std=c++11` 對照）；MC14、MC15 用 `-fsanitize=address`；MC25 用 `-O2 -pthread`，本機 12 核心。
+- 每題的程式碼與輸出都實際執行過，答案裡引用的錯誤訊息與數字都是實測。MC25 的數字每次執行會不同，只代表「會少於 2000000」。
+- MC12 的「`std::vector` move construction 後保證為空」引用 C++ 標準對容器的規定，沒有查標準原文，本機只驗證了 libstdc++ 的行為。MC13 的 `auto y{1}` 結果依賴編譯器版本（g++ 5 以上）。
+
+---
+
+## 問答題與手寫題（從這裡開始）
+
+下面是 L1–L2 的問答 / 動手題（第零模組），以及 L3–L4 的面試問答與白板題（第一模組以後）。選擇題熟了再做這一段。
 
 ---
 

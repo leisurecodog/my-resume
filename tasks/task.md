@@ -22,4 +22,5 @@
 - [x] 更新 `tasks/task.md`、`tasks/progress.md`、`tasks/handoff.md`、`CLAUDE.md`
 - [x] 輸出考題架構與重點解析給使用者
 - [x] 加入 L1–L2 入門與應用題（C++11/14 與 SystemC 核心），預測輸出題實跑驗證
+- [x] `cpp11-14-quiz.md` 加選擇題 MC1–MC25（先選擇、後問答）
 - [ ] 使用者做完 L1–L2 後，再補 TLM-2.0 的 L1–L2（入門與 AT）
