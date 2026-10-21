@@ -7,3 +7,4 @@
 - 2026-10-20: 評分 JD 前要先確認 PDF 是否真的被截斷，並區分「條件區的資格」與「工作內容的職責」。初評把 Performance 驗證的 sign-off、cycle approximate model（只在職責）當成核心門檻，條件區其實只寫「Familiar with」，分數低估 12 分；也誤報了哪幾份被截斷。下次評分直接 `pdftotext` 讀全文並檢查「顯示全部」，不要憑記憶或舊註記。
 - 2026-10-13: 備戰筆記裡「待確認」的項目，使用者回答後要同步回 `mediatek/prep-notes.md` 的缺口表，不要只留在 `tasks/progress.md`。否則兩處的說法會不一致（例如文件類先前寫「三種都寫過」，實際只有 msg IP）。
 - 2026-10-21: 寫「預測輸出」題前先在本機實跑再寫答案。這次發現本機 SystemC library 用 C++11 編，直接用 c++14 會連結失敗；也發現 `sc_start(6,SC_NS)` 不跑 6 ns 當下的 process、wait(time, event) 參數順序是時間、單位、事件。這些憑記憶容易寫錯。給使用者的動手練習題，用私下寫的參考解驗證測試，但不放進檔案（見記憶：不給完整解）。
+- 2026-10-21: 在本機跑 SystemC 實驗時，`sc_start()` 配上永遠重排 `next_trigger` 的 `SC_METHOD` 不會結束，背景輸出檔一度暴增到 2.7GB。以後跑沒把握會停的 SystemC 程式，一律用 `sc_start(時間)` 加 `timeout`，並把輸出接到 `head`。

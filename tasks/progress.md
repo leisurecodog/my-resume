@@ -1,6 +1,7 @@
 # Progress
 
 ## Done
+- 2026-10-21: `study/systemc-core-quiz.md` 新增「選擇題」段（MC1–MC23：L1 7 題、L2 10 題、L3 6 題，放在問答題之前）。從檔案抽出程式碼用腳本編譯執行，22 題的輸出與答案區塊逐行比對全部一致（MC23 是 wall-clock，另跑兩個版本確認喚醒次數）。
 - 2026-10-21: `study/cpp11-14-quiz.md` 新增「選擇題」段（MC1–MC25，L1 8 題、L2 11 題、L3 6 題，放在檔案最前面），問答題與手寫題移到後面並加分隔標題。每題程式碼與結論在本機 g++ 實跑（含 ASan、-std=c++11 對照、volatile/atomic 計數實驗）。
 - 2026-10-21: 增加漸進式難度的考題。`study/cpp11-14-quiz.md` 新增第零模組（L1-1 auto/range-for、L1-2 nullptr/enum class/override、L1-3 左值右值與 std::move、L1-4 unique_ptr、L2-1 copy/move 輸出預測、L2-2 lambda 懸空參考、L2-3 shared_ptr 循環參考、L2-4 Rule of Zero 動手題），舊題 Q1–Q15、C1–C2 標上 L3/L4。新增 `study/systemc-core-quiz.md`（L1-1–L1-3、L2-1–L2-3、L3-1 scheduler 口述、L4-1 msg IP simulation speed）。L2 預測輸出與 L4 的 wall-clock 數字都在本機實跑；L2-4 的測試以私下寫的參考解驗證（舊版會觸發 4 個 static_assert）。
 - 2026-10-21: 整理 C++11 / C++14 面試與核心觀念題庫（`study/cpp11-14-quiz.md`，涵蓋智慧指標與 control block、Move semantics 與 noexcept 原理、Lambda/std::function 性能陷阱、C++14 特性如 make_unique/init capture/generic lambda/constexpr 放寬、atomic vs volatile、手寫 Buffer 與 Code Review 題，共 15 題問答 + 2 題手寫實作題，均附可折疊式詳細參考答案）。派發 3 位 subagent 針對 ISO C++11/C++14 標準條文與編譯器底層審查，修正 2 處事實失準（auto 函式回傳值推導為 C++14、move-only 類別於 vector resize 之降級行為），並強化 Copy-and-Swap、decltype(auto) 懸空引用等陷阱，核對紀錄寫在該檔末。
