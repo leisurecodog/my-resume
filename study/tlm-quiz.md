@@ -2,7 +2,7 @@
 
 對應 `tasks/learning-plan.md` 的 TLM-2.0 項目，完成標準：能畫出 read/write 流程並解釋加速原理。
 
-用法：先做選擇題（MC1–MC22，由淺到深，程式碼都能在本機跑），再做後面的口述題。口述題先只看題目，用講的方式回答（像在面試現場），講完再展開參考答案對照。每題最後的「上次的弱點」是 2026-10-20 第一次口試的紀錄；Q6–Q8 是之後補的，還沒考過。
+用法：先做選擇題（MC1–MC36，由淺到深，程式碼都能在本機跑；MC23 起是 AT 專題），再做後面的口述題。口述題先只看題目，用講的方式回答（像在面試現場），講完再展開參考答案對照。每題最後的「上次的弱點」是 2026-10-20 第一次口試的紀錄；Q6–Q8 是之後補的，還沒考過。
 
 情境題請用三段式回答：**元件 + 事件 + 軟體看到的現象**。
 
@@ -10,7 +10,7 @@ Q4 與 Q6–Q8 的參考答案已對照 SystemC 2.3.3 原始碼核對過（`~/cp
 
 ---
 
-## 選擇題：先建立直覺（MC1–MC22）
+## 選擇題：先建立直覺（MC1–MC36）
 
 單選題，由淺到深（L1 → L3）。做法跟其他兩份題庫一樣：先在紙上選，再展開看每個選項為什麼對或錯，最後挑幾題自己打進編譯器跑（編譯指令見下面，記得 `-std=c++11`）。
 
@@ -1408,10 +1408,973 @@ global quantum=0 s need_sync=1
 
 ---
 
+### AT 非阻塞傳輸（MC23–MC36）
+
+前面的題目以 LT（`b_transport`）為主；這一批是 AT（`nb_transport_fw/bw`、phase、`tlm_sync_enum`、payload event queue），同樣由淺到深（L1 → L3）。這批題目的程式碼比較長，因為 AT 至少要有一個 initiator 和一個 target 互相呼叫。
+
+**這一批額外需要的開頭**：除了上面的 `#include`，再加上：
+
+```cpp
+#include <tlm_utils/peq_with_get.h>
+#include <tlm_utils/peq_with_cb_and_phase.h>
+```
+
+##### 入門（L1）
+
+#### MC23：`tlm_phase` 的內容〔L1〕
+
+```cpp
+int sc_main(int, char**) {
+  tlm::tlm_phase p;
+  cout << p << " " << (unsigned)p << endl;
+  tlm::tlm_phase all[] = {tlm::BEGIN_REQ, tlm::END_REQ, tlm::BEGIN_RESP, tlm::END_RESP};
+  for (auto ph : all) cout << ph << "=" << (unsigned)ph << " ";
+  cout << endl;
+  cout << (p == tlm::UNINITIALIZED_PHASE) << (all[0] == tlm::BEGIN_REQ) << endl;
+  return 0;
+}
+```
+
+三行輸出是？
+
+- A. `BEGIN_REQ 0`；`BEGIN_REQ=0 END_REQ=1 BEGIN_RESP=2 END_RESP=3`；`11`
+- B. `UNINITIALIZED_PHASE 0`；`BEGIN_REQ=1 END_REQ=2 BEGIN_RESP=3 END_RESP=4`；`00`
+- C. `UNINITIALIZED_PHASE 0`；`BEGIN_REQ=1 END_REQ=2 BEGIN_RESP=3 END_RESP=4`；`11`
+- D. 編譯錯誤，`tlm_phase` 不能直接 `cout`
+
+<details>
+<summary>答案</summary>
+
+**C。** 標準的四個 phase 數值是 1 到 4（`tlm_phase.h`：`BEGIN_REQ=1, END_REQ, BEGIN_RESP, END_RESP`），預設建構的 `tlm_phase` 是 `UNINITIALIZED_PHASE`（0）。`tlm_phase` 是一個 class，可以隱含轉成 `unsigned int`（所以能比較），也有 `operator<<` 印出名字（`get_name()`）；`p == tlm::UNINITIALIZED_PHASE` 與 `all[0] == tlm::BEGIN_REQ` 都成立，印出 `11`。
+
+```
+UNINITIALIZED_PHASE 0
+BEGIN_REQ=1 END_REQ=2 BEGIN_RESP=3 END_RESP=4
+11
+```
+
+注意：phase 是**物件**不是裸 enum，所以可以擴充（見 MC25）；比較時用 `==`，不要自己比數字。
+
+</details>
+
+---
+
+#### MC24：`tlm_sync_enum` 的三個回傳值各代表什麼？〔L1〕
+
+```cpp
+int mode = 0;
+
+struct Target : sc_module {
+  tlm_utils::simple_target_socket<Target> socket;
+  SC_CTOR(Target) : socket("socket") {
+    socket.register_nb_transport_fw(this, &Target::nb_transport_fw);
+  }
+  tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload& gp,
+                                     tlm::tlm_phase& phase, sc_time&) {
+    switch (mode) {
+      case 0:  return tlm::TLM_ACCEPTED;
+      case 1:  phase = tlm::END_REQ; return tlm::TLM_UPDATED;
+      default: gp.set_response_status(tlm::TLM_OK_RESPONSE); return tlm::TLM_COMPLETED;
+    }
+  }
+};
+
+struct Init : sc_module {
+  tlm_utils::simple_initiator_socket<Init> socket;
+  SC_CTOR(Init) : socket("socket") { SC_THREAD(run); }
+  void run() {
+    unsigned char buf[4];
+    for (mode = 0; mode < 3; ++mode) {
+      tlm::tlm_generic_payload gp;
+      tlm::tlm_phase phase = tlm::BEGIN_REQ;
+      sc_time delay = SC_ZERO_TIME;
+      gp.set_command(tlm::TLM_READ_COMMAND);
+      gp.set_address(0);
+      gp.set_data_ptr(buf);
+      gp.set_data_length(4);
+      tlm::tlm_sync_enum r = socket->nb_transport_fw(gp, phase, delay);
+      cout << "ret=" << r << " phase=" << phase << " status=" << gp.get_response_string() << endl;
+    }
+  }
+};
+
+int sc_main(int, char**) {
+  Init i("i");
+  Target t("t");
+  i.socket.bind(t.socket);
+  sc_start();
+  return 0;
+}
+```
+
+三行輸出是？（`tlm_sync_enum` 以整數印出）
+
+- A. 三行依序 `ret=0`、`ret=1`、`ret=2`；只有第二行的 phase 變成 `END_REQ`；只有第三行的 status 變成 OK
+- B. 三行依序 `ret=1`、`ret=2`、`ret=3`；其餘相同
+- C. 三行依序 `ret=0`、`ret=1`、`ret=2`；第三行的 phase 也變成 `END_RESP`
+- D. 三行依序 `ret=0`、`ret=1`、`ret=2`；第二行的 phase 仍是 `BEGIN_REQ`，因為 `TLM_UPDATED` 不會改 phase
+
+<details>
+<summary>答案</summary>
+
+**A。** `enum tlm_sync_enum { TLM_ACCEPTED, TLM_UPDATED, TLM_COMPLETED }`（`tlm_fw_bw_ifs.h`），數值 0、1、2。三個值告訴呼叫者「接下來怎麼辦」：
+
+- `TLM_ACCEPTED`（0）：我收下了，**什麼都沒改**；之後我會用另一個方向的呼叫通知你（第一行：phase 沒變、status 還是 INCOMPLETE）。
+- `TLM_UPDATED`（1）：我已經把交易推進到新的 phase，**請看 `phase` 這個 in/out 參數**（第二行：phase 變成 `END_REQ`）。
+- `TLM_COMPLETED`（2）：整筆交易已經完成，回應都在 payload 裡（第三行：status 已是 OK，phase 沒被改，這時不需要再看 phase）。
+
+```
+ret=0 phase=BEGIN_REQ status=TLM_INCOMPLETE_RESPONSE
+ret=1 phase=END_REQ status=TLM_INCOMPLETE_RESPONSE
+ret=2 phase=BEGIN_REQ status=TLM_OK_RESPONSE
+```
+
+</details>
+
+---
+
+##### 應用（L2）
+
+#### MC25：自訂 phase〔L2〕
+
+```cpp
+TLM_DECLARE_EXTENDED_PHASE(PREPARE);
+TLM_DECLARE_EXTENDED_PHASE(RETRY);
+
+int sc_main(int, char**) {
+  tlm::tlm_phase p = PREPARE;
+  cout << PREPARE << "=" << (unsigned)PREPARE << " " << RETRY << "=" << (unsigned)RETRY << endl;
+  cout << (p == PREPARE) << (p == RETRY) << (p == tlm::END_RESP) << endl;
+  cout << (unsigned)tlm::END_RESP << endl;
+  return 0;
+}
+```
+
+三行輸出是？
+
+- A. `PREPARE=1 RETRY=2`；`100`；`4`
+- B. `PREPARE=5 RETRY=6`；`100`；`4`
+- C. `PREPARE=0 RETRY=1`；`100`；`4`
+- D. 編譯錯誤，不能自己新增 phase
+
+<details>
+<summary>答案</summary>
+
+**B。** `TLM_DECLARE_EXTENDED_PHASE(名字)` 會產生一個 `tlm_phase` 的衍生物件，建構時向 phase registry 註冊（`tlm_phase.cpp`）：registry 一開始已有 5 個內建名稱（0 到 4），新的 phase 依註冊順序從 5 開始編號，所以 `PREPARE=5`、`RETRY=6`，不會與標準 phase 重疊；`p == PREPARE` 為真，其餘為假，`END_RESP` 仍是 4。
+
+```
+PREPARE=5 RETRY=6
+100
+4
+```
+
+自訂 phase 通常用來表達標準 phase 沒涵蓋的細節（例如 cache coherency 的額外握手）。不認識這個 phase 的元件，在 SystemC 的範例 target（`at_target_4_phase.cpp` 的 `default:` 分支）是印一次警告、回 `TLM_ACCEPTED`；這是範例的處理方式，標準對「可忽略的 phase」的規定這份題庫沒有查條文。
+
+</details>
+
+---
+
+#### MC26：一筆完整的四 phase 讀取，哪些 phase 走 forward、哪些走 backward？〔L2〕
+
+```cpp
+const char* str(tlm::tlm_sync_enum r) {
+  return r == tlm::TLM_ACCEPTED ? "TLM_ACCEPTED"
+       : r == tlm::TLM_UPDATED  ? "TLM_UPDATED" : "TLM_COMPLETED";
+}
+
+struct Target : sc_module {
+  tlm_utils::simple_target_socket<Target> socket;
+  tlm::tlm_generic_payload* gp = nullptr;
+  sc_event start;
+  SC_CTOR(Target) : socket("socket") {
+    socket.register_nb_transport_fw(this, &Target::fw);
+    SC_THREAD(respond);
+  }
+  tlm::tlm_sync_enum fw(tlm::tlm_generic_payload& t, tlm::tlm_phase& ph, sc_time&) {
+    if (ph == tlm::BEGIN_REQ) {
+      gp = &t;
+      start.notify(SC_ZERO_TIME);
+      return tlm::TLM_ACCEPTED;
+    }
+    return tlm::TLM_COMPLETED;   // END_RESP
+  }
+  void respond() {
+    wait(start);
+    wait(5, SC_NS);
+    tlm::tlm_phase ph = tlm::END_REQ;
+    sc_time d = SC_ZERO_TIME;
+    tlm::tlm_sync_enum r = socket->nb_transport_bw(*gp, ph, d);
+    cout << "bw END_REQ @" << sc_time_stamp() << " -> " << str(r) << endl;
+    wait(10, SC_NS);
+    gp->set_response_status(tlm::TLM_OK_RESPONSE);
+    ph = tlm::BEGIN_RESP;
+    r = socket->nb_transport_bw(*gp, ph, d);
+    cout << "bw BEGIN_RESP @" << sc_time_stamp() << " -> " << str(r) << endl;
+  }
+};
+
+struct Init : sc_module {
+  tlm_utils::simple_initiator_socket<Init> socket;
+  sc_event resp;
+  SC_CTOR(Init) : socket("socket") {
+    socket.register_nb_transport_bw(this, &Init::bw);
+    SC_THREAD(run);
+  }
+  tlm::tlm_sync_enum bw(tlm::tlm_generic_payload&, tlm::tlm_phase& ph, sc_time&) {
+    if (ph == tlm::BEGIN_RESP) resp.notify();
+    return tlm::TLM_ACCEPTED;
+  }
+  void run() {
+    unsigned char buf[4];
+    tlm::tlm_generic_payload gp;
+    tlm::tlm_phase ph = tlm::BEGIN_REQ;
+    sc_time d = SC_ZERO_TIME;
+    gp.set_command(tlm::TLM_READ_COMMAND);
+    gp.set_address(0);
+    gp.set_data_ptr(buf);
+    gp.set_data_length(4);
+    tlm::tlm_sync_enum r = socket->nb_transport_fw(gp, ph, d);
+    cout << "fw BEGIN_REQ @" << sc_time_stamp() << " -> " << str(r) << endl;
+    wait(resp);
+    wait(2, SC_NS);
+    ph = tlm::END_RESP;
+    r = socket->nb_transport_fw(gp, ph, d);
+    cout << "fw END_RESP @" << sc_time_stamp() << " -> " << str(r) << endl;
+  }
+};
+
+int sc_main(int, char**) {
+  Init i("i");
+  Target t("t");
+  i.socket.bind(t.socket);
+  sc_start();
+  return 0;
+}
+```
+
+輸出四行的標頭是 `fw` 或 `bw`，表示是 initiator 呼叫 target（forward）還是 target 呼叫 initiator（backward）。四個 phase 的方向分別是？
+
+- A. forward：`BEGIN_REQ`、`END_REQ`；backward：`BEGIN_RESP`、`END_RESP`
+- B. 四個都走 forward，backward 只用來回傳 `TLM_COMPLETED`
+- C. forward：`BEGIN_REQ`、`BEGIN_RESP`；backward：`END_REQ`、`END_RESP`
+- D. forward：`BEGIN_REQ`、`END_RESP`；backward：`END_REQ`、`BEGIN_RESP`
+
+<details>
+<summary>答案</summary>
+
+**D。** 規則可以這樣記：**「開始請求」與「結束回應」是 initiator 發的（forward）；「結束請求」與「開始回應」是 target 發的（backward）**。
+
+```
+fw BEGIN_REQ @0 s -> TLM_ACCEPTED
+bw END_REQ @5 ns -> TLM_ACCEPTED
+bw BEGIN_RESP @15 ns -> TLM_ACCEPTED
+fw END_RESP @17 ns -> TLM_COMPLETED
+```
+
+時間線：`0 s` initiator 送 `BEGIN_REQ`，target 回 `TLM_ACCEPTED`；5 ns 後 target 用 backward 送 `END_REQ`，initiator 回 `TLM_ACCEPTED`；再過 10 ns（15 ns）target 送 `BEGIN_RESP`，initiator 回 `TLM_ACCEPTED`；initiator 再等 2 ns（17 ns）送 `END_RESP`，target 回 `TLM_COMPLETED`，交易結束。
+
+原始碼佐證：SystemC 範例 target（`examples/tlm/common/src/at_target_4_phase.cpp`）在 forward 路徑收到 `END_REQ` 或 `BEGIN_RESP` 時直接 `REPORT_FATAL`（`Illegal phase received by target -- END_REQ or BEGIN_RESP`）；`simple_target_socket` 的 nb→b 轉換路徑也只接受 forward 的 `BEGIN_REQ` 與 `END_RESP`，其他 phase 報 `invalid phase received`。
+
+</details>
+
+---
+
+#### MC27：`delay` 在 `nb_transport` 裡的意思〔L2〕
+
+```cpp
+struct Target : sc_module {
+  tlm_utils::simple_target_socket<Target> socket;
+  SC_CTOR(Target) : socket("socket") {
+    socket.register_nb_transport_fw(this, &Target::fw);
+  }
+  tlm::tlm_sync_enum fw(tlm::tlm_generic_payload&, tlm::tlm_phase& phase, sc_time& delay) {
+    cout << "target: arrival=" << sc_time_stamp() + delay << " (now=" << sc_time_stamp()
+         << ", delay=" << delay << ")" << endl;
+    delay += sc_time(3, SC_NS);
+    phase = tlm::END_REQ;
+    return tlm::TLM_UPDATED;
+  }
+};
+
+struct Init : sc_module {
+  tlm_utils::simple_initiator_socket<Init> socket;
+  SC_CTOR(Init) : socket("socket") { SC_THREAD(run); }
+  void run() {
+    unsigned char buf[4];
+    tlm::tlm_generic_payload gp;
+    tlm::tlm_phase phase = tlm::BEGIN_REQ;
+    sc_time delay(7, SC_NS);
+    gp.set_command(tlm::TLM_READ_COMMAND);
+    gp.set_address(0);
+    gp.set_data_ptr(buf);
+    gp.set_data_length(4);
+    tlm::tlm_sync_enum r = socket->nb_transport_fw(gp, phase, delay);
+    cout << "init: ret=" << r << " phase=" << phase << " delay=" << delay
+         << " now=" << sc_time_stamp() << endl;
+  }
+};
+
+int sc_main(int, char**) {
+  Init i("i");
+  Target t("t");
+  i.socket.bind(t.socket);
+  sc_start();
+  return 0;
+}
+```
+
+輸出是？
+
+- A. `target: arrival=0 s (now=0 s, delay=7 ns)`；`init: ret=1 phase=END_REQ delay=10 ns now=0 s`
+- B. `target: arrival=7 ns (now=0 s, delay=7 ns)`；`init: ret=1 phase=END_REQ delay=7 ns now=0 s`
+- C. `target: arrival=7 ns (now=0 s, delay=7 ns)`；`init: ret=1 phase=END_REQ delay=10 ns now=0 s`
+- D. `target: arrival=7 ns (now=0 s, delay=7 ns)`；`init: ret=1 phase=END_REQ delay=10 ns now=10 ns`
+
+<details>
+<summary>答案</summary>
+
+**C。** `nb_transport` 的 `sc_time& delay` 和 `b_transport` 一樣是 in/out：**呼叫者說「這次呼叫發生在 simulation time 加上 delay 的時間點」**。initiator 說 7 ns，所以 target 計算的到達時間是 `sc_time_stamp() + delay = 7 ns`（而 `now` 仍是 `0 s`，沒有 `wait`）。target 處理要 3 ns，就把 `delay` 加成 10 ns，並回 `TLM_UPDATED`、phase 改成 `END_REQ`，這些修改都會透過參考傳回 initiator，initiator 看到的 `delay=10 ns`，`now` 還是 `0 s`。
+
+```
+target: arrival=7 ns (now=0 s, delay=7 ns)
+init: ret=1 phase=END_REQ delay=10 ns now=0 s
+```
+
+所以 AT 也可以搭配 temporal decoupling：initiator 領先的時間放在 `delay` 裡傳給 target。
+
+</details>
+
+---
+
+#### MC28：AT initiator 呼叫只有 `b_transport` 的 target〔L2〕
+
+```cpp
+const char* str(tlm::tlm_sync_enum r) {
+  return r == tlm::TLM_ACCEPTED ? "TLM_ACCEPTED"
+       : r == tlm::TLM_UPDATED  ? "TLM_UPDATED" : "TLM_COMPLETED";
+}
+
+struct Target : sc_module {          // 只有 LT 的 b_transport
+  tlm_utils::simple_target_socket<Target> socket;
+  SC_CTOR(Target) : socket("socket") {
+    socket.register_b_transport(this, &Target::b_transport);
+  }
+  void b_transport(tlm::tlm_generic_payload& gp, sc_time& delay) {
+    delay += sc_time(10, SC_NS);
+    gp.set_response_status(tlm::TLM_OK_RESPONSE);
+  }
+};
+
+struct Init : sc_module {            // AT initiator
+  tlm_utils::simple_initiator_socket<Init> socket;
+  sc_event done;
+  SC_CTOR(Init) : socket("socket") {
+    socket.register_nb_transport_bw(this, &Init::bw);
+    SC_THREAD(run);
+  }
+  tlm::tlm_sync_enum bw(tlm::tlm_generic_payload& gp, tlm::tlm_phase& ph, sc_time&) {
+    cout << "bw " << ph << " @" << sc_time_stamp() << " status=" << gp.get_response_string() << endl;
+    done.notify();
+    return tlm::TLM_COMPLETED;
+  }
+  void run() {
+    unsigned char buf[4];
+    tlm::tlm_generic_payload gp;
+    tlm::tlm_phase ph = tlm::BEGIN_REQ;
+    sc_time d = SC_ZERO_TIME;
+    gp.set_command(tlm::TLM_READ_COMMAND);
+    gp.set_address(0);
+    gp.set_data_ptr(buf);
+    gp.set_data_length(4);
+    tlm::tlm_sync_enum r = socket->nb_transport_fw(gp, ph, d);
+    cout << "fw BEGIN_REQ @" << sc_time_stamp() << " -> " << str(r) << endl;
+    wait(done);
+  }
+};
+
+int sc_main(int, char**) {
+  Init i("i");
+  Target t("t");
+  i.socket.bind(t.socket);
+  sc_start();
+  return 0;
+}
+```
+
+輸出是？
+
+- A. `fw BEGIN_REQ @0 s -> TLM_ACCEPTED`；`bw BEGIN_RESP @10 ns status=TLM_OK_RESPONSE`
+- B. `fw BEGIN_REQ @0 s -> TLM_COMPLETED`；`bw` 不會被呼叫
+- C. `fw BEGIN_REQ @10 ns -> TLM_UPDATED`
+- D. 執行期錯誤：`nb_transport_fw` 不能用來呼叫只有 `b_transport` 的 target
+
+<details>
+<summary>答案</summary>
+
+**A。** 這是 `simple_target_socket` 的 nb→b 轉換（`nb2b_thread`）：收到 forward 的 `BEGIN_REQ` 時，socket spawn 一個內部 thread 去呼叫 target 的 `b_transport`，並立刻回 `TLM_ACCEPTED`（這個 thread 會 `wait` 掉 `b_transport` 回報的 delay，這裡是 10 ns）；時間到後，socket 自己用 backward path 呼叫 initiator 的 `nb_transport_bw(BEGIN_RESP)`。所以 AT initiator 可以直接接 LT target，不需要改 target。
+
+```
+fw BEGIN_REQ @0 s -> TLM_ACCEPTED
+bw BEGIN_RESP @10 ns status=TLM_OK_RESPONSE
+```
+
+反方向（LT initiator 對只有 nb 的 target）見 MC13。
+
+</details>
+
+---
+
+#### MC29：`peq_with_get` 的取出順序〔L2〕
+
+```cpp
+struct M : sc_module {
+  tlm_utils::peq_with_get<tlm::tlm_generic_payload> peq;
+  tlm::tlm_generic_payload a, b, c;
+  SC_CTOR(M) : peq("peq") { SC_THREAD(producer); SC_THREAD(consumer); }
+  char label(tlm::tlm_generic_payload* p) { return p == &a ? 'a' : p == &b ? 'b' : 'c'; }
+  void producer() {
+    peq.notify(a, sc_time(20, SC_NS));
+    peq.notify(b, sc_time(10, SC_NS));
+    peq.notify(c, sc_time(10, SC_NS));
+  }
+  void consumer() {
+    for (;;) {
+      wait(peq.get_event());
+      tlm::tlm_generic_payload* p;
+      while ((p = peq.get_next_transaction()))
+        cout << label(p) << " @" << sc_time_stamp() << endl;
+    }
+  }
+};
+
+int sc_main(int, char**) {
+  M m("m");
+  sc_start();
+  return 0;
+}
+```
+
+輸出是？
+
+- A. `a @20 ns`、`b @10 ns`、`c @10 ns`（照通知順序）
+- B. `b @10 ns`、`a @20 ns`（`c` 被丟掉）
+- C. `c @10 ns`、`b @10 ns`、`a @20 ns`
+- D. `b @10 ns`、`c @10 ns`、`a @20 ns`
+
+<details>
+<summary>答案</summary>
+
+**D。** `peq_with_get`（`tlm_utils/peq_with_get.h`）內部是以「到期時間」為 key 的 `std::multimap`：到期時間早的先出；時間相同的，依通知（插入）順序出，所以 `b` 在 `c` 前面。`get_next_transaction()` 只會回傳**已經到期**的項目，沒有到期的就回 0，並順便重新排好下一次的事件（`m_event.notify(下一個到期時間 - 現在)`）；所以 consumer 要用 `while` 把到期的全部取完（見 MC31）。
+
+```
+b @10 ns
+c @10 ns
+a @20 ns
+```
+
+</details>
+
+---
+
+#### MC30：`peq_with_cb_and_phase`，時間相同的順序〔L2〕
+
+```cpp
+struct M : sc_module {
+  tlm_utils::peq_with_cb_and_phase<M> peq;
+  tlm::tlm_generic_payload a, b, c;
+  SC_CTOR(M) : peq(this, &M::cb) { SC_THREAD(producer); }
+  void cb(tlm::tlm_generic_payload& p, const tlm::tlm_phase&) {
+    cout << (&p == &a ? 'a' : &p == &b ? 'b' : 'c') << " @" << sc_time_stamp() << endl;
+  }
+  void producer() {
+    peq.notify(a, tlm::BEGIN_REQ, sc_time(10, SC_NS));
+    peq.notify(b, tlm::BEGIN_REQ, sc_time(10, SC_NS));
+    peq.notify(c, tlm::BEGIN_REQ, sc_time(5, SC_NS));
+  }
+};
+
+int sc_main(int, char**) {
+  M m("m");
+  sc_start();
+  return 0;
+}
+```
+
+輸出是？
+
+- A. `a @10 ns`、`b @10 ns`、`c @5 ns`（照通知順序）
+- B. `c @5 ns`、`a @10 ns`、`b @10 ns`
+- C. `c @5 ns`、`b @10 ns`、`a @10 ns`
+- D. 只有 `c @5 ns`
+
+<details>
+<summary>答案</summary>
+
+**B。** 這個 PEQ 以 `SC_METHOD` 在到期時呼叫你登記的 callback（`peq_with_cb_and_phase.h`），內部用一個依時間排序的串列：新項目插在「所有時間 `<=` 它的項目」之後，所以時間不同的按時間排序（`c` 的 5 ns 最早），時間相同的維持先進先出（`a` 在 `b` 之前）。它可以同時掛任意多個待處理通知；`m_e.notify(when)` 會被後面更早的通知取代（`c` 的 5 ns），callback 結束時再把事件重新排到下一個到期時間（10 ns）。
+
+```
+c @5 ns
+a @10 ns
+b @10 ns
+```
+
+</details>
+
+---
+
+##### 進階（L3）
+
+#### MC31：只呼叫一次 `get_next_transaction()`〔L3〕
+
+```cpp
+struct M : sc_module {
+  tlm_utils::peq_with_get<tlm::tlm_generic_payload> peq;
+  tlm::tlm_generic_payload a, b, c;
+  SC_CTOR(M) : peq("peq") { SC_THREAD(producer); SC_THREAD(consumer); }
+  char label(tlm::tlm_generic_payload* p) { return p == &a ? 'a' : p == &b ? 'b' : 'c'; }
+  void producer() {
+    peq.notify(a, sc_time(20, SC_NS));
+    peq.notify(b, sc_time(10, SC_NS));
+    peq.notify(c, sc_time(10, SC_NS));
+  }
+  void consumer() {
+    for (;;) {
+      wait(peq.get_event());
+      tlm::tlm_generic_payload* p = peq.get_next_transaction();
+      if (p) cout << label(p) << " @" << sc_time_stamp() << endl;
+    }
+  }
+};
+
+int sc_main(int, char**) {
+  M m("m");
+  sc_start(100, SC_NS);
+  cout << "end @" << sc_time_stamp() << endl;
+  return 0;
+}
+```
+
+（`a`、`b`、`c` 的通知時間與 MC29 相同。）輸出是？
+
+- A. `b @10 ns`、`c @10 ns`、`a @20 ns`，然後 `end @100 ns`
+- B. `b @10 ns`、`c @20 ns`、`a @20 ns`，然後 `end @100 ns`
+- C. `b @10 ns`，然後 `end @100 ns`：`c` 與 `a` 再也不會被送出
+- D. `b @10 ns`、`c @10 ns`，然後 `end @100 ns`：只有 `a` 遺失
+
+<details>
+<summary>答案</summary>
+
+**C。** `peq_with_get` 的 event 是依通知時間排好的：`a`（20 ns）之後 `b`、`c`（都是 10 ns）的 `m_event.notify(...)` 讓事件只在 10 ns 觸發一次（較早的通知蓋掉較晚的）。10 ns 時 consumer 醒來，呼叫一次 `get_next_transaction()` 取得 `b`；`c` 同樣已到期，但沒有人再去取，而**重新排下一次事件的動作只發生在 `get_next_transaction()` 被呼叫、且發現隊首還沒到期的時候**，所以事件不會再被觸發，`c` 與 `a` 永遠卡在佇列裡，模擬照常結束，沒有任何錯誤訊息。
+
+```
+b @10 ns
+end @100 ns
+```
+
+規則：每次被喚醒，用 `while ((p = peq.get_next_transaction()))` 取到回傳 0 為止（MC29）。
+
+</details>
+
+---
+
+#### MC32：`peq_with_cb_and_phase` 的三種通知，callback 的順序〔L3〕
+
+```cpp
+struct M : sc_module {
+  tlm_utils::peq_with_cb_and_phase<M> peq;
+  tlm::tlm_generic_payload gp;
+  sc_dt::uint64 base = 0;
+  SC_CTOR(M) : peq(this, &M::cb) { SC_THREAD(run); }
+  void cb(tlm::tlm_generic_payload&, const tlm::tlm_phase& ph) {
+    cout << ph << " @" << sc_time_stamp() << " delta+" << (sc_delta_count() - base) << endl;
+  }
+  void run() {
+    wait(1, SC_NS);
+    base = sc_delta_count();
+    peq.notify(gp, tlm::END_RESP, sc_time(10, SC_NS));
+    peq.notify(gp, tlm::END_REQ, SC_ZERO_TIME);
+    peq.notify(gp, tlm::BEGIN_REQ);
+    peq.notify(gp, tlm::BEGIN_RESP, SC_ZERO_TIME);
+  }
+};
+
+int sc_main(int, char**) {
+  M m("m");
+  sc_start();
+  return 0;
+}
+```
+
+四個通知的呼叫順序與時間是？（`delta+N` 是相對於一開始的 delta 計數，只有前三行的差別有意義）
+
+- A. `END_RESP` → `END_REQ` → `BEGIN_REQ` → `BEGIN_RESP`（依通知順序）
+- B. `END_REQ` → `BEGIN_RESP` → `BEGIN_REQ` → `END_RESP`
+- C. `BEGIN_REQ`、`END_REQ`、`BEGIN_RESP` 全部在 `delta+0`，之後才是 `END_RESP`
+- D. `BEGIN_REQ`（`delta+0`）→ `END_REQ`（`delta+1`）→ `BEGIN_RESP`（`delta+1`）→ `END_RESP`（`11 ns`）
+
+<details>
+<summary>答案</summary>
+
+**D。** 這個 PEQ 依「通知的種類」分三類處理，不是單純依通知順序：`notify(payload, phase)`（沒有時間參數，immediate）先處理，`notify(..., SC_ZERO_TIME)`（delta）其次，有時間的最後（`fec()` 的順序：immediate yield 清單 → delta 清單 → 時間排序串列）。所以第三個呼叫的 `BEGIN_REQ`（immediate）最先、在同一個 delta；兩個 delta 通知（`END_REQ`、`BEGIN_RESP`）在下一個 delta，彼此維持通知順序；10 ns 的 `END_RESP` 最後，時間是 11 ns。delta 通知內部還按 delta 計數的奇偶分兩個清單，確保「在 callback 裡又發出的 delta 通知」會落在再下一個 delta，而不是同一個 delta 被連環處理。
+
+```
+BEGIN_REQ @1 ns delta+0
+END_REQ @1 ns delta+1
+BEGIN_RESP @1 ns delta+1
+END_RESP @11 ns delta+2
+```
+
+</details>
+
+---
+
+#### MC33：不照順序完成的回應〔L3〕
+
+```cpp
+struct Target : sc_module {
+  tlm_utils::simple_target_socket<Target> socket;
+  tlm_utils::peq_with_cb_and_phase<Target> peq;
+  SC_CTOR(Target) : socket("socket"), peq(this, &Target::cb) {
+    socket.register_nb_transport_fw(this, &Target::fw);
+  }
+  tlm::tlm_sync_enum fw(tlm::tlm_generic_payload& gp, tlm::tlm_phase& ph, sc_time& d) {
+    if (ph == tlm::BEGIN_REQ) {
+      sc_time latency(gp.get_address() == 0 ? 20 : 5, SC_NS);
+      peq.notify(gp, tlm::BEGIN_RESP, d + latency);
+      ph = tlm::END_REQ;
+      return tlm::TLM_UPDATED;
+    }
+    return tlm::TLM_COMPLETED;
+  }
+  void cb(tlm::tlm_generic_payload& gp, const tlm::tlm_phase&) {
+    gp.set_response_status(tlm::TLM_OK_RESPONSE);
+    tlm::tlm_phase ph = tlm::BEGIN_RESP;
+    sc_time d = SC_ZERO_TIME;
+    socket->nb_transport_bw(gp, ph, d);
+  }
+};
+
+struct Init : sc_module {
+  tlm_utils::simple_initiator_socket<Init> socket;
+  sc_event all_done;
+  int done = 0;
+  SC_CTOR(Init) : socket("socket") {
+    socket.register_nb_transport_bw(this, &Init::bw);
+    SC_THREAD(run);
+  }
+  tlm::tlm_sync_enum bw(tlm::tlm_generic_payload& gp, tlm::tlm_phase&, sc_time&) {
+    cout << "resp addr=" << gp.get_address() << " @" << sc_time_stamp() << endl;
+    if (++done == 2) all_done.notify();
+    return tlm::TLM_COMPLETED;
+  }
+  void run() {
+    unsigned char buf0[4], buf1[4];
+    tlm::tlm_generic_payload gp0, gp1;
+    tlm::tlm_generic_payload* gps[2] = {&gp0, &gp1};
+    unsigned char* bufs[2] = {buf0, buf1};
+    for (int i = 0; i < 2; ++i) {
+      tlm::tlm_phase ph = tlm::BEGIN_REQ;
+      sc_time d = SC_ZERO_TIME;
+      gps[i]->set_command(tlm::TLM_READ_COMMAND);
+      gps[i]->set_address(4 * i);
+      gps[i]->set_data_ptr(bufs[i]);
+      gps[i]->set_data_length(4);
+      socket->nb_transport_fw(*gps[i], ph, d);
+    }
+    wait(all_done);
+  }
+};
+
+int sc_main(int, char**) {
+  Init i("i");
+  Target t("t");
+  i.socket.bind(t.socket);
+  sc_start();
+  return 0;
+}
+```
+
+target 對地址 0 的讀取要 20 ns，其他地址 5 ns。輸出是？
+
+- A. `resp addr=4 @5 ns`、`resp addr=0 @20 ns`
+- B. `resp addr=0 @20 ns`、`resp addr=4 @20 ns`（回應必須按請求順序）
+- C. `resp addr=0 @20 ns`、`resp addr=4 @25 ns`（第二筆要等第一筆完成才會送出）
+- D. 執行期錯誤：第一筆交易還沒完成，不能發出第二筆
+
+<details>
+<summary>答案</summary>
+
+**A。** target 在 forward 呼叫的**回程**就用 `TLM_UPDATED` + `END_REQ` 表示「請求已接受」，initiator 因此可以立刻發第二筆 `BEGIN_REQ`（不必等第一筆回應）；兩筆各自進 PEQ，按各自的延遲回 `BEGIN_RESP`，所以較快的 `addr=4` 先在 5 ns 完成，`addr=0` 在 20 ns。initiator 要靠 payload 指標（或 extension 裡的 ID）把回應對回請求。這就是 out-of-order 的 AT 模型（SystemC 範例：`examples/tlm/at_ooo`）。
+
+```
+resp addr=4 @5 ns
+resp addr=0 @20 ns
+```
+
+注意：如果 target 回的是 `TLM_ACCEPTED`，initiator 就必須等到 target 用 backward 送 `END_REQ`，才能發下一筆 `BEGIN_REQ`（請求通道一次只接受一筆），這個「等 END_REQ」的限制是 AT 的 request 管線深度的來源（這條規則依範例與一般的 TLM-2.0 規則，標準條文沒有查）。
+
+</details>
+
+---
+
+#### MC34：四 phase 與走捷徑，呼叫次數差多少？〔L3〕
+
+```cpp
+bool shortcut = false;
+
+struct Target : sc_module {
+  tlm_utils::simple_target_socket<Target> socket;
+  tlm::tlm_generic_payload* pending = nullptr;
+  sc_event ev;
+  SC_CTOR(Target) : socket("socket") {
+    socket.register_nb_transport_fw(this, &Target::fw);
+    SC_THREAD(respond);
+  }
+  tlm::tlm_sync_enum fw(tlm::tlm_generic_payload& gp, tlm::tlm_phase& ph, sc_time&) {
+    if (ph == tlm::BEGIN_REQ) {
+      pending = &gp;
+      ev.notify(SC_ZERO_TIME);
+      if (shortcut) { ph = tlm::END_REQ; return tlm::TLM_UPDATED; }
+      return tlm::TLM_ACCEPTED;
+    }
+    return tlm::TLM_COMPLETED;   // END_RESP
+  }
+  void respond() {
+    for (;;) {
+      wait(ev);
+      tlm::tlm_phase ph;
+      sc_time d = SC_ZERO_TIME;
+      if (!shortcut) {
+        wait(5, SC_NS);
+        ph = tlm::END_REQ;
+        socket->nb_transport_bw(*pending, ph, d);
+      }
+      wait(10, SC_NS);
+      pending->set_response_status(tlm::TLM_OK_RESPONSE);
+      ph = tlm::BEGIN_RESP;
+      socket->nb_transport_bw(*pending, ph, d);
+    }
+  }
+};
+
+struct Init : sc_module {
+  tlm_utils::simple_initiator_socket<Init> socket;
+  sc_event resp;
+  int fw_calls = 0, bw_calls = 0;
+  SC_CTOR(Init) : socket("socket") {
+    socket.register_nb_transport_bw(this, &Init::bw);
+    SC_THREAD(run);
+  }
+  tlm::tlm_sync_enum bw(tlm::tlm_generic_payload&, tlm::tlm_phase& ph, sc_time&) {
+    ++bw_calls;
+    if (ph == tlm::BEGIN_RESP) {
+      resp.notify();
+      return shortcut ? tlm::TLM_COMPLETED : tlm::TLM_ACCEPTED;
+    }
+    return tlm::TLM_ACCEPTED;    // END_REQ
+  }
+  void run() {
+    unsigned char buf[4];
+    for (int m = 0; m < 2; ++m) {
+      shortcut = (m == 1);
+      fw_calls = bw_calls = 0;
+      tlm::tlm_generic_payload gp;
+      tlm::tlm_phase ph = tlm::BEGIN_REQ;
+      sc_time d = SC_ZERO_TIME;
+      gp.set_command(tlm::TLM_READ_COMMAND);
+      gp.set_address(0);
+      gp.set_data_ptr(buf);
+      gp.set_data_length(4);
+      socket->nb_transport_fw(gp, ph, d); ++fw_calls;
+      wait(resp);
+      if (!shortcut) {
+        ph = tlm::END_RESP;
+        socket->nb_transport_fw(gp, ph, d); ++fw_calls;
+      }
+      cout << (shortcut ? "shortcut" : "full") << ": fw=" << fw_calls << " bw=" << bw_calls
+           << " done @" << sc_time_stamp() << endl;
+      wait(1, SC_NS);
+    }
+  }
+};
+
+int sc_main(int, char**) {
+  Init i("i");
+  Target t("t");
+  i.socket.bind(t.socket);
+  sc_start();
+  return 0;
+}
+```
+
+`full` 是完整四 phase（target 回 `TLM_ACCEPTED`，initiator 回 `TLM_ACCEPTED`），`shortcut` 是 target 用 return path 回 `TLM_UPDATED(END_REQ)`、initiator 對 `BEGIN_RESP` 回 `TLM_COMPLETED`。`fw`、`bw` 的次數各是？
+
+- A. `full: fw=4 bw=4`；`shortcut: fw=2 bw=2`
+- B. `full: fw=2 bw=2`；`shortcut: fw=1 bw=1`
+- C. `full: fw=2 bw=2`；`shortcut: fw=2 bw=2`
+- D. `full: fw=1 bw=3`；`shortcut: fw=1 bw=1`
+
+<details>
+<summary>答案</summary>
+
+**B。** 完整四 phase 一共 4 次呼叫：forward 2 次（`BEGIN_REQ`、`END_RESP`）加 backward 2 次（`END_REQ`、`BEGIN_RESP`）。走捷徑只要 2 次：`BEGIN_REQ` 的**回程**帶回 `END_REQ`（省掉 backward 的 `END_REQ`），`BEGIN_RESP` 回 `TLM_COMPLETED`（省掉 forward 的 `END_RESP`）。每次呼叫都是一個同步點（可能伴隨 context switch 與 event），少一次就少一次開銷，這是 AT 模型加速常用的手法。
+
+```
+full: fw=2 bw=2 done @15 ns
+shortcut: fw=1 bw=1 done @26 ns
+```
+
+（`full` 比 `shortcut` 多花的時間，是我在 target 裡模擬的 5 ns `END_REQ` 延遲，不是呼叫次數造成的。）
+
+範例的 target 對 backward 呼叫回傳值的解讀（`at_target_4_phase.cpp`）：對 `END_REQ` 回 `TLM_ACCEPTED` 才有效，回 `TLM_COMPLETED` 或 `TLM_UPDATED` 範例視為錯誤（因為 initiator 還沒收到資料）；對 `BEGIN_RESP` 回 `TLM_COMPLETED` 表示交易結束，回 `TLM_ACCEPTED` 表示「之後還會送 `END_RESP`」，回 `TLM_UPDATED` 範例視為錯誤。
+
+</details>
+
+---
+
+#### MC35：socket 會檢查 phase 的方向嗎？〔L3〕
+
+```cpp
+struct Target : sc_module {
+  tlm_utils::simple_target_socket<Target> socket;
+  SC_CTOR(Target) : socket("socket") {
+    socket.register_nb_transport_fw(this, &Target::fw);
+  }
+  tlm::tlm_sync_enum fw(tlm::tlm_generic_payload&, tlm::tlm_phase& ph, sc_time&) {
+    cout << "target got fw " << ph << endl;
+    return tlm::TLM_ACCEPTED;
+  }
+};
+
+struct Init : sc_module {
+  tlm_utils::simple_initiator_socket<Init> socket;
+  SC_CTOR(Init) : socket("socket") { SC_THREAD(run); }
+  void run() {
+    unsigned char buf[4];
+    tlm::tlm_generic_payload gp;
+    tlm::tlm_phase ph = tlm::BEGIN_RESP;   // 這是 backward path 才會用的 phase
+    sc_time d = SC_ZERO_TIME;
+    gp.set_command(tlm::TLM_READ_COMMAND);
+    gp.set_address(0);
+    gp.set_data_ptr(buf);
+    gp.set_data_length(4);
+    tlm::tlm_sync_enum r = socket->nb_transport_fw(gp, ph, d);
+    cout << "init: ret=" << r << endl;
+  }
+};
+
+int sc_main(int, char**) {
+  Init i("i");
+  Target t("t");
+  i.socket.bind(t.socket);
+  sc_start();
+  return 0;
+}
+```
+
+initiator 故意用 forward path 送出一個只該走 backward 的 `BEGIN_RESP`。輸出是？
+
+- A. 編譯錯誤：`BEGIN_RESP` 不是 forward phase
+- B. 執行期錯誤：socket 偵測到方向錯誤並中止
+- C. target 不會被呼叫，`init: ret=2`
+- D. `target got fw BEGIN_RESP`；`init: ret=0`：沒有任何檢查
+
+<details>
+<summary>答案</summary>
+
+**D。** phase 只是一個值，`simple_target_socket` 看到 target 有註冊 `nb_transport_fw` 就原樣轉交（`simple_target_socket.h` 的 `nb_transport_fw`），不檢查方向，也不檢查順序。只有 target 沒註冊 `nb_transport_fw`、靠 nb→b 轉換時，socket 才會自己檢查並報 `invalid phase received`（MC26 提到的那一段）。本機 SystemC 2.3.3 也沒有內建的 protocol checker（在 `src`、`include`、`examples` 搜尋過，沒有）。
+
+```
+target got fw BEGIN_RESP
+init: ret=0
+```
+
+所以 AT 模型的協定錯誤要靠 target / initiator 自己檢查（像範例那樣對非法 phase 報錯），否則會悄悄地跑出錯誤的結果。
+
+</details>
+
+---
+
+#### MC36：對 `BEGIN_RESP` 回 `TLM_ACCEPTED` 卻忘了送 `END_RESP`〔L3〕
+
+```cpp
+struct Target : sc_module {          // 只有 LT 的 b_transport
+  tlm_utils::simple_target_socket<Target> socket;
+  SC_CTOR(Target) : socket("socket") {
+    socket.register_b_transport(this, &Target::b_transport);
+  }
+  void b_transport(tlm::tlm_generic_payload& gp, sc_time& delay) {
+    delay += sc_time(10, SC_NS);
+    gp.set_response_status(tlm::TLM_OK_RESPONSE);
+  }
+};
+
+struct Init : sc_module {            // AT initiator
+  tlm_utils::simple_initiator_socket<Init> socket;
+  int responses = 0;
+  SC_CTOR(Init) : socket("socket") {
+    socket.register_nb_transport_bw(this, &Init::bw);
+    SC_THREAD(run);
+  }
+  tlm::tlm_sync_enum bw(tlm::tlm_generic_payload& gp, tlm::tlm_phase& ph, sc_time&) {
+    cout << "response " << ++responses << " @" << sc_time_stamp() << endl;
+    return tlm::TLM_ACCEPTED;        // 之後要自己再送 END_RESP
+  }
+  void run() {
+    unsigned char buf0[4], buf1[4];
+    tlm::tlm_generic_payload gp0, gp1;
+    tlm::tlm_generic_payload* gps[2] = {&gp0, &gp1};
+    unsigned char* bufs[2] = {buf0, buf1};
+    for (int i = 0; i < 2; ++i) {
+      tlm::tlm_phase ph = tlm::BEGIN_REQ;
+      sc_time d = SC_ZERO_TIME;
+      gps[i]->set_command(tlm::TLM_READ_COMMAND);
+      gps[i]->set_address(4 * i);
+      gps[i]->set_data_ptr(bufs[i]);
+      gps[i]->set_data_length(4);
+      socket->nb_transport_fw(*gps[i], ph, d);
+    }
+    wait(100, SC_NS);                // 沒有送過任何 END_RESP
+    cout << "end @" << sc_time_stamp() << " responses=" << responses << endl;
+  }
+};
+
+int sc_main(int, char**) {
+  Init i("i");
+  Target t("t");
+  i.socket.bind(t.socket);
+  sc_start();
+  return 0;
+}
+```
+
+target 只有 `b_transport`（靠 socket 轉換）。initiator 連發兩筆請求，對 `BEGIN_RESP` 回 `TLM_ACCEPTED` 但從不送 `END_RESP`。輸出是？
+
+- A. `response 1 @10 ns`、`response 2 @10 ns`，然後 `end @100 ns responses=2`
+- B. `response 1 @10 ns`、`response 2 @20 ns`，然後 `end @100 ns responses=2`
+- C. `response 1 @10 ns`，然後 `end @100 ns responses=1`
+- D. 執行期錯誤：忘了送 `END_RESP`
+
+<details>
+<summary>答案</summary>
+
+**C。** `TLM_ACCEPTED` 的意思是「我還在處理這個回應，處理完會自己送 `END_RESP`」。socket 的 nb→b 轉換（`nb2b_thread`）因此把 `m_response_in_progress` 設成 true，下一筆回應要等到收到 `END_RESP`（`m_end_response` 事件）才能送出；沒人送，第二筆就**永遠送不出來**，沒有錯誤也沒有警告，模擬照常結束。
+
+```
+response 1 @10 ns
+end @100 ns responses=1
+```
+
+socket 認定「回應已完成」的條件是 `TLM_COMPLETED`，或 `TLM_UPDATED` 且 phase 為 `END_RESP`（原始碼 `nb2b_thread` 內的判斷）。所以：要嘛對 `BEGIN_RESP` 直接回 `TLM_COMPLETED`，要嘛回 `TLM_ACCEPTED` 並在處理完後一定送 `END_RESP`（範例稱為 end-response rule）。
+
+</details>
+
+---
+
 ### 選擇題驗證紀錄（2026-10-21）
 
 - 環境：本機 SystemC 2.3.3，`g++ -std=c++11`（見上方指令）。
-- 方式：寫完後用腳本從這份檔案抽出每題的程式碼，補上開頭那幾行，實際編譯執行，再把輸出逐行與答案裡的輸出區塊比對，22 題全部一致。
+- 方式：寫完後用腳本從這份檔案抽出每題的程式碼，補上開頭那幾行，實際編譯執行，再把輸出逐行與答案裡的輸出區塊比對，MC1–MC22 全部一致（MC23–MC36 見下一段）。
 - MC15 的 `acquire()` 無 memory manager 會 `Fatal: (F4) assertion failed: m_mm != 0`、MC20 把 target 的 `wait` 拿掉之後 `SC_METHOD` 能正常呼叫，這兩項是額外跑的小程式，不在檔案的程式碼區塊裡。MC17 第一版 initiator 太早離開導致 segfault，是實際遇到的錯誤，已修正並寫在答案裡。
 - 原始碼核對（SystemC 2.3.3）：
   - MC1：`tlm_gp.cpp` 預設建構子（`TLM_IGNORE_COMMAND`、`TLM_INCOMPLETE_RESPONSE`、`m_streaming_width(0)`、`m_dmi(false)`）。
@@ -1423,6 +2386,16 @@ global quantum=0 s need_sync=1
   - MC14：`tlm_gp.h`／`tlm_gp.cpp` 的 `get_extension`（找不到回 0）、`clear_extension`（只把欄位設 0）、`set_auto_extension`（需要 mm）。
   - MC15：`tlm_gp.h` 的 `acquire`／`release`／`get_ref_count`。
   - MC16：`multi_passthrough_target_socket.h` 的 binder id 取自 `m_binders.size()`（綁定順序）。
+- AT 專題（MC23–MC36，2026-10-21 補）：同樣用腳本抽出程式碼、補開頭（多了 `peq_with_get.h`、`peq_with_cb_and_phase.h`）、編譯執行，輸出與答案逐行比對一致。MC23–MC36 另有以下原始碼核對：
+  - MC23、MC25：`tlm_phase.h`／`tlm_phase.cpp`（phase 列舉值、`tlm_phase` 轉 `unsigned`、`operator<<`、extended phase 註冊從 5 開始）。
+  - MC24：`tlm_fw_bw_ifs.h` 的 `tlm_sync_enum` 數值。
+  - MC26、MC34：`examples/tlm/common/src/at_target_4_phase.cpp`（fw 收到 `END_REQ`／`BEGIN_RESP` 為 fatal；對 backward 呼叫回傳值的處理）與 `at_target_1_phase_dmi.cpp`（`TLM_UPDATED` + `END_REQ` 的 return-path 寫法）；`simple_target_socket.h` 的 `nb_transport_fw`（nb→b 路徑只接受 `BEGIN_REQ`／`END_RESP`）。
+  - MC28、MC36：`simple_target_socket.h` 的 `nb2b_thread`（spawn thread、呼叫 `b_transport`、`wait(delay)`、回送 `BEGIN_RESP`、`m_response_in_progress` 與 `m_end_response`）。
+  - MC29、MC31：`peq_with_get.h`（`std::multimap`、`get_next_transaction` 只回已到期並重新排事件）。
+  - MC30、MC32：`peq_with_cb_and_phase.h`（`time_ordered_list::insert` 的 `<=` 規則、`fec()` 的 immediate → delta → timed 順序、delta 清單依 delta 計數奇偶分兩個）。
+  - MC33：範例 `examples/tlm/at_ooo`（out-of-order AT）。
+  - MC35：在 `src`、`include`、`examples` 搜尋 `protocol_checker`／`tlm_checker`，沒有結果。
+  - 未核對 IEEE 1666 標準原文：phase 的方向規則、ignorable phase、`TLM_ACCEPTED`／`TLM_UPDATED`／`TLM_COMPLETED` 的合法組合、「請求通道一次只接受一筆」等，都是依範例與本機實跑，標準條文沒有查（題目內有逐處註明）。
 - 沒有核對 IEEE 1666 標準原文（本機沒有）：MC17、MC18 的 `TLM_ACCEPTED`／`TLM_UPDATED`／`TLM_COMPLETED` 語意、MC7 的「bus 應該還原位址」規則，都是依本機實跑，標準條文沒有查；MC21 的 DMI 作廢語意只對照到先前核對過的 `tlm_fw_bw_ifs.h` 註解（見文末核對紀錄）。
 
 ---
@@ -1865,6 +2838,6 @@ initiator 一定要檢查 `trans.is_response_error()`。注意它的實作是 `r
 
 ## 下一輪可以加考的題目
 
-- AT 細節：畫出一筆 AT READ 的四個 phase 時序，標出每一步是 fw 還是 bw、回傳哪個 `tlm_sync_enum`。
-- `TLM_COMPLETED` 提前結束的情境：什麼樣的 target 會直接回 `TLM_COMPLETED`？
+- AT 細節（選擇題 MC23–MC36 已涵蓋 phase 方向、`tlm_sync_enum`、return path、PEQ）：口述版還沒考，要能不看筆記畫出一筆 AT READ 的四個 phase 時序，標出每一步是 fw 還是 bw、回傳哪個 `tlm_sync_enum`。
+- `TLM_COMPLETED` 提前結束的情境：什麼樣的 target 會直接回 `TLM_COMPLETED`？（MC18、MC34 已有實跑例子，口述時要能講出理由。）
 - 實作驗證：用 C++ 練習第 4 步寫一個 initiator/target，分別量「每筆 `wait`」、「加 quantumkeeper」、「加 DMI」三種的模擬時間。

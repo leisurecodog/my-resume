@@ -1,6 +1,7 @@
 # Progress
 
 ## Done
+- 2026-10-21: `study/tlm-quiz.md` 選擇題再補 AT 專題 MC23–MC36（L1 2 題、L2 6 題、L3 6 題）：`tlm_phase` 內容與自訂 phase、`tlm_sync_enum` 三個回傳值、四個 phase 的 fw/bw 方向、`nb_transport` 的 `delay` 語意、AT initiator 接 LT target 的 nb→b 轉換、`peq_with_get`（排序、只呼叫一次的陷阱）、`peq_with_cb_and_phase`（同時間先進先出、immediate/delta/timed 順序）、out-of-order 完成、四 phase 對捷徑的呼叫次數、socket 不檢查 phase 方向、對 `BEGIN_RESP` 回 `TLM_ACCEPTED` 卻不送 `END_RESP` 會讓下一筆回應永遠送不出來。MC1–MC36 用腳本逐題抽出編譯執行，輸出與答案全部一致，並對照 SystemC 2.3.3 原始碼與 `examples/tlm`（核對範圍在驗證紀錄）。
 - 2026-10-21: `study/tlm-quiz.md` 新增「選擇題」段（MC1–MC22：L1 6 題、L2 10 題、L3 6 題，放在口述題 Q1–Q8 之前），涵蓋 generic payload 預設值與 response status、`delay` 累加、bus 位址與延遲、`tlm_quantumkeeper`（忘了 `reset()`、對齊整數倍、預設 quantum 為 0）、`transport_dbg`、b/nb 轉換、extension、引用計數、multi socket id、AT 的 return path、`TLM_COMPLETED`、temporal decoupling 的因果問題、`SC_METHOD` 呼叫 `b_transport`、DMI 與領先時間。22 題程式碼用腳本抽出編譯執行，輸出與答案逐行比對一致，並對照 SystemC 2.3.3 原始碼（核對範圍在該段末尾的驗證紀錄）。
 - 2026-10-21: `study/systemc-core-quiz.md` 新增「選擇題」段（MC1–MC23：L1 7 題、L2 10 題、L3 6 題，放在問答題之前）。從檔案抽出程式碼用腳本編譯執行，22 題的輸出與答案區塊逐行比對全部一致（MC23 是 wall-clock，另跑兩個版本確認喚醒次數）。
 - 2026-10-21: `study/cpp11-14-quiz.md` 新增「選擇題」段（MC1–MC25，L1 8 題、L2 11 題、L3 6 題，放在檔案最前面），問答題與手寫題移到後面並加分隔標題。每題程式碼與結論在本機 g++ 實跑（含 ASan、-std=c++11 對照、volatile/atomic 計數實驗）。
