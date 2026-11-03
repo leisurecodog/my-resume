@@ -425,7 +425,7 @@ int sc_main(int, char**) {
 <details>
 <summary>答案</summary>
 
-**C。** bus 直接改 payload 的位址（扣掉 base 0x1000）再往下送，所以 target 看到的是區域位址 `0x8`；bus 在返回前把位址還原，所以 initiator 仍看到 `0x1008`（若 bus 忘了還原，initiator 看到的就是被改過的位址，這份題庫只實跑了有還原的版本）。延遲是一路累加的：bus 加 5 ns，再傳給 target 又加 10 ns，initiator 最後拿到 15 ns，`now` 仍是 `0 s`：**每一層都要把自己的延遲加進同一個 `delay`**，只有最後的 initiator 決定何時 `wait`。
+**C。** bus 直接改 payload 的位址（扣掉 base 0x1000）再往下送，所以 target 看到的是區域位址 `0x8`；這份範例 bus 在返回前把位址還原，所以 initiator 仍看到 `0x1008`。還原位址是建議的慣例（讓上游看到的 payload 與送進來時一致），不是本機原始碼規定；若 bus 忘了還原，initiator 看到的就是被改過的位址，這份題庫只實跑了有還原的版本。延遲是一路累加的：bus 加 5 ns，再傳給 target 又加 10 ns，initiator 最後拿到 15 ns，`now` 仍是 `0 s`：**每一層都要把自己的延遲加進同一個 `delay`**，只有最後的 initiator 決定何時 `wait`。
 
 ```
 target sees addr=0x8
@@ -2282,7 +2282,7 @@ initiator 故意用 forward path 送出一個只該走 backward 的 `BEGIN_RESP`
 <details>
 <summary>答案</summary>
 
-**D。** phase 只是一個值，`simple_target_socket` 看到 target 有註冊 `nb_transport_fw` 就原樣轉交（`simple_target_socket.h` 的 `nb_transport_fw`），不檢查方向，也不檢查順序。只有 target 沒註冊 `nb_transport_fw`、靠 nb→b 轉換時，socket 才會自己檢查並報 `invalid phase received`（MC26 提到的那一段）。本機 SystemC 2.3.3 也沒有內建的 protocol checker（在 `src`、`include`、`examples` 搜尋過，沒有）。
+**D。** phase 只是一個值，`simple_target_socket` 看到 target 有註冊 `nb_transport_fw` 就原樣轉交（`simple_target_socket.h` 的 `nb_transport_fw`），不檢查方向，也不檢查順序。只有 target 沒註冊 `nb_transport_fw`、靠 nb→b 轉換時，socket 才會自己檢查並報 `invalid phase received`（MC26 提到的那一段）。2.3.3 未附 protocol checker（已在 `src`、`include`、`examples` 搜尋 `checker`，沒有 checker 元件）。
 
 ```
 target got fw BEGIN_RESP
@@ -2394,9 +2394,9 @@ socket 認定「回應已完成」的條件是 `TLM_COMPLETED`，或 `TLM_UPDATE
   - MC29、MC31：`peq_with_get.h`（`std::multimap`、`get_next_transaction` 只回已到期並重新排事件）。
   - MC30、MC32：`peq_with_cb_and_phase.h`（`time_ordered_list::insert` 的 `<=` 規則、`fec()` 的 immediate → delta → timed 順序、delta 清單依 delta 計數奇偶分兩個）。
   - MC33：範例 `examples/tlm/at_ooo`（out-of-order AT）。
-  - MC35：在 `src`、`include`、`examples` 搜尋 `protocol_checker`／`tlm_checker`，沒有結果。
+  - MC35：2.3.3 未附 protocol checker（在 `src`、`include`、`examples` 搜尋 `checker`，只有 `examples/tlm/common/src/lt_dmi_initiator.cpp` 一則註解提到 "TLM2.0 checker"，沒有 checker 元件）。
   - 未核對 IEEE 1666 標準原文：phase 的方向規則、ignorable phase、`TLM_ACCEPTED`／`TLM_UPDATED`／`TLM_COMPLETED` 的合法組合、「請求通道一次只接受一筆」等，都是依範例與本機實跑，標準條文沒有查（題目內有逐處註明）。
-- 沒有核對 IEEE 1666 標準原文（本機沒有）：MC17、MC18 的 `TLM_ACCEPTED`／`TLM_UPDATED`／`TLM_COMPLETED` 語意、MC7 的「bus 應該還原位址」規則，都是依本機實跑，標準條文沒有查；MC21 的 DMI 作廢語意只對照到先前核對過的 `tlm_fw_bw_ifs.h` 註解（見文末核對紀錄）。
+- 沒有核對 IEEE 1666 標準原文（本機沒有）：MC17、MC18 的 `TLM_ACCEPTED`／`TLM_UPDATED`／`TLM_COMPLETED` 語意、MC7 的「bus 在返回前還原位址」只是範例 bus 的寫法，當成建議慣例，不是標準或原始碼規定，都是依本機實跑，標準條文沒有查；MC21 的 DMI 作廢語意只對照到先前核對過的 `tlm_fw_bw_ifs.h` 註解（見文末核對紀錄）。
 
 ---
 
@@ -2732,8 +2732,9 @@ bus.init_socket.bind(mem.socket);    // bus 的 initiator socket 綁到 memory
 - socket 的 BUSWIDTH 模板參數兩端要一致，否則編譯失敗。
 - 沒有 bind 的 socket 在 elaboration 時會報錯。
 - 沒有 bind 的原因：socket 底層是 `sc_port`，預設 policy 是 `SC_ONE_OR_MORE_BOUND`，至少要 bind 一次。
-- simple、passthrough、multi_passthrough 這幾種 target socket，沒有註冊的 callback 都走同樣的預設行為：`get_direct_mem_ptr` 回傳 `false`（不給 DMI），`transport_dbg` 回傳 `0`（不支援 debug 存取）。initiator 要能處理這兩種結果。
-- simple target socket 如果 `b_transport` 和 `nb_transport_fw` 都沒註冊，收到 transaction 時會報錯。
+- simple、passthrough、multi_passthrough 這幾種 target socket，沒有註冊的 callback 時，`get_direct_mem_ptr` 都回傳 `false`（不給 DMI），`transport_dbg` 都回傳 `0`（不支援 debug 存取）。initiator 要能處理這兩種結果。
+- 但 `b_transport` 的預設行為**不同**：只註冊 `nb_transport_fw` 時，simple 會自動做 nb→b 轉換；passthrough 和 multi 不做轉換，被呼叫時會報 SC_REPORT_ERROR（預設 action 是 throw）。
+- simple 或 passthrough target socket 如果 `b_transport` 和 `nb_transport_fw` 都沒註冊，收到 transaction 時會報錯（SC_REPORT_ERROR）。multi socket 連一個 callback 都沒註冊時，不會等到 transaction：sc_start 的 binding 檢查就會報 E109（export not bound）。
 
 **4. 自己的經驗**
 
@@ -2773,7 +2774,7 @@ bus.init_socket.bind(mem.socket);    // bus 的 initiator socket 綁到 memory
 
 - streaming width 是每一拍（beat）傳幾個 byte。每一拍都從 payload 的 address 開始，所以 streaming width 小於 data length 時，等於對同一段位址範圍存取好幾次。
 - 一般的連續存取要把 streaming width 設成等於 data length。
-- **陷阱**：`tlm_generic_payload` 建構時 streaming width 預設是 **0**，不會自動等於 data length。initiator 忘了設的話，像 SystemC 範例裡的 memory target 檢查 `streaming_width != data_length` 就會回 `TLM_BURST_ERROR_RESPONSE`。SystemC 範例的 initiator 都會明確寫 `trans.set_streaming_width(trans.get_data_length())`。
+- **陷阱**：`tlm_generic_payload` 建構時 streaming width 預設是 **0**，不會自動等於 data length。initiator 忘了設的話，像 SystemC 範例裡的 memory target 檢查 `streaming_width != data_length` 就會回 `TLM_BURST_ERROR_RESPONSE`。SystemC 2.3.3 範例中只有兩個檔案呼叫 `set_streaming_width`：`examples/tlm/lt_extension_mandatory/src/lt_initiator_extension_mandatory.cpp`（寫 `trans.set_streaming_width(trans.get_data_length())`）與 `examples/tlm/lt_mixed_endian/src/me_traffic_generator.cpp`（寫 `len * sizeof(T)`，同樣等於 data length）。其他會設定 command／address 的檔案（`SimpleBusLT.h`、`SimpleBusAT.h` 是轉送 bus，`lt_dmi_initiator.cpp` 只改 address 與 `set_dmi_allowed`）都沒有設定 data length 或 streaming width，所以不能說「範例的 initiator 都會設」。
 - 情境：寫 FIFO 型 peripheral。對同一個 4-byte data register 連續寫 64 byte，就是 data length = 64、streaming width = 4。
 
 **3. 錯誤處理**
@@ -2824,7 +2825,7 @@ initiator 一定要檢查 `trans.is_response_error()`。注意它的實作是 `r
 
 - Q8：streaming width 預設是 0，不是 data length（原本沒寫，是常見陷阱）。
 - Q8：`is_response_error()` 對 INCOMPLETE 也回傳 true。
-- Q7：simple target socket 是雙向轉換（原本只寫了 nb 轉 b）；passthrough 和 multi socket 的預設行為和 simple 相同。
+- Q7：simple target socket 是雙向轉換（原本只寫了 nb 轉 b）；passthrough 和 multi socket 不做 b／nb 轉換，只有 DMI 與 debug 的預設行為和 simple 相同（2026-11-03 已修正，見下方「事實修正」）。
 - Q6：bus 跨 target 只轉送第一段是實作選擇，不是標準規定。
 - Q4：target 設 DMI hint 是義務；全部作廢用 `0` 到 `(sc_dt::uint64)-1`；不能在 invalidate 裡呼叫 `get_direct_mem_ptr`。
 
@@ -2833,6 +2834,30 @@ initiator 一定要檢查 `trans.is_response_error()`。注意它的實作是 `r
 - streaming width「每拍從同一個 address 開始」的語意：只對照到引用 LRM 的論壇與 UVM 文件，沒看到 IEEE 1666 原文。
 - 「ignorable extension」的定義：IEEE 1666 的概念，原始碼裡沒有對應註解。
 - Q2 的 phase 方向和 `tlm_sync_enum` 語意：這次沒有核對。
+
+### 事實修正（2026-11-03）
+
+以下用本機 SystemC 2.3.3（`-std=c++11`，連結 `lib-linux64/libsystemc.a`）重新實測；測試程式放在 scratchpad，未進 repo。
+
+1. **passthrough 與 multi 是否做 b／nb 轉換（Q3 預設行為、Q7 摘要）**
+   - 原敘述：simple、passthrough、multi 沒註冊 callback 的預設行為都相同（Q3）；passthrough 和 multi 與 simple 相同（Q7）。
+   - 實測：只註冊 `nb_transport_fw`，initiator 呼叫 `b_transport`：simple 自動轉換，回 `TLM_OK_RESPONSE`；passthrough 報 `no blocking callback registered`；multi 報 `Call to b_transport without a registered callback for b_transport`。這些都是 SC_REPORT_ERROR（不是 SC_FATAL），預設 action 含 SC_THROW，程式以 exit 1 結束。三者都不註冊時，simple 與 passthrough 收到 `b_transport` 才報錯，multi 在模擬開始前的 binding 檢查就報 E109（export not bound）。`get_direct_mem_ptr` 回 `false`、`transport_dbg` 回 `0`，三者一致。反方向：只註冊 `b_transport` 時，simple 會把收到的 `nb_transport_fw` 自動轉成 b→nb；passthrough 報 `no non-blocking callback registered`。
+   - 原始碼：`src/tlm_utils/passthrough_target_socket.h`（`b_transport` 只呼叫 `display_error`，沒有轉換）、`src/tlm_utils/convenience_socket_bases.cpp`（`display_error` 是 `SC_REPORT_ERROR`）、`include/sysc/utils/sc_report.h`（`SC_DEFAULT_ERROR_ACTIONS = SC_LOG | SC_CACHE_REPORT | SC_THROW`）。
+   - 改了什麼：Q3 改為「DMI 與 debug 三者相同，`b_transport` 不同」，並補上 SC_REPORT_ERROR 與 multi 的 E109；Q7 摘要改為 passthrough、multi 不做 b／nb 轉換。與 Q2 的「passthrough 不做轉換」一致。
+
+2. **MC7 的 bus 還原位址（原敘述：bus 在返回前還原位址，寫成事實）**
+   - 實測：MC7 原程式（bus 有 `gp.set_address(orig)`）輸出 `target sees addr=0x8`、`init: addr=0x1008 delay=15 ns now=0 s`；拿掉還原那一行後，initiator 看到 `init: addr=0x8`。
+   - 改了什麼：答案改為「這份範例 bus 在返回前還原位址；還原是建議的慣例，不是本機原始碼規定」；未核對條文那段改為「範例寫法，當成建議慣例」。
+
+3. **streaming width 的範例說法（Q8）**
+   - 原敘述：「SystemC 範例的 initiator 都會明確寫 `set_streaming_width`」。
+   - 實測：`grep -rl set_streaming_width examples` 只有 2 個檔案（`lt_extension_mandatory/src/lt_initiator_extension_mandatory.cpp`、`lt_mixed_endian/src/me_traffic_generator.cpp`），兩者都設成等於 data length。會設定 command／address 的 5 個檔案中，`SimpleBusLT.h`、`SimpleBusAT.h` 是轉送 bus，`lt_dmi_initiator.cpp` 只設 address 與 `set_dmi_allowed`，都沒有設 streaming width。`memory.cpp` 第 108 行的 `streaming_width != data_length` 檢查已確認。
+   - 改了什麼：改為精確列出那兩個檔案，並說明其他檔案不設。
+
+4. **protocol checker（MC35、MC 答案 D 段）**
+   - 原敘述：「本機 SystemC 2.3.3 也沒有內建的 protocol checker（在 `src`、`include`、`examples` 搜尋過，沒有）」。
+   - 實測：`grep -rni checker src include examples` 只有 `examples/tlm/common/src/lt_dmi_initiator.cpp:39` 一則註解 `TLM2.0 checker.`，沒有 checker 元件。
+   - 改了什麼：改為「2.3.3 未附 protocol checker」，並附搜尋範圍與那則註解。
 
 ---
 

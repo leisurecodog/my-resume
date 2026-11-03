@@ -7,6 +7,7 @@
 - 已完成：四份履歷的 AMBA 措辭改為整合與 spec 閱讀層級（見 `progress.md`）；`prep-notes.md` 第三部分 CI/CD 說法已改為「個人專案自己架過 CI，工作上沒用過」。
 
 ## Files touched
+- 2026-11-03（題庫事實修正）：`study/cpp11-14-quiz.md`、`study/tlm-quiz.md`、`study/systemc-core-quiz.md`（修正內容與實測在各檔尾「事實修正（2026-11-03）」）、`tasks/progress.md`、`tasks/handoff.md`、`tasks/lesson.md`。
 - 2026-11-03（口頭演練）：`study/cpp11-14-quiz.md`（新增「口頭練習紀錄」段，在 MC 驗證紀錄之後）、`tasks/progress.md`、`tasks/handoff.md`。
 - 2026-10-21（AT 選擇題）：`study/tlm-quiz.md`（新增 MC23–MC36、更新驗證紀錄與「下一輪可以加考」）、`tasks/progress.md`、`tasks/handoff.md`、`tasks/lesson.md`。
 - 2026-10-21（TLM 選擇題）：`study/tlm-quiz.md`（新增 MC1–MC22，放在 Q1 之前）、`CLAUDE.md`（study/ 一行）、`tasks/progress.md`、`tasks/handoff.md`、`tasks/lesson.md`。
@@ -30,6 +31,7 @@
 - `mediatek/resume-mediatek-vdk.tex`（加一條 bullet）與重新編譯的 `mediatek/resume-mediatek-vdk.pdf`
 
 ## Next steps
+- 題庫擴充清單（2026-11-03 四份缺口審查，尚未動手，等使用者決定順序與格式：折疊答案或只給題目骨架）。建議順序：新增 `study/c-bitops-quiz.md`（struct padding / endianness / mask 操作 / 手寫，約 30 題，g++ 可全驗證）→ SystemC 核心補 `sc_port`/`sc_export`、自訂 primitive channel、elaboration 回呼、`sc_clock`/`SC_CTHREAD`、process control、`sc_fifo` nb 介面、`sc_report`，並補 L3 找 bug 與 L4 設計取捨 → TLM 補 interrupt+register 整合、byte enable / streaming width、memory manager、`b_transport` 內 `wait`、AT 口述、L4 MC，Q1–Q8 補層級標籤 → C++ 補 variadic/SFINAE/CRTP、vtable/slicing、容器迭代器失效、並行（C++11）、placement new、手寫題對應學習計畫第 1 項步驟 3、4。之後依序：`vdk-debug-scenario`（本機沒裝 gdb / valgrind）、`bus-perf-quiz`、`arch-memory-quiz`、`cosim-fixedpoint-quiz`、`ai-npu-workload-quiz`、`rtl-verilog-quiz`（要先裝 iverilog）。CI、效能 sign-off、simulation speed 案例、CModel vs RTL 經驗只能口述，不做題庫。
 - 2026-11-03 接續：C++ 口頭演練停在 lambda 之後。下一輪從 lambda `[=]`/`this`、`shared_ptr` 循環參考（L2-3）、L2-4 Rule of Zero 開始；弱點見 `study/cpp11-14-quiz.md`「口頭練習紀錄」。使用者答題傾向只給結果，請他一句話寫理由。
 - 新題庫：先做 `study/cpp11-14-quiz.md` 選擇題 MC1–MC25（可自己手打程式碼驗證），再做第零模組 L1→L2，L2-4（Rule of Zero）自己寫完貼來 review，不要先給解。接著 `study/systemc-core-quiz.md` 先做選擇題 MC1–MC23，再由問答題 L1 往 L4。使用者做完後再補 TLM-2.0 的 L1–L2（入門與 AT 細節），並把口試結果記回各檔的「上次的弱點」。
 - `study/tlm-quiz.md` 先做選擇題 MC1–MC36（MC23 起是 AT 專題）（可自己手打程式碼驗證），再做口述題 Q1–Q8。

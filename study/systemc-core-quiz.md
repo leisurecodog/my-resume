@@ -679,7 +679,11 @@ In file: ../../../src/sysc/communication/sc_signal.cpp:67
 In process: m.b @ 5 ns
 ```
 
-這是 IEEE 1666 的預設檢查；本機 2.3.3 另有環境變數 `SC_SIGNAL_WRITE_CHECK`：設成 `CONFLICT` 時只檢查「同一個 delta 內的衝突寫入」，設成 `DISABLE` 時完全不檢查（實測兩者都讓這段程式正常印出 `finished`）。不要靠環境變數繞過，要多個 writer 必須明確宣告 `sc_signal<int, SC_MANY_WRITERS>`（本機實測同一段程式改成這樣可以正常結束，`s` 最後是 2），但這時要自己確保同一個 delta 內不會有衝突的寫入。
+這是 IEEE 1666 的預設檢查；本機 2.3.3 另有環境變數 `SC_SIGNAL_WRITE_CHECK`：設成 `CONFLICT` 時只檢查「同一個 delta 內的衝突寫入」，設成 `DISABLE` 時完全不檢查（實測兩者都讓這段程式正常印出 `finished`）。
+
+實測對照（兩個 process 的寫入分別在 `1 ns` 的同一個 delta，或 `1 ns` 的不同 delta）：未設環境變數時兩種都報 E115；`CONFLICT` 時同一 delta 報 E115（多一行 `conflicting write in delta cycle N`），不同 delta 正常結束；`DISABLE` 時兩種都正常結束。原始碼依據：`sc_simcontext.cpp:328–335` 讀取環境變數；`sc_simcontext_int.h:91–92` 在 `DISABLE` 時不記錄 writer；`sc_signal.h:47–67` 的 `check_write` 比較 writer；`sc_signal.h:70–74` 的 `update()` 在 `m_delta_only`（即 `CONFLICT`）時於 update phase 清空 writer，所以只對同一個 delta 有效。
+
+不要靠環境變數繞過。要多個 writer 必須明確宣告 `sc_signal<int, SC_MANY_WRITERS>`，本機實測同一段原題程式改成這樣可以正常結束，`s` 最後是 2。但 `SC_MANY_WRITERS` 不是完全不檢查：`sc_writer_policy_check<SC_MANY_WRITERS>` 繼承 `sc_writer_policy_check_delta`（`sc_writer_policy.h:141–144`），所以同一個 delta 內的衝突寫入仍由 kernel 報 E115（實測，環境變數未設或設 `CONFLICT` 都會報），不同 delta 的寫入允許。要完全不檢查只能用 `SC_UNCHECKED_WRITERS`（實測同一 delta 兩寫入正常結束），這是非標準行為，不建議在模型中使用。
 
 </details>
 
@@ -968,7 +972,7 @@ int sc_main(int, char**) {
 <details>
 <summary>答案</summary>
 
-**C。** `sc_start(SC_ZERO_TIME)` 只執行**一個 delta cycle** 就返回（simulation time 不前進），每次呼叫推進一個 delta。這個用法在 debug 時很有用（單步看 delta），也能在 testbench 裡把 reset 結束後的初始化先跑完。原始碼 `sc_simcontext::simulate` 對 `duration == SC_ZERO_TIME` 有專門的分支：`crunch(true)`，也就是只跑一輪。
+**C。** `sc_start(SC_ZERO_TIME)` 只執行**一個 delta cycle** 就返回（simulation time 不前進），每次呼叫推進一個 delta。這個用法在 debug 時很有用（單步看 delta），也能在 testbench 裡把 reset 結束後的初始化先跑完。原始碼 `sc_simcontext::simulate` 對 `duration == SC_ZERO_TIME` 有專門的分支（`sc_simcontext.cpp:867–870`）：`crunch(true)`，也就是只跑一輪。`crunch` 在 delta 結束時 `if ( once ) break;`（`sc_simcontext.cpp:595`），所以一次 `sc_start(SC_ZERO_TIME)` 最多做一個 evaluate→update→notify 循環；`initialize(true)` 不做 `initial_crunch`（`sc_simcontext.cpp:796`），第一次呼叫時 thread 的初始執行也在這一輪的 evaluate 裡完成。
 
 ```
 delta loop 0 @0 s
@@ -1104,13 +1108,13 @@ int sc_main(int argc, char** argv) {
 
 - A. 兩者幾乎一樣快，差在 5% 以內
 - B. `SC_THREAD` 比較快，因為 coroutine 切換很便宜
-- C. `SC_METHOD` 比較快（耗時少約四成），但兩者每次喚醒都要走 timed event queue 和 scheduler，成本仍然是同一個量級，最有效的辦法還是減少喚醒的次數
+- C. `SC_METHOD` 比較快（耗時少約三到五成），但兩者每次喚醒都要走 timed event queue 和 scheduler，成本仍然是同一個量級，最有效的辦法還是減少喚醒的次數
 - D. `SC_METHOD` 快很多，幾乎沒有成本，所以把全部 process 改成 `SC_METHOD` 就能解決 simulation speed 問題
 
 <details>
 <summary>答案</summary>
 
-**C。** 本機 `-O2` 實測（各跑 3 次，每次約 9999999 次喚醒）：`SC_THREAD` 約 0.73–0.78 秒，`SC_METHOD` 約 0.45–0.47 秒，`SC_METHOD` 耗時少了約 40%，因為不需要切換堆疊（context switch）。但兩者每次喚醒都要經過：timed event 的插入與取出（heap 型 priority queue）、runnable 佇列、scheduler 流程，所以只是少了一部分成本（D 錯）。這個差距也遠比「喚醒次數少 1000 倍」（L4-1 的實驗，幾百倍的 wall-clock 差距）小。A、B 與實測不符。
+**C。** 本機 `-O2` 實測（同一時段成對交錯重跑 8 次，每次約 9999999 次喚醒）：`SC_THREAD` 約 1.0–1.2 秒，`SC_METHOD` 約 0.6–0.7 秒。`SC_METHOD` 的耗時是 `SC_THREAD` 的 0.54–0.66 倍（少約 34–46%），主要因為不需要切換堆疊（context switch）。絕對秒數會隨機器負載變動，只看相對比例。但兩者每次喚醒都要經過：timed event 的插入與取出（heap 型 priority queue）、runnable 佇列、scheduler 流程，所以只是少了一部分成本（D 錯）。這個差距也遠比「喚醒次數少 1000 倍」（L4-1 的實驗，wall-clock 差距是千倍量級）小。A、B 與實測不符。
 
 程式輸出（wall-clock 因機器而異，只有喚醒次數是固定的）：
 
@@ -1508,7 +1512,7 @@ int sc_main(int argc, char** argv){
 
 **1. 成本拆解（對照 SystemC 2.3.3 原始碼）**
 
-每一次 `wait(t)`（`sc_thread_process::wait( const sc_time& )`，`sc_thread_process.h`）都要：
+在 `SC_MODULE` 裡寫的 `wait(t)` 要經過三層呼叫：`sc_module::wait(const sc_time&)`（`sc_module.h:191`，類別作用域先找到的成員，內部呼叫 `::sc_core::wait(t, simcontext())`）→ sc_core 自由函式 `wait(const sc_time&, sc_simcontext*)`（宣告 `sc_wait.h:71`，定義 `sc_wait.cpp:162`，依目前 process 的類別分派）→ `sc_thread_process::wait(const sc_time&)`（`sc_thread_process.h:316`）。`sc_thread_process.h:87` 只是自由函式的前向宣告。每一次這樣的呼叫都要：
 
 - 呼叫 `m_timeout_event_p->notify_internal(t)`：在 timed event queue（`m_timed_events`）裡新增一個 `sc_event_timed`，queue 是 heap 實作的 priority queue（`sc_ppq`，`src/sysc/utils/sc_pq.h`），insert 與 `extract_top` 都是 `O(log N)`。
 - `add_dynamic(this)` 把 process 掛到該事件的動態敏感清單。
@@ -1520,11 +1524,13 @@ int sc_main(int argc, char** argv){
 **2. 實測（本機，`-O2`，`sc_start(100, SC_MS)`）**
 
 ```
-fine(10ns): wakeups=9999999 wall=0.649s
+fine(10ns): wakeups=9999999 wall=0.958s
 coarse(10us): wakeups=9999 wall=0.001s
 ```
 
-喚醒次數差 1000 倍，wall-clock 約 `0.667 s` 對 `0.001 s`。平均每次喚醒約 `0.667 s / 10^7 ≈ 67 ns`。這是最簡單的 process，模型越複雜（多個 process、signal 更新、每次喚醒又觸發別的事件）每次的成本越高。數字只代表本機這個環境，不要當作通用常數。
+上面的 `0.958s` 是同一台機器重跑 10 次中的一次；coarse 的 `0.001s` 已到計時解析度，只能說低於 0.002 s。
+
+喚醒次數差 1000 倍。fine 端 wall-clock 的範圍是 `0.93–1.08 s`（10 次重跑，`-O2`，`sc_start(100, SC_MS)`），換算成平均每次喚醒約 `93–108 ns`。同一台機器前後的紀錄還有 `0.649 s`（原紀錄）與 `0.923 s`（審查重跑），跨時段差異可達約 1.7 倍（`0.649 s` 對 `1.08 s`），所以**只比相對比例與數量級**：fine 與 coarse 的 wall-clock 差距是千倍量級，絕對秒數與每次喚醒的 ns 數會隨機器負載變動。這是最簡單的 process，模型越複雜（多個 process、signal 更新、每次喚醒又觸發別的事件）每次的成本越高。數字只代表本機這個環境，不要當作通用常數。
 
 **3. 取捨（面試追問方向，答案要自己寫）**
 
@@ -1545,3 +1551,58 @@ coarse(10us): wakeups=9999 wall=0.001s
 - 未核對項目：IEEE 1666 標準原文（本機沒有），涉及「標準保證什麼」的敘述（`m1` 與 `m2` 順序、`wait(SC_ZERO_TIME)` 與 delta 事件的順序為不保證）依 SystemC 語意的一般理解，沒有查標準條文。
 - `sc_signal` 的 `m_cur_val` / `m_new_val` 欄位（L2-3）有在 `sc_signal.h` 看到；`write()` 登記到 update 清單的流程沒有逐行追。
 - `sc_ppq` 為 heap 實作（`sc_pq.h`）、本機 library 含 `sc_cor_pkg_qt`（QuickThreads）已確認。
+
+### 事實修正（2026-11-03）
+
+以下每項列出原敘述、實測（SystemC 2.3.3，`g++ -std=c++11 -O2` 或 `-O0`，本機 12 核，同一時段）與修改。
+
+1. **L4-1 wall-clock**
+   - 原敘述：「約 0.667 s」「平均約 67 ns」，與同段實測 0.649 s 不一致；審查重跑 0.923 s。
+   - 實測：fine(10ns) 同機重跑 10 次，wall-clock `0.930–1.082 s`，每次喚醒約 `93–108 ns`；coarse(10us) 為 `0.001 s`（已到計時解析度）。
+   - 修改：輸出區塊與文字改為區間，註明只比相對比例、絕對值隨機器變動，並保留原 0.649 s、0.923 s 作為跨時段參考。
+
+2. **L4-1 的 `wait` 簽章**
+   - 原敘述：`sc_thread_process::wait( const sc_time& )`，`sc_thread_process.h`。
+   - 原始碼（三層）：`SC_MODULE` 內的 `wait(t)` 先找到成員 `sc_module::wait(const sc_time&)`（`sc_module.h:191`，內部呼叫 `::sc_core::wait(t, simcontext())`）；自由函式 `wait(const sc_time&, sc_simcontext*)` 宣告於 `sc_wait.h:71`、定義於 `sc_wait.cpp:162`，依 process 類別分派；thread 的成員 `sc_thread_process::wait(const sc_time&)` 定義於 `sc_thread_process.h:316`（宣告 `:158`）。`sc_thread_process.h:87` 只是自由函式的前向宣告。
+   - 修改：L4-1 參考答案改寫為三層呼叫，並列出每層行號。全檔只有 L4-1 這一處寫成單獨的成員簽章；核對紀錄中提到 `sc_thread_process::wait` 的地方只是名稱列舉，未改。
+
+3. **MC14 `SC_SIGNAL_WRITE_CHECK=CONFLICT` 的語意**
+   - 原敘述：`CONFLICT` 只檢查同一 delta 內的衝突寫入；`DISABLE` 完全不檢查；兩者都讓原程式正常印出 `finished`。
+   - 實測（兩個 process 寫同一 `sc_signal<int>`）：
+
+     | 情境 | 未設 | `CONFLICT` | `DISABLE` |
+     |---|---|---|---|
+     | 原題（`1 ns` 與 `5 ns` 寫入） | E115 於 `5 ns` | `finished` | `finished` |
+     | 同一 delta（兩者都在 `1 ns`） | E115 | E115（多一行 `conflicting write in delta cycle 1`） | 正常，`s=2` |
+     | 不同 delta（同為 `1 ns`，後者先 `wait(SC_ZERO_TIME)`） | E115 | 正常，`s=2` | 正常，`s=2` |
+
+   - `SC_MANY_WRITERS` 版本（同一段原題程式）實測正常結束，`s=2`。但 `SC_MANY_WRITERS` 的 policy 繼承 `sc_writer_policy_check_delta`（`sc_writer_policy.h:141–144`），同一 delta 的衝突寫入仍報 E115，見下表最後兩列。
+   - 補充表（`SC_MANY_WRITERS`）：
+
+     | 情境 | 未設 | `CONFLICT` | `DISABLE` |
+     |---|---|---|---|
+     | `SC_MANY_WRITERS`，同一 delta（`1 ns`） | E115（`conflicting write in delta cycle 1`） | E115 | 正常，`s=2` |
+     | `SC_MANY_WRITERS`，不同 delta（同為 `1 ns`） | 正常，`s=2` | 正常，`s=2` | 正常，`s=2` |
+
+   - `SC_UNCHECKED_WRITERS`（非標準）實測同一 delta 也正常，`s=2`，未設環境變數。
+   - 修改：原文的「同一段程式改成 `SC_MANY_WRITERS` 可正常結束」與環境變數描述一致，未改結論；原本「要自己確保同一 delta 不會衝突」的說法與實測不符，已改寫為 kernel 仍會報同一 delta 的衝突（見上）。原始碼依據：`sc_simcontext.cpp:328–335`、`sc_simcontext_int.h:91–92`、`sc_signal.h:47–67`、`sc_signal.h:70–74`。
+
+4. **補驗的題目**
+   - MC5、MC6、MC16、MC17：重跑輸出與答案區塊逐行一致，已重跑無誤。
+   - MC20：重跑輸出一致；`crunch(true)` 分支已對照 `sc_simcontext.cpp` 的 `simulate`（`:867–870`）、`crunch`（`:595`）與 `initialize`／`initial_crunch`（`:796`），答案中已補行號。
+   - MC23：wall-clock 原數字不符（同機重跑 `SC_THREAD` 約 1.0–1.2 s、`SC_METHOD` 約 0.6–0.7 s，成對比例 `0.54–0.66`）。已改為區間與比例，選項 C 的「少約四成」改為「少約三到五成」（實測少 34–46%，原「約四成」落在範圍內，但 41–46% 的部分不在「三到四成」內）；喚醒次數 `9999999` 不變。
+   - L1-1 第 3 點 `m1`／`m2`：輸出與文件一致，但文件沒有附程式碼，無法直接重現。依輸出重建如下，結果一致（`m1 @0 s v=0`、`m2 @1 ns v=1`、`m1 @1 ns v=1`、`m2 @2 ns v=0`、`m1 @2 ns v=0`）。重建程式只存於本紀錄，未改動題目本文：
+
+     ```cpp
+     SC_MODULE(M) {
+       sc_signal<int> v;
+       SC_CTOR(M) {
+         SC_METHOD(m1); sensitive << v;
+         SC_METHOD(m2); sensitive << v; dont_initialize();
+         SC_THREAD(drv);
+       }
+       void m1() { cout << "m1 @" << sc_time_stamp() << " v=" << v.read() << endl; }
+       void m2() { cout << "m2 @" << sc_time_stamp() << " v=" << v.read() << endl; }
+       void drv() { wait(1, SC_NS); v.write(1); wait(1, SC_NS); v.write(0); }
+     };
+     ```

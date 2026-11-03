@@ -481,9 +481,13 @@ std::cout << w.use_count() << " " << w.expired() << " " << (w.lock() == nullptr)
 ```cpp
 int x = 0;
 auto f = [x]() mutable { return ++x; };
-std::cout << f() << " " << f() << " " << x << "\n";
+int r1 = f();   // 拆成獨立語句：C++14 的 << 串接中，各 f() 的求值順序未定
+int r2 = f();
+std::cout << r1 << " " << r2 << " " << x << "\n";
 auto g = f;
-std::cout << g() << " " << f() << "\n";
+int r3 = g();
+int r4 = f();
+std::cout << r3 << " " << r4 << "\n";
 ```
 
 兩行輸出是？
@@ -497,6 +501,8 @@ std::cout << g() << " " << f() << "\n";
 <summary>答案</summary>
 
 **D。** 值捕獲的 `x` 是 lambda 內部自己的一份複本，預設 `operator()` 是 `const`，不能改它，要加 `mutable`（沒加會編譯錯誤，實測 `increment of read-only variable 'x'`）。修改的是內部那份，外面的 `x` 仍是 0。`f()` 兩次得到 1、2；`auto g = f;` **複製整個 closure，連內部狀態（目前是 2）一起複製**，所以 `g()` 得到 3，`f()` 也得到 3。這就是為什麼「有狀態的 lambda 被複製」會出乎意料。
+
+   題目的寫法若直接寫成 `std::cout << f() << " " << f()`，在 C++14 `<<` 串接中兩個 `f()` 的求值順序未定（C++17 才定序），所以改成獨立語句。拆開後實測輸出仍是 `1 2 0` 和 `3 3`，與答案一致，不依賴 g++ 的實作順序。
 
 </details>
 
@@ -994,7 +1000,9 @@ std::function<int()> make_counter() {
 
 int main() {
   auto c = make_counter();
-  std::cout << c() << " " << c() << "\n";
+  int r1 = c();   // 拆成獨立語句，不依賴 << 串接的求值順序
+  int r2 = c();
+  std::cout << r1 << " " << r2 << "\n";
 }
 ```
 
@@ -1069,16 +1077,16 @@ int main() {
    ```
 
    `~A`、`~B` **都沒有印**。每個物件的 count 都是 2（區域變數 + 對方的成員）。離開 scope 時區域變數各減 1，兩邊都剩 1，彼此持有對方，永遠不會歸零，造成**記憶體洩漏**。
-2. 把「反向」那邊改成 `std::weak_ptr`，例如 `struct B { std::weak_ptr<A> a; ... };`。修好後實測輸出：
+2. 把「反向」那邊改成 `std::weak_ptr`，例如 `struct B { std::weak_ptr<A> a; ... };`。修好後實測輸出（題目 `main` 只印兩個數字，所以對應的是 `1 2`）：
 
    ```
-   1 2 1
+   1 2
    ~A
    ~B
    after scope
    ```
 
-   `a.use_count()` 是 1（`weak_ptr` 不計入 strong count），`b.use_count()` 是 2（區域變數與 `a->b`）；`b->a.use_count()` 也是 1。離開 scope 時 `a` 先歸零釋放（`~A`），釋放 `A::b` 之後 `b` 歸零（`~B`）。
+   `a.use_count()` 是 1（`weak_ptr` 不計入 strong count），`b.use_count()` 是 2（區域變數與 `a->b`）。若另外加印 `b->a.use_count()`，實測是 1。離開 scope 時區域變數反向銷毀：`b` 先離開（count 由 2 變 1），`a` 歸零釋放（`~A`），釋放 `A::b` 之後 `b` 指向的物件也歸零（`~B`）。
 3. LeakSanitizer：用 `g++ -fsanitize=address` 編譯，程式結束時會報 `LeakSanitizer: detected memory leaks`（實測有抓到）；valgrind 的 `--leak-check=full` 也可以。設計上先想「誰擁有誰」：有明確的擁有者用 `unique_ptr`，從屬方用裸指標或 `weak_ptr`。
 
 </details>
@@ -1093,7 +1101,7 @@ int main() {
 
 下面的 `RegBank` 是手寫資源管理的舊版：用 `new[]` 管暫存器陣列、用裸指標管 `Logger`，而且 destructor 忘了釋放 `Logger`（leak）。請把它改成 **Rule of Zero**：
 
-1. 成員改成 `std::vector<uint32_t>`、`std::string`、`std::unique_ptr<Logger>`。
+1. 成員改成 `std::vector<uint32_t>`、`std::string`、`std::unique_ptr<Logger>`。`size()` 由 `regs_` 推得（回傳 `regs_.size()`），不要另存 `n_`；另存的話，moved-from 物件的 `a.size()` 不會是 0，測試會失敗。
 2. 類別裡**不要自己宣告**任何 destructor、copy / move constructor、copy / move assignment。
 3. 對外介面（`write`、`read`、`size`、`name`、建構子）不變。
 4. 改完以後測試要全部通過，包含 AddressSanitizer / UBSan 乾淨。
@@ -1245,7 +1253,37 @@ Control Block 包含：
   2. **避免裸 `new`**：符合 Modern C++ 的理念（No naked `new`），代碼更乾淨且不必重複型別名稱。
 - **`std::make_shared` 的三大固有缺陷（面試常見追問）**：
   1. **無法自訂 Deleter**：`make_shared` 無法指定 custom deleter，需要自訂釋放邏輯時必須用 `shared_ptr(p, deleter)`。
-  2. **無法存取私有建構子**：若 class 建構子為 `private`（如 Singleton 或 Factory），`make_shared` 在外部無法建構，除非設為 friend 或使用 Passkey Idiom。
+  2. **無法存取私有建構子**：若 class 建構子為 `private`（如 Singleton 或 Factory），`make_shared` 在外部無法建構。**把 `friend std::make_shared<T>()` 加進 class 不可行**：`make_shared` 是由 allocator 呼叫 `T` 的建構子，友元宣告不會延伸到它（本機 g++ 11 `-std=c++14` 實測報 `T::T() is private`）。可行的做法有兩種：
+     - **Passkey Idiom（保留單次配置）**：建構子仍是 public，但第一個參數是只有 `Widget` 能建立的 `Key`，工廠函式內以 `std::make_shared<Widget>(Key(), v)` 建立。最小示範（`-std=c++14 -Wall -Wextra -fsanitize=address,undefined` 編譯執行通過）：
+       ```cpp
+       #include <cassert>
+       #include <memory>
+       #include <iostream>
+       class Widget {
+        public:
+         class Key {                       // Passkey：只有 Widget 能建立 Key
+           Key() {}
+           friend class Widget;
+          public:
+           Key(const Key&) = default;
+         };
+         // 建構子是 public，但需要 Key 參數，外部拿不到 Key 就無法呼叫
+         explicit Widget(Key, int v) : v_(v) {}
+         static std::shared_ptr<Widget> create(int v) {
+           return std::make_shared<Widget>(Key(), v);   // 單次配置
+         }
+         int value() const { return v_; }
+        private:
+         int v_;
+       };
+       int main() {
+         auto w = Widget::create(42);
+         assert(w->value() == 42 && w.use_count() == 1);
+         // Widget bad(Widget::Key(), 1);  // 外部無法取得 Key() 的 private 建構子
+         std::cout << "passkey ok: " << w->value() << "\n";
+       }
+       ```
+     - **Static factory + `new`**：`static std::shared_ptr<T> create(int v) { return std::shared_ptr<T>(new T(v)); }`（同樣可編譯通過）。代價是失去 `make_shared` 的單次配置：物件與 Control Block 變成兩次獨立 heap 配置，記憶體局部性較差，兩塊記憶體也無法再一起釋放（與第 2 點 weak_ptr 陷阱的取捨相反）。
   3. **動態陣列支援**：C++14 引入了 `std::make_unique<T[]>(size)`，但 `std::make_shared<T[]>` 直到 **C++20** 才被納入標準。
 </details>
 
@@ -1520,7 +1558,7 @@ public:
 - **無捕獲 Lambda** 可隱式轉型為 C 函式指標：編譯器會自動生成一個轉型運算子函式 `operator conversion-type-id() const noexcept`（例如 `operator void(*)()()`）。
   - **工程慣用語註記**：工程師常寫的 `+[](){}`，是利用 C++ 內建的 unary `+` 運算子強制觸發此轉型運算子轉為函式指標，`+` 本身並非編譯器生成的 operator。
 - **有捕獲 Lambda** 是一個獨立型別的 closure object，不能轉成 C 函式指標。
-- **`std::function` 實作大小參考**：libstdc++ 實作通常為 32 bytes（內建 16 bytes SBO buffer）；libc++ 為 48 bytes（24 bytes buffer）；MSVC STL 為 64 bytes（40 bytes buffer）。
+- **`std::function` 實作大小參考**：libstdc++ 實作通常為 32 bytes（內建 16 bytes SBO buffer）；libc++ 為 48 bytes（24 bytes buffer）；MSVC STL 為 64 bytes（40 bytes buffer）。（libstdc++ 的 32 為本機 g++ 11 實測：`sizeof(std::function<void()>)` 輸出 32；libc++ 與 MSVC 的數字未在本機驗證，依實作可能不同。）
 
 **2. `std::function` 機制與在模擬模型中的瓶頸**
 - **Type Erasure（型別擦除）**：`std::function` 是一個萬用容器，能包裝任何可呼叫物件（lambda、functor、成員函式指標）。為了抹除具體型別，它內部維護一個虛擬函式表或函式指標（呼叫器與釋放器）。
@@ -1529,7 +1567,7 @@ public:
   - 在每秒執行數百萬次 transaction 的 simulation loop 中，如果每個 payload 回呼都包一層 `std::function`，將面臨：
     1. **無法 inline**：嚴重的 instruction cache miss 與 branch misprediction。
     2. **潛在 heap allocation**：若捕獲變數稍大，每次綁定 callback 都觸發 `malloc/free`，直接摧毀模擬速度。
-  - **解法**：在 TLM 框架中優先使用 template 參數靜態綁定，或使用純成員函式指標 callback（如 SystemC standard socket 採用的方式）。
+  - **解法**：在 TLM 框架中優先使用 template 參數靜態綁定。SystemC 的兩條路徑要分開看：（a）標準 socket（`tlm_target_socket` 等）不用 callback，而是綁定 pure virtual 介面 `tlm_fw_transport_if`（`nb_transport_fw` 等宣告為 `= 0`，見 `src/tlm_core/tlm_2/tlm_2_interfaces/tlm_fw_bw_ifs.h`），由 module 實作該介面；（b）`tlm_utils` 的 convenience socket（如 `simple_target_socket`）內部才用成員函式指標：`register_nb_transport_fw(MODULE*, NBTransportPtr)` 把 `MODULE::*` 存入 `fw_process`，再由 `fw_process` 這個適配器實作 `tlm_fw_transport_if` 並轉呼叫（見 `src/tlm_utils/simple_target_socket.h`）。成員函式指標不做 type erasure、不 heap 配置，但仍是間接呼叫。
 
 </details>
 
@@ -1867,7 +1905,7 @@ private:
 
 ### C2：代碼找錯與現代 C++ 盲點分析（Code Review 題）〔L4〕
 
-請指出下列代碼中的 **3 處嚴重設計缺陷或 Bug**，並提供修正方式：
+請指出下列代碼中的 **3 處嚴重設計缺陷或 Bug**（參考答案另列 1 處次要項目），並提供修正方式：
 
 ```cpp
 class DeviceDriver {
@@ -1893,7 +1931,7 @@ private:
 
 **缺陷 1：Lambda 中的 Dangling Pointer (`[=]` 隱式捕獲 `this`) 與 Race Condition**
 - **問題**：`async_read` 啟動了一個 detached thread。Lambda 雖然寫了 `[=]`，但它捕獲的是 `this` 指標的拷貝，而不是 `dev_name_` 的拷貝！若呼叫 `async_read` 的 `DeviceDriver` 實體先一步解構，背景執行緒存取 `dev_name_` 時就是典型的 Use-After-Free，必定 crash。此外，主執行緒解構時呼叫 `cleanup()` 釋放硬體，與背景執行緒讀取硬體形成嚴重的競態條件（Race Condition）。
-- **修正**：利用 C++14 Init Capture 明確複製字串本體：`[name = dev_name_, timeout_ms]() { ... }`，並在解構前等待（join）執行緒或通知中止。
+- **修正**：(1) 用 C++14 Init Capture 複製字串本體 `[name = dev_name_, timeout_ms]`，lambda 不再捕獲 `this`；(2) 不 `detach()`，改把 `std::thread` 存成成員 `worker_`，在解構函式中 `join()`，確保背景執行緒結束後才釋放硬體資源。完整修正版見本題末尾（`-pthread` 編譯、ASan/UBSan 乾淨）。
 **缺陷 2：Base Class Destructor 缺少 `virtual`（若有繼承需求）**
 - **問題**：`DeviceDriver` 這類驅動或硬體模型通常作為 base class。若衍生類別透過 `DeviceDriver*` 刪除，由於 destructor 不是 virtual，會造成 undefined behavior 與衍生類別未清理。
 - **修正**：宣告為 `virtual ~DeviceDriver()`。
@@ -1909,6 +1947,40 @@ private:
 **缺陷 4（額外加分項）：Pass-by-value 未利用 `std::move`**
 - **問題**：建構函式 `DeviceDriver(std::string name) : dev_name_(name) {}` 進行了傳值，但在初始化列表中再次進行了一次深拷貝（copy initialization）。
 - **修正**：改為 `dev_name_(std::move(name))`。
+
+**修正後完整版**（下為 class 本體；另寫一個 `main` 呼叫 `DeviceDriver d("uart0"); d.async_read(10);`，以 `g++ -std=c++14 -Wall -Wextra -pthread -fsanitize=address,undefined` 編譯，實測輸出 `main continues` 與 `Device: uart0 read done`，無 sanitizer 報告）：
+
+```cpp
+#include <chrono>
+#include <iostream>
+#include <string>
+#include <thread>
+
+class DeviceDriver {
+public:
+    explicit DeviceDriver(std::string name) : dev_name_(std::move(name)) {}
+    virtual ~DeviceDriver() {                      // 缺陷 2：virtual 解構
+        if (worker_.joinable()) worker_.join();    // 解構前等待背景執行緒結束
+        cleanup();
+    }
+    DeviceDriver(const DeviceDriver&) = delete;    // 缺陷 3：禁止複製
+    DeviceDriver& operator=(const DeviceDriver&) = delete;
+
+    void async_read(int timeout_ms) {
+        if (worker_.joinable()) worker_.join();    // 重新啟動前先等舊的執行緒
+        // 缺陷 1 修正：init capture 複製名稱，lambda 不捕獲 this
+        worker_ = std::thread([name = dev_name_, timeout_ms]() {
+            std::this_thread::sleep_for(std::chrono::milliseconds(timeout_ms));
+            std::cout << "Device: " << name << " read done\n";
+        });
+    }
+
+private:
+    std::string dev_name_;
+    std::thread worker_;
+    void cleanup() { /* release hw */ }
+};
+```
 
 </details>
 
@@ -1941,6 +2013,39 @@ private:
 - L1-2：`f(NULL)` 在 GCC 為 ambiguous 錯誤；`f(0)`、`f(nullptr)` 分別呼叫 `f(int)`、`f(char*)`；重複的 `RED` 報 `conflicts with a previous declaration`；`Derived::f()` 少了 `const` 時 `-Wall -Wextra` 無警告，加 `override` 後報錯。
 - L1-3：實跑，`s` 為空、`cs` 保持 `const`、`t` 保持 `keep`、`std::unique_ptr` 被搬走後為 null。
 - L1-4：(1)、(3) 報 `use of deleted function`，(6) 可編譯。
-- L2-1 ~ L2-3：輸出為實跑結果；L2-2 實測 segfault 與 ASan `stack-use-after-return`，L2-3 實測 `2 2`、修正後 `1 2 1` 與 LeakSanitizer 報告。
+- L2-1 ~ L2-3：輸出為實跑結果；L2-2 實測 segfault 與 ASan `stack-use-after-return`，L2-3 實測 `2 2`、修正後 `1 2`（`~A`、`~B` 依序印出）與 LeakSanitizer 報告。
 - L2-4：測試對舊版會觸發 4 個 `static_assert` 失敗；另以私下寫的參考解驗證測試可通過（ASan + UBSan 乾淨）。參考解不放在檔案裡，請自己寫。
+
+### 事實修正（2026-11-03）
+
+環境：g++ 11.4.0（Ubuntu 22.04），`-std=c++11` / `-std=c++14`；SystemC 2.3.3 原始碼（`/home/alan/cpp_practice/side_project/uArch/systemc-2.3.3`）。下列每項先重新驗證，與文件不符才改。
+
+1. **Q2（private 建構子與 friend）**
+   - 原敘述：`make_shared` 無法建構 private 建構子，「除非設為 friend 或使用 Passkey Idiom」。
+   - 實測：`friend std::make_shared<T>()` 報 `T::T() is private`；Passkey 版 `make_shared` 編譯執行通過（ASan/UBSan 乾淨）；static factory + `new` 亦通過。
+   - 修改：改為「friend 不可行」，給 Passkey（保留單次配置）與 static factory（失去單次配置）兩種做法，附可編譯示範。
+2. **C2（修法與題數）**
+   - 原敘述：修法寫「join 執行緒」，程式碼用 `detach()`；題目寫「3 處」，參考答案實列 4 項。
+   - 實測：detach 後無法 join；改為 init capture + `std::thread` 成員 + 解構時 join 的版本，`-pthread` 編譯，ASan/UBSan 乾淨。
+   - 修改：修法敘述、新增完整修正版程式碼；題目改為「3 處嚴重 + 1 處次要」，與參考答案一致。
+3. **L2-3（輸出）**
+   - 原敘述：修好後輸出 `1 2 1`。
+   - 實測：原版輸出 `2 2`；修好版 `main` 只印兩個數，輸出 `1 2`、`~A`、`~B`、`after scope`。另加印 `b->a.use_count()` 為 1。
+   - 修改：答案改為 `1 2`，註明 `b->a.use_count()` 未被印出；核對紀錄同步更正。
+4. **MC17、L2-2（`<<` 串接內多次呼叫）**
+   - 原敘述：`cout << f() << " " << f()` 直接寫，答案以實測順序為準。
+   - 實測：C++14 的 `<<` 串接中，各 `f()` 求值順序未定；拆成獨立語句後，MC17 輸出 `1 2 0` / `3 3`、L2-2 輸出 `1 2`，與原答案一致。
+   - 修改：兩題的程式碼拆成獨立語句，MC17 答案補一句說明。全檔 grep：MC16（`w.use_count() << w.expired() << (w.lock() == nullptr)`）同一串接內含 `w.lock()`，但物件已 `reset()`，`lock()` 回傳空指標、不改變計數，結果與順序無關，未改動。
+5. **Q9（標準 socket 的 callback 機制）**
+   - 原敘述：「SystemC standard socket 採用成員函式指標 callback」。
+   - 實測：`tlm_fw_bw_ifs.h` 中 `nb_transport_fw` 等宣告為 `= 0`（pure virtual）；`simple_target_socket.h` 的 `register_nb_transport_fw(MODULE*, NBTransportPtr)` 把 `MODULE::*` 存入 `fw_process` 適配器。
+   - 修改：區分標準 socket（綁 pure virtual 介面）與 `tlm_utils` convenience socket（成員函式指標 + 適配器）。
+6. **Q9（`sizeof(std::function)`）**
+   - 原敘述：libstdc++ 32、libc++ 48、MSVC 64 bytes。
+   - 實測：本機 libstdc++ 下 `sizeof(std::function<void()>)` 為 32（`-std=c++11`、`c++14` 皆同）；libc++ 與 MSVC 未在本機驗證。
+   - 修改：補註「libstdc++ 實測，libc++/MSVC 可能不同」。
+7. **L2-4（`size()` 來源）**
+   - 原敘述：規格未指定 `size()` 的資料來源。
+   - 實測：`size()` 回傳 `regs_.size()` 的參考解通過 harness（`all passed`，ASan/UBSan 乾淨）；另存 `n_` 的版本在 `assert(a.size() == 0)` 處 abort。
+   - 修改：規格第 1 點補上「`size()` 由 `regs_` 推得，不另存 `n_`」。
 
