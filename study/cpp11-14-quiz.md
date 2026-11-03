@@ -727,6 +727,24 @@ std::atomic<int> ac{0};
 
 ---
 
+### 口頭練習紀錄（2026-11-03，tutor 模式，L1→L2）
+
+用 `auto`/`const`、`std::move`、`unique_ptr`、lambda 四個主題各幾題口頭問答，非逐題對應 MC。
+
+**上次的弱點：**
+
+- `auto` 對 `const` 的處理：`auto a = ci;` 會剝掉最上層 const（答成 `const int`）；`auto&` 與 `decltype` 則保留。描述型別時漏寫 `&`（`auto& z = cr` 的 `z` 是 `const int&`，答成 `const int`）。
+- `std::move` 本身只是轉型成右值，搬資料的是 move constructor。答成「搬移 address」只對有堆積資源的型別成立；短字串走 SSO，搬移後 `data()` 指標不同（本機實測：`"hello"` 不同、100 字元相同）。對 `const` 物件 `std::move` 會悄悄退化成 copy（答對）。
+- `unique_ptr` 被 move 後保證是 null（答成 undefined）；`*p` 才是 UB。
+- lambda 語法一開始不熟（`[]` 捕獲列表、`[x]` 複製 vs `[&x]` 參考），L1 補完後能推出回傳區域變數參考的懸空問題與 `mutable` 去掉的是 `operator()` 的 `const`。
+- 傾向只給結果、不寫理由，容易混的題要請他一句話寫出為什麼。
+
+**答對：** `auto` 型別推導（MC1 對應）、`auto&` 保留 const、copy 與綁定的輸出預測、`unique_ptr` 不可複製與 `std::move` 轉移所有權、lambda 值捕獲 vs 參考捕獲、`mutable` lambda 輸出 `3 0`。
+
+**下一輪可以加考：** lambda `[=]` 與 `this`（隱式捕獲）、`shared_ptr` 循環參考（第零模組 L2-3）、第零模組 L2-4 Rule of Zero（自己寫完貼來 review）、`std::function` 開銷。
+
+---
+
 ## 問答題與手寫題（從這裡開始）
 
 下面是 L1–L2 的問答 / 動手題（第零模組），以及 L3–L4 的面試問答與白板題（第一模組以後）。選擇題熟了再做這一段。
