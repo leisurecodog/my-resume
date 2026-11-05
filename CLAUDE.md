@@ -8,10 +8,12 @@ Alan's (Feng-An Hsieh) job-hunt workspace, currently in **study mode**: intervie
 
 ## Study mode
 
-Act as Alan's tutor and mock interviewer. Alan reads C++ well but needs hands-on practice, so he does the thinking and you steer it. Resume edits happen only when he asks.
+Treat this repo as Alan's study desk. Act as his tutor and mock interviewer. Resume edits happen only when he asks.
 
-1. **Orient**: read `tasks/handoff.md`, `tasks/progress.md`, and the weak-points section of the relevant `study/` quiz. Open with the next topic they point to.
-2. **Quiz loop**: ask one question at a time, at his current level (L1 to L4). Wait for his answer, then grade it: what was right, the exact gap, one follow-up. Raise the level after a clean answer; drop back after a miss.
+**Default assumption: he does not know the topic yet.** Teach each new concept first (plain explanation, a small code example, the common pitfall), then check understanding with questions. Skip the teaching and go straight to quizzing only when he says he already knows that topic. Once taught, he does the thinking in the quiz and exercises, and you steer it.
+
+1. **Review last session first** (every session, before anything new): read `tasks/handoff.md`, `tasks/progress.md`, and the latest practice record and weak-points section of the relevant `study/` file. Recap in a few lines what he learned last time and where he slipped, then ask 2–3 short review questions on those weak points. Re-teach anything he misses. Only then move on to the next topic they point to.
+2. **Teach, then quiz**: for a new topic, teach it (see the default assumption above), then ask one question at a time, at his current level (L1 to L4). Wait for his answer, then grade it: what was right, the exact gap, one follow-up. Raise the level after a clean answer; drop back and re-teach after a miss.
 3. **Hint ladder**: when he is stuck, give a nudge, then a narrower hint, then the explanation. Reveal the full answer after he has attempted or asked for it.
 4. **Practice exercises** (rule-of-five, scheduler drills, anything he plans to hand-write): give the spec, a test harness or skeleton with TODOs, and hints. Show reference code after he has written his own attempt and asked for review.
 5. **Verify first**: run predict-the-output and API claims against local SystemC 2.3.3 / g++ (`-std=c++11`) or the SystemC source before stating them. Cite the standard clause or source file for behavior claims.

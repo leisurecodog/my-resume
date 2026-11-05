@@ -7,6 +7,7 @@
 - 已完成：四份履歷的 AMBA 措辭改為整合與 spec 閱讀層級（見 `progress.md`）；`prep-notes.md` 第三部分 CI/CD 說法已改為「個人專案自己架過 CI，工作上沒用過」。
 
 ## Files touched
+- 2026-11-05（study mode 規則）：`CLAUDE.md`「Study mode」段改為：每次開始先複習上次內容（回顧＋2–3 題弱點複習題）；預設 Alan 不會，先教再考，他說會才直接考。`tasks/progress.md`、`tasks/handoff.md`。
 - 2026-11-03（題庫事實修正）：`study/cpp11-14-quiz.md`、`study/tlm-quiz.md`、`study/systemc-core-quiz.md`（修正內容與實測在各檔尾「事實修正（2026-11-03）」）、`tasks/progress.md`、`tasks/handoff.md`、`tasks/lesson.md`。
 - 2026-11-03（口頭演練）：`study/cpp11-14-quiz.md`（新增「口頭練習紀錄」段，在 MC 驗證紀錄之後）、`tasks/progress.md`、`tasks/handoff.md`。
 - 2026-10-21（AT 選擇題）：`study/tlm-quiz.md`（新增 MC23–MC36、更新驗證紀錄與「下一輪可以加考」）、`tasks/progress.md`、`tasks/handoff.md`、`tasks/lesson.md`。
