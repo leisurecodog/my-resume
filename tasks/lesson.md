@@ -2,6 +2,8 @@
 
 <!-- One entry per lesson: what happened, why, what to do next time. -->
 
+- 2026-11-05: 平行派 3 個 subagent 各負責一份題庫檔（檔案不重疊、tasks/ 與 CLAUDE.md 由主 agent 統一更新）沒有衝突，各約 11–20 分鐘完成。要求 subagent 把「沒驗證的部分」寫進檔案並回報，才抓得到：ISO/IEEE 條文編號無原文可核、libstdc++ 與 SystemC 2.3.3 的實作行為不等於標準。subagent 重寫舊題時也順手抓到既有錯誤（cpp Q3、Q8、缺 `</details>`；tlm Q8 `reset()`），所以擴充時要讓它讀完整份舊檔再動手。
+
 - 2026-10-21: 整理 C++11/14 考題時，初稿出現兩處標準細節失準：(1) 誤將普通函式回傳值推導 `auto func()` 當作 C++11 就有，實則與 `decltype(auto)` 皆為 C++14 引入（C++11 僅有尾置型別 `-> decltype(...)`）；(2) `std::move_if_noexcept` 判定條件為 `!is_nothrow_move && is_copy`，對 move-only 物件依然會 move 並通過編譯，代價是 `std::vector` 失去 Strong Exception Guarantee 降級為 Basic。撰寫核心觀念題庫時，應嚴格對照 ISO 標準標準庫規範與 cppreference，區分簡化口訣與真實編譯器行為。
 - 2026-10-20: 憑記憶寫的 TLM 參考答案，對照本機 SystemC 2.3.3 原始碼（`~/cpp_practice/side_project/uArch/systemc-2.3.3`）後找到漏洞：streaming width 預設是 0 不是 data length、`is_response_error()` 對 INCOMPLETE 也成立、simple target socket 是雙向 b/nb 轉換。下次寫 TLM/SystemC 的參考答案時，寫完就直接 grep 這份原始碼核對，不要先交出去再補。
 - 2026-10-20: 評分 JD 前要先確認 PDF 是否真的被截斷，並區分「條件區的資格」與「工作內容的職責」。初評把 Performance 驗證的 sign-off、cycle approximate model（只在職責）當成核心門檻，條件區其實只寫「Familiar with」，分數低估 12 分；也誤報了哪幾份被截斷。下次評分直接 `pdftotext` 讀全文並檢查「顯示全部」，不要憑記憶或舊註記。
