@@ -4,9 +4,9 @@
 
 用法跟其他題庫一樣：先自己想或寫在紙上，再展開 `<details>` 對照。
 
-**難度分級**：L1 學習（看懂概念，附提示）→ L2 應用（預測輸出）→ L3 面試（口述）→ L4 深入（連結你的案例，對照原始碼）。建議順序：先做選擇題（MC1–MC23，由淺到深），再做問答題（L1 → L4）。
+**難度分級**：L1 學習（看懂概念，附提示）→ L2 應用（預測輸出）→ L3 面試（口述）→ L4 深入（連結你的案例，對照原始碼）。建議順序：不熟的主題先讀下方「教學導讀」，再做選擇題（MC1–MC38，由淺到深），再做問答題（L1 → L4）。
 
-**環境與驗證方式**：本機 SystemC 2.3.3，原始碼在 `~/cpp_practice/side_project/uArch/systemc-2.3.3`。本檔所有程式碼都實際編譯、執行過，輸出貼的是實測結果（2026-10-21）。編譯指令：
+**環境與驗證方式**：本機 SystemC 2.3.3，原始碼在 `~/cpp_practice/side_project/uArch/systemc-2.3.3`。本檔所有程式碼都實際編譯、執行過，輸出貼的是實測結果（2026-10-21；2026-11-05 新增的部分見「核對紀錄（2026-11-05 第二輪）」）。編譯指令：
 
 ```
 S=~/cpp_practice/side_project/uArch/systemc-2.3.3
@@ -17,17 +17,329 @@ g++ -std=c++11 -I$S/include x.cpp -L$S/lib-linux64 -lsystemc -Wl,-rpath,$S/lib-l
 
 ---
 
+## 教學導讀
+
+這一段給還不熟的主題用。每節先講白話概念，再給一個小範例（已實跑，輸出是實測結果），最後寫常見陷阱。已經熟的主題直接跳到題目。範例省略 `#include <systemc>` 與 `using` 宣告（同選擇題段落）。
+
+### T1 三種 channel：`sc_signal`、`sc_buffer`、`sc_fifo`
+
+- **`sc_signal`**：primitive channel。`write()` 只登記新值，值要到 update phase 才生效，同一個 evaluate phase 內 `read()` 看到的仍是舊值（L2-3）。值沒有改變就不發 `value_changed_event`（MC12、MC15）。
+- **`sc_buffer`**：跟 `sc_signal` 一樣延後更新，但每次 `write()` 都發事件，即使值相同（MC15）。
+- **`sc_fifo`**：有容量的佇列。`read()` / `write()` 是 blocking，空或滿時會自己 `wait`（MC18）。`nb_read()` / `nb_write()` 不等待，回傳 `bool`。寫入後 `num_free()` 立刻減少，但 `num_available()` 要等 update phase 才增加（MC38；`sc_fifo.h:93`、`:113`、`:350–356`）。
+
+常見陷阱：在 `SC_METHOD` 裡呼叫 blocking `write()`，資料滿了就要 `wait`，method 不能 wait，直接報錯：
+
+```cpp
+SC_MODULE(M) {
+  sc_fifo<int> f;
+  SC_CTOR(M) : f(1) { SC_METHOD(m); }
+  void m() { f.write(1); f.write(2); cout << "done" << endl; }
+};
+int sc_main(int, char**) { M m("m"); sc_start(); return 0; }
+```
+
+```
+Error: (E519) wait() is only allowed in SC_THREADs and SC_CTHREADs: 
+        in SC_METHODs use next_trigger() instead
+In file: ../../../src/sysc/kernel/sc_wait.cpp:93
+In process: m.m @ 0 s
+```
+
+改法：method 裡用 `nb_write()`，或把這段改成 `SC_THREAD`。
+
+### T2 `sc_event`：三種通知與覆蓋規則
+
+- `e.notify()`：immediate，只喚醒「此刻正在等 `e`」的 process，同一個 evaluate phase 內生效；沒人等就消失（L1-3）。
+- `e.notify(SC_ZERO_TIME)`：delta，下一個 delta cycle 才喚醒，simulation time 不變（MC8、L2-1）。
+- `e.notify(t, unit)`：timed，t 之後喚醒。
+- 規則：同一個 event 同時最多保留一個 pending 通知。較早的會取代較晚的，delta 會取代任何 timed，immediate 會取消 pending 通知（MC9；`sc_event.cpp` 的 `notify`）。`e.cancel()` 取消 pending 的 delta 或 timed 通知（`sc_event.cpp:66` 起）。
+
+```cpp
+SC_MODULE(M) {
+  sc_event e;
+  SC_CTOR(M) { SC_THREAD(w); SC_THREAD(n); }
+  void w() { wait(e); cout << "woke @" << sc_time_stamp() << " d=" << sc_delta_count() << endl; }
+  void n() {
+    e.notify(5, SC_NS);
+    e.notify(SC_ZERO_TIME);
+    wait(10, SC_NS);
+    e.notify(3, SC_NS); e.notify(7, SC_NS);
+  }
+};
+int sc_main(int, char**) { M m("m"); sc_start(); return 0; }
+```
+
+```
+woke @0 s d=1
+```
+
+這裡 `e.notify(5, SC_NS)` 被後面的 `e.notify(SC_ZERO_TIME)` 取代，所以只醒一次，而且是 delta 醒。
+
+常見陷阱：以為 timed 與 delta 通知會各醒一次。實際上同一個 event 只保留一個 pending 通知。需要「每次通知都要處理」的情境用 `sc_event_queue`（MC22）。
+
+### T3 靜態敏感度、動態敏感度、`dont_initialize()`、`next_trigger()`
+
+- 靜態敏感度：`sensitive << e`，永久有效。
+- 動態敏感度：thread 的 `wait(e)`，或 method 的 `next_trigger(...)`，只對「下一次」有效。
+- `dont_initialize()`：跳過 time 0 的初始執行（MC4、MC24）。
+- thread 裡沒有參數的 `wait()`，用的是靜態敏感度清單（MC24）。
+- method 裡呼叫 `next_trigger()` 會暫時蓋過靜態敏感度；下一次被動態條件觸發後，若 method 沒有再呼叫 `next_trigger()`，靜態敏感度就會回來。
+
+```cpp
+SC_MODULE(M) {
+  sc_event e, tick;
+  SC_CTOR(M) {
+    SC_METHOD(m);
+    sensitive << tick;
+    dont_initialize();
+    SC_THREAD(drv);
+  }
+  void m() {
+    cout << "m @" << sc_time_stamp() << endl;
+    if (sc_time_stamp() == sc_time(1, SC_NS))
+      next_trigger(e);              // 只在 1 ns 改成動態等待
+  }
+  void drv() {
+    wait(1, SC_NS);  tick.notify(SC_ZERO_TIME);   // 1 ns: m 執行，改等 e
+    wait(2, SC_NS);  tick.notify(SC_ZERO_TIME);   // 3 ns: 被忽略（m 在等 e）
+    wait(1, SC_NS);  e.notify(SC_ZERO_TIME);      // 4 ns: m 執行，恢復靜態敏感度
+    wait(1, SC_NS);  tick.notify(SC_ZERO_TIME);   // 5 ns: m 執行
+  }
+};
+int sc_main(int, char**) { M m("m"); sc_start(); return 0; }
+```
+
+```
+m @1 ns
+m @4 ns
+m @5 ns
+```
+
+常見陷阱：每次執行都呼叫 `next_trigger(e)`，靜態敏感度就永遠不會回來（MC26）。另外，`next_trigger()` 只改「下一次」，不會暫停目前這次執行。
+
+### T4 `SC_METHOD`、`SC_THREAD`、`SC_CTHREAD`
+
+- `SC_METHOD`：沒有自己的 stack，每次觸發都從頭跑到 return。適合組合邏輯或簡單反應。區域變數每次都會重新初始化（L2-2）。
+- `SC_THREAD`：有自己的 stack，可以在任何地方 `wait`，區域變數跨 `wait` 保留（L1-1）。
+- `SC_CTHREAD`：`SC_THREAD` 的特例，只綁一個 clock edge（例如 `clk.pos()`），用 `wait()` 等下一個 edge，並可以用 `reset_signal_is()` 設定同步 reset。
+
+```cpp
+SC_MODULE(M) {
+  sc_in<bool> clk;
+  sc_signal<bool> rst;
+  SC_CTOR(M) { SC_CTHREAD(t, clk.pos()); reset_signal_is(rst, true); SC_THREAD(drv); }
+  void drv() { wait(25, SC_NS); rst.write(true); wait(10, SC_NS); rst.write(false); }
+  void t() {
+    int n = 0;
+    cout << "reset-branch @" << sc_time_stamp() << endl;
+    n = 0;
+    wait();
+    for (;;) { cout << "count=" << n << " @" << sc_time_stamp() << endl; n++; wait(); }
+  }
+};
+int sc_main(int, char**) {
+  sc_clock clk("clk", 10, SC_NS);
+  M m("m");
+  m.clk(clk);
+  sc_start(60, SC_NS);
+  return 0;
+}
+```
+
+```
+reset-branch @0 s
+count=0 @10 ns
+count=1 @20 ns
+reset-branch @30 ns
+count=0 @40 ns
+count=1 @50 ns
+```
+
+輸出的解讀：CTHREAD 在初始化時就開始執行，所以 `0 s` 先進入 reset 分支。之後第一個 `wait()` 等的是下一個 edge（10 ns），不是 time 0 的那次。`rst` 在 25 ns 拉高，30 ns 的 edge 讓 thread 從頭執行（reset 分支），counter 歸零。
+
+常見陷阱：以為 CTHREAD 第一個 `wait()` 會在 time 0 就返回。另外，`reset_signal_is` 只是讓 reset 生效時 thread 從頭執行，計數器的值要自己在 reset 分支裡歸零。
+
+### T5 `wait` 的各種寫法
+
+| 寫法 | 意思 | 參考題 |
+|---|---|---|
+| `wait()` | 靜態敏感度的下一次觸發 | MC24 |
+| `wait(t, SC_NS)` | 等 t 之後 | L1-2、MC21 |
+| `wait(e)` | 等 `e` | L1-3 |
+| `wait(t, SC_NS, e)` | 等 `e`，最多等 t（timeout 從這次 `wait` 開始算） | MC11、MC25 |
+| `wait(e1 \| e2)` | 任一事件發生 | MC10 |
+| `wait(e1 & e2)` | 兩個都要在這次 `wait` 之後各發生過一次 | MC10 |
+| `wait(SC_ZERO_TIME)` | 下一個 delta | MC21、L2-1 |
+
+常見陷阱：參數順序是「時間、單位、事件」（L1-2）。`&` 不是「同時發生」，而是「兩個都發生過」。
+
+### T6 `sc_time` 與 time resolution
+
+- `sc_time` 內部用整數 tick 儲存，一個 tick 是 time resolution（預設 1 ps）。
+- 運算：`sc_time ± sc_time`、`sc_time * int`、`sc_time / sc_time` 得 `double`、`sc_time / double` 得 `sc_time`、`to_seconds()` 得秒數。印出時選能整除的最大單位（MC1、MC28）。
+- 解析度只能在建立任何 `sc_time` 之前設定（MC29）。
+
+```cpp
+int sc_main(int, char**) {
+  sc_set_time_resolution(1, SC_FS);
+  sc_time t(1, SC_NS);
+  cout << "t=" << t << " ps_units=" << t.value() << " res=" << sc_get_time_resolution() << endl;
+  cout << sc_time(1.5, SC_PS) << " " << sc_time(1234, SC_FS) << endl;
+  return 0;
+}
+```
+
+```
+t=1 ns ps_units=1000000 res=1 fs
+1500 fs 1234 fs
+```
+
+常見陷阱：預設 1 ps 解析度下，`sc_time(0.4, SC_PS)` 會被四捨五入成 0（MC2），不會報錯。另外，`sc_set_time_resolution()` 在任何 `sc_time` 建立後呼叫，會報 E514（MC29）。
+
+### T7 `sc_start`、`sc_pause`、`sc_stop`
+
+- `sc_start()`：跑到沒有事件為止（MC6）。
+- `sc_start(t, unit)`：從目前時間往後跑 t（相對，不是絕對時間，MC6）。終點那個時間點上的 process 不執行（L2-2）。
+- `sc_start(SC_ZERO_TIME)`：只跑一個 delta cycle（MC20）。
+- `sc_pause()`：在 process 裡呼叫，目前的 delta 結束後 `sc_start` 返回，之後可以再呼叫 `sc_start` 接著跑（MC36；`sc_simcontext.cpp:589–591`、`:892–897`）。
+- `sc_stop()`：預設 `SC_STOP_FINISH_DELTA`，目前 delta 跑完才停（MC19）。`SC_STOP_IMMEDIATE` 會清掉目前 delta 裡還沒跑的 process（MC37；`sc_simcontext.cpp:992`、`:1015`）。
+
+常見陷阱：`sc_stop()` 不會讓正在執行的那行 C++ 停下來，只是停止之後的排程。`sc_pause()` 之後的 `sc_start()` 會接著跑，時間不會重設。
+
+### T8 elaboration 與 simulation 的 callback
+
+順序（實測，見 MC30）：建構子 → `before_end_of_elaboration()` → 綁定檢查 → `end_of_elaboration()` → 第一次 `sc_start` 時 `start_of_simulation()` → 模擬 → `end_of_simulation()`。
+
+- `start_of_simulation` 之後不能再建立 module（E529）。
+- 2.3.3 原始碼中，`sc_simcontext::end()` 只被 `do_sc_stop_action()` 呼叫（`sc_simcontext.cpp:963`），所以 `end_of_simulation()` 只在 `sc_stop()` 之後執行（`sc_simcontext.cpp:990–1000` 的註解也是這樣描述）。sc_main 正常返回而沒有 `sc_stop()` 時，實測不會印出 `end_of_simulation`。標準條文本身這裡沒有核對。
+
+```cpp
+SC_MODULE(Late) { SC_CTOR(Late) { cout << "late ctor" << endl; } };
+SC_MODULE(M) { SC_CTOR(M) {} void start_of_simulation() { cout << "start_of_simulation" << endl; Late* l = new Late("late"); (void)l; } };
+int sc_main(int, char**) { M m("m"); sc_start(5, SC_NS); cout << "after" << endl; return 0; }
+```
+
+```
+start_of_simulation
+Error: (E529) insert module failed: elaboration done
+In file: ../../../src/sysc/kernel/sc_module_registry.cpp:54
+```
+
+常見陷阱：把 module 的建立放在 `start_of_simulation()`；以及依賴 `end_of_simulation()` 做收尾，卻忘了呼叫 `sc_stop()`。
+
+### T9 階層式 port、export、channel
+
+- `sc_port<IF>`：「我需要一個實作 IF 的東西」。綁定發生在 elaboration。
+- `sc_export<IF>`：「我把我內部、實作 IF 的 channel 公開給上層」。
+- 綁定方向：port 綁 channel 或 export；export 綁的是 channel（不是 port）。
+
+```cpp
+struct Child : sc_module {
+  sc_port<sc_fifo_in_if<int> > in;
+  SC_CTOR(Child) { SC_THREAD(t); }
+  void t() { int v = in->read(); cout << "child read " << v << " @" << sc_time_stamp() << endl; }
+};
+struct Mid : sc_module {
+  sc_fifo<int> local;
+  sc_export<sc_fifo_in_if<int> > exp;
+  Child c;
+  SC_CTOR(Mid) : local("local", 4), c("c") { exp(local); c.in(exp); SC_THREAD(src); }
+  void src() { wait(2, SC_NS); local.write(42); }
+};
+int sc_main(int, char**) { Mid mid("mid"); sc_start(); return 0; }
+```
+
+```
+child read 42 @2 ns
+```
+
+常見陷阱：
+- port 沒綁：`sc_start()` 時報 E109（MC31，`sc_port.cpp:235`）。實測這個錯誤發生在 end-of-elaboration 的 callback 之前，所以 `end_of_elaboration()` 沒有印出。
+- `sc_in<T>` 沒有 `write()`，寫成 `in.write()` 是編譯錯誤（MC32）。
+- `exp(port)` 也是編譯錯誤，因為 `sc_export::operator()` 只接受 `IF&`（實測，錯誤訊息是 no match for call to `sc_export::operator()`）。
+
+### T10 `sc_mutex` 與 `sc_semaphore`
+
+- `sc_mutex`：二元鎖。`lock()` 會阻塞。`trylock()` 拿不到時回傳 `-1`（MC33；`sc_mutex.cpp:79–86`）。非持有者呼叫 `unlock()` 回傳 `-1`，不會解鎖（`sc_mutex.cpp:93–96`）。
+- `sc_semaphore`：計數鎖，初始值是可用數量。`wait()` 在數量為 0 時阻塞，`post()` 加一（MC34）。
+
+```cpp
+SC_MODULE(M) {
+  sc_mutex mtx;
+  SC_CTOR(M) { SC_THREAD(a); SC_THREAD(b); }
+  void a() { mtx.lock(); wait(5, SC_NS); mtx.unlock(); cout << "a done" << endl; }
+  void b() { wait(1, SC_NS); cout << "b unlock=" << mtx.unlock() << endl; }
+};
+int sc_main(int, char**) { M m("m"); sc_start(); return 0; }
+```
+
+```
+b unlock=-1
+a done
+```
+
+常見陷阱：`lock()` 之後忘記 `unlock()`，其他 process 會永遠阻塞，但 kernel 不會報錯，`sc_start()` 會因為沒有事件而直接返回。
+
+```cpp
+SC_MODULE(M) {
+  sc_mutex mtx;
+  SC_CTOR(M) { SC_THREAD(a); SC_THREAD(b); }
+  void a() { mtx.lock(); cout << "a got lock @" << sc_time_stamp() << endl; }
+  void b() { wait(1, SC_NS); mtx.lock(); cout << "b got lock @" << sc_time_stamp() << endl; }
+};
+int sc_main(int, char**) { M m("m"); sc_start(); cout << "sc_start returned @" << sc_time_stamp() << endl; return 0; }
+```
+
+```
+a got lock @0 s
+sc_start returned @1 ns
+```
+
+### T11 `sc_spawn`
+
+- `sc_spawn()` 在模擬中動態建立 process，回傳 `sc_process_handle`。預設是 `SC_THREAD`。
+- `sc_spawn_options` 可以指定 method、靜態敏感度、是否 `dont_initialize`。
+- `h.terminated()` 查詢 process 是否已結束（MC35）。
+- 需要 `#include <sysc/kernel/sc_spawn.h>`。只 `#include <systemc>` 時，實測會編譯失敗（找不到 `sc_spawn`）。
+
+```cpp
+#include <sysc/kernel/sc_spawn.h>
+void m_fn() { cout << "method fn @" << sc_time_stamp() << endl; }
+SC_MODULE(M) {
+  sc_event e;
+  SC_CTOR(M) { SC_THREAD(t); }
+  void t() {
+    sc_spawn_options o; o.spawn_method(); o.set_sensitivity(&e); o.dont_initialize();
+    sc_spawn(&m_fn, "mfn", &o);
+    e.notify(2, SC_NS);
+    wait(5, SC_NS);
+  }
+};
+int sc_main(int, char**) { M m("m"); sc_start(); return 0; }
+```
+
+```
+method fn @2 ns
+```
+
+常見陷阱：spawn 出來的 process 不會自動等待。要知道它何時結束，就要保留 handle 再查詢。會呼叫 `wait()` 的函式，spawn 時不能指定成 method（同 MC3 的 E519 規則）。
+
+---
+
 ## 目錄
-- [選擇題：先建立直覺 (MC1–MC23)](#選擇題先建立直覺mc1mc23)（先做這一段，再做下面的問答題）
+- [教學導讀](#教學導讀)
+- [選擇題：先建立直覺（MC1–MC38）](#選擇題先建立直覺mc1mc38)（先做這一段，再做下面的問答題）
 - [L1：入門 (L1-1–L1-3)](#l1入門)
-- [L2：預測輸出 (L2-1–L2-3)](#l2預測輸出)
-- [L3：scheduler 口述 (L3-1)](#l3scheduler-口述)
-- [L4：simulation speed 案例 (L4-1)](#l4simulation-speed-案例)
+- [L2：預測輸出 (L2-1–L2-6)](#l2預測輸出)
+- [L3：scheduler 口述 (L3-1–L3-4)](#l3scheduler-口述)
+- [L4：simulation speed 案例 (L4-1–L4-2)](#l4simulation-speed-案例)
+- [手寫練習](#手寫練習)
+- [下一輪可以加考](#下一輪可以加考)
 - [核對紀錄](#核對紀錄2026-10-21)
 
 ---
 
-## 選擇題：先建立直覺（MC1–MC23）
+## 選擇題：先建立直覺（MC1–MC38）
 
 單選題，由淺到深（L1 → L3）。做法跟 C++ 題庫一樣：先在紙上選，再展開看每個選項為什麼對或錯，最後挑幾題自己打進編譯器跑（編譯指令見檔案開頭，記得 `-std=c++11`）。
 
@@ -1128,6 +1440,621 @@ SC_THREAD: wakeups=9999999
 
 ---
 
+### 補充題（MC24–MC38）：channel、process 控制與 elaboration
+
+同樣由淺到深排列，每題標籤獨立標示。程式省略的開頭同上方說明。
+
+---
+
+#### MC24：`dont_initialize()` 的 `SC_THREAD`〔L1〕
+
+```cpp
+SC_MODULE(M) {
+  sc_event e;
+  SC_CTOR(M) { SC_THREAD(t); sensitive << e; dont_initialize(); SC_THREAD(n); }
+  void t() { for (;;) { cout << "t @" << sc_time_stamp() << endl; wait(); } }
+  void n() { wait(2, SC_NS); e.notify(); wait(3, SC_NS); e.notify(); }
+};
+int sc_main(int, char**) { M m("m"); sc_start(); return 0; }
+```
+
+`t` 會在什麼時間印出？
+
+- A. `t @0 s`、`t @2 ns`、`t @5 ns`
+- B. `t @2 ns`、`t @5 ns`
+- C. `t @2 ns`、`t @3 ns`、`t @5 ns`
+- D. 只有 `t @2 ns`
+
+<details>
+<summary>答案</summary>
+
+**B。** `dont_initialize()` 讓 `t` 跳過 time 0 的初始執行。`t` 的 `wait()` 沒有參數，使用靜態敏感度 `e`（見 T3）。`n` 在 2 ns 與 5 ns 通知 `e`，所以 `t` 在這兩個時間被喚醒。`n` 中的 `wait(3, SC_NS)` 是從 2 ns 算起，所以第二次通知是 5 ns，不是 3 ns。
+
+```
+t @2 ns
+t @5 ns
+```
+
+</details>
+
+---
+
+#### MC25：`cancel()` 之後的 timeout〔L2〕
+
+```cpp
+SC_MODULE(M) {
+  sc_event e;
+  SC_CTOR(M) { SC_THREAD(w); SC_THREAD(n); }
+  void w() {
+    wait(20, SC_NS, e);
+    cout << "w woke @" << sc_time_stamp() << endl;
+  }
+  void n() {
+    e.notify(5, SC_NS);
+    wait(2, SC_NS);
+    e.cancel();
+    cout << "cancelled @" << sc_time_stamp() << endl;
+  }
+};
+int sc_main(int, char**) { M m("m"); sc_start(); return 0; }
+```
+
+`w` 在什麼時候醒？
+
+- A. 5 ns
+- B. 2 ns
+- C. 20 ns
+- D. 0 s
+
+<details>
+<summary>答案</summary>
+
+**C。** `e.notify(5, SC_NS)` 在 2 ns 被 `e.cancel()` 取消。`w` 的 `wait(20, SC_NS, e)` 因此等到 timeout，在 20 ns 醒。`cancel()` 只取消 pending 的通知，不影響之後的 `wait`。注意 timeout 是從這次 `wait` 開始算（見 MC11）。
+
+```
+cancelled @2 ns
+w woke @20 ns
+```
+
+</details>
+
+---
+
+#### MC26：每次都呼叫 `next_trigger(e)`〔L2〕
+
+```cpp
+SC_MODULE(M) {
+  sc_event e, tick;
+  SC_CTOR(M) { SC_METHOD(m); sensitive << tick; dont_initialize(); SC_THREAD(drv); }
+  void m() {
+    cout << "m @" << sc_time_stamp() << endl;
+    next_trigger(e);
+  }
+  void drv() {
+    wait(1, SC_NS); tick.notify(SC_ZERO_TIME);
+    wait(2, SC_NS); tick.notify(SC_ZERO_TIME);
+    wait(1, SC_NS); e.notify(SC_ZERO_TIME);
+    wait(1, SC_NS); tick.notify(SC_ZERO_TIME);
+  }
+};
+int sc_main(int, char**) { M m("m"); sc_start(); return 0; }
+```
+
+`m` 在哪些時間被呼叫？5 ns 的 `tick` 會叫醒 `m` 嗎？
+
+- A. 1 ns、3 ns、4 ns、5 ns
+- B. 1 ns、4 ns、5 ns
+- C. 1 ns、3 ns、5 ns
+- D. 1 ns、4 ns
+
+<details>
+<summary>答案</summary>
+
+**D。** 1 ns 時 `tick` 叫醒 `m`，`m` 呼叫 `next_trigger(e)`。3 ns 的 `tick` 被忽略，因為 `m` 正在等 `e`。4 ns 時 `e` 叫醒 `m`，但 `m` 又呼叫了一次 `next_trigger(e)`，靜態敏感度沒有回來，所以 5 ns 的 `tick` 也被忽略。如果只在 1 ns 呼叫 `next_trigger`，5 ns 就會醒（見 T3 的範例）。
+
+```
+m @1 ns
+m @4 ns
+```
+
+</details>
+
+---
+
+#### MC27：`SC_CTHREAD` 的第一次執行〔L2〕
+
+```cpp
+SC_MODULE(M) {
+  sc_in<bool> clk;
+  SC_CTOR(M) { SC_CTHREAD(t, clk.pos()); }
+  void t() { for (int i = 0; i < 3; ++i) { cout << "t @" << sc_time_stamp() << endl; wait(); } }
+};
+int sc_main(int, char**) {
+  sc_clock clk("clk", 10, SC_NS);
+  M m("m");
+  m.clk(clk);
+  sc_start(100, SC_NS);
+  return 0;
+}
+```
+
+`t` 在哪些時間印出？
+
+- A. 10 ns、20 ns、30 ns
+- B. 0 s、10 ns、20 ns
+- C. 0 s、0 s、0 s
+- D. 編譯錯誤，`sc_in` 不能用在 `SC_CTHREAD`
+
+<details>
+<summary>答案</summary>
+
+**B。** `SC_CTHREAD` 在初始化時就開始執行，所以第一次印出在 `0 s`。第一個 `wait()` 等的是下一個 posedge，也就是 10 ns，之後是 20 ns。`sc_clock` 預設 posedge 從 0 開始（實測 `clk` 的第一個 posedge 在 0 s）。
+
+```
+t @0 s
+t @10 ns
+t @20 ns
+```
+
+</details>
+
+---
+
+#### MC28：`sc_time` 的除法與 `to_seconds()`〔L1〕
+
+```cpp
+int sc_main(int, char**) {
+  sc_time a(3, SC_NS), b(2, SC_NS);
+  cout << a / b << endl;
+  cout << a / 2 << endl;
+  cout << a.to_seconds() << endl;
+  return 0;
+}
+```
+
+三行輸出是？
+
+- A. `1.5 ns`、`1.5 ns`、`3e-09`
+- B. `1.5`、`1500 ps`、`3e-09`
+- C. `1`、`1 ns`、`3`
+- D. 編譯錯誤，`sc_time` 不能做除法
+
+<details>
+<summary>答案</summary>
+
+**B。** `sc_time / sc_time` 得到 `double`（3 ns / 2 ns = 1.5）。`sc_time / double` 得到 `sc_time`，`3 ns / 2 = 1.5 ns`，印出時因為 1.5 ns 不能被 1 ns 整除，選 `1500 ps`。`to_seconds()` 回傳秒數 `3e-09`。
+
+```
+1.5
+1500 ps
+3e-09
+```
+
+</details>
+
+---
+
+#### MC29：time resolution 設定得太晚〔L2〕
+
+```cpp
+int sc_main(int, char**) {
+  sc_time t(1, SC_NS);
+  cout << "made " << t << endl;
+  sc_set_time_resolution(1, SC_FS);
+  cout << "after set " << sc_time(1, SC_NS) << endl;
+  return 0;
+}
+```
+
+程式的結果是？
+
+- A. 三行都正常印出
+- B. 印出 `made 1 ns` 後報 E514 錯誤並結束，`after set` 不會印出
+- C. 只印警告，程式照常跑完
+- D. 編譯錯誤
+
+<details>
+<summary>答案</summary>
+
+**B。** `sc_time t(1, SC_NS)` 已經建立，之後的 `sc_set_time_resolution()` 會被拒絕（E514）。錯誤在 `sc_time.cpp:396`。解析度必須在建立任何 `sc_time` 之前設定（見 T6）。
+
+```
+made 1 ns
+
+Error: (E514) set time resolution failed: sc_time object(s) constructed
+In file: ../../../src/sysc/kernel/sc_time.cpp:396
+```
+
+</details>
+
+---
+
+#### MC30：elaboration 與 simulation 的 callback 順序〔L2〕
+
+```cpp
+SC_MODULE(M) {
+  SC_CTOR(M) { cout << "ctor" << endl; }
+  void before_end_of_elaboration() { cout << "before_end_of_elaboration" << endl; }
+  void end_of_elaboration() { cout << "end_of_elaboration" << endl; }
+  void start_of_simulation() { cout << "start_of_simulation @" << sc_time_stamp() << endl; }
+  void end_of_simulation() { cout << "end_of_simulation @" << sc_time_stamp() << endl; }
+};
+int sc_main(int, char**) {
+  cout << "sc_main" << endl;
+  M m("m");
+  sc_start(5, SC_NS); sc_stop();
+  return 0;
+}
+```
+
+輸出順序是？（忽略 `Info:` 那一行）
+
+- A. `ctor`、`sc_main`、`before_end_of_elaboration`、`end_of_elaboration`、`start_of_simulation @0 s`、`end_of_simulation @5 ns`
+- B. `sc_main`、`ctor`、`before_end_of_elaboration`、`end_of_elaboration`、`start_of_simulation @0 s`、`end_of_simulation @5 ns`
+- C. `sc_main`、`ctor`、`start_of_simulation @0 s`、`before_end_of_elaboration`、`end_of_elaboration`、`end_of_simulation @5 ns`
+- D. 沒有 `end_of_simulation`，因為 `sc_main` 正常返回
+
+<details>
+<summary>答案</summary>
+
+**B。** `sc_main` 先印（M 還沒建立）。建構子執行時印 `ctor`。接著是 `before_end_of_elaboration`、`end_of_elaboration`，第一次 `sc_start` 時進入 `start_of_simulation`，最後 `sc_stop()` 觸發 `end_of_simulation`。D 的錯誤在於：這個程式有呼叫 `sc_stop()`。沒有 `sc_stop()` 時，2.3.3 不會印 `end_of_simulation`（見 T8）。
+
+```
+sc_main
+ctor
+before_end_of_elaboration
+end_of_elaboration
+start_of_simulation @0 s
+Info: /OSCI/SystemC: Simulation stopped by user.
+end_of_simulation @5 ns
+```
+
+</details>
+
+---
+
+#### MC31：沒有綁定的 `sc_port`〔L2〕
+
+```cpp
+SC_MODULE(Child) { sc_in<int> in; SC_CTOR(Child) {} };
+SC_MODULE(M) { Child c; SC_CTOR(M) : c("c") {} };
+int sc_main(int, char**) {
+  M m("m");
+  sc_start();
+  cout << "after sc_start" << endl;
+  return 0;
+}
+```
+
+程式的結果是？
+
+- A. 正常印出 `after sc_start`
+- B. 編譯錯誤
+- C. `sc_start()` 時報 E109，`after sc_start` 不會印出
+- D. 只印警告，程式照常跑完
+
+<details>
+<summary>答案</summary>
+
+**C。** `c.in` 沒有綁定。綁定檢查在 `sc_start()` 時做，錯誤是 E109（`sc_port.cpp:235`），所以 `after sc_start` 不會出現（見 T9）。
+
+```
+Error: (E109) complete binding failed: port not bound: port 'm.c.port_0' (sc_in)
+In file: ../../../src/sysc/communication/sc_port.cpp:235
+```
+
+</details>
+
+---
+
+#### MC32：`sc_in` 上呼叫 `write()`〔L2〕
+
+```cpp
+SC_MODULE(M) {
+  sc_in<int> in;
+  SC_CTOR(M) { SC_THREAD(t); }
+  void t() { in.write(1); }
+};
+int sc_main(int, char**) { M m("m"); return 0; }
+```
+
+程式的結果是？
+
+- A. 正常執行
+- B. 編譯錯誤，`sc_in<int>` 沒有 `write()` 成員
+- C. 執行期錯誤
+- D. 只印警告
+
+<details>
+<summary>答案</summary>
+
+**B。** `sc_in<T>` 是 input port，只有讀取的介面。實測的 g++ 錯誤訊息是 `'class sc_core::sc_in<int>' has no member named 'write'`。要寫入應該用 `sc_out<int>`（見 T9）。
+
+</details>
+
+---
+
+#### MC33：`trylock()` 與 `unlock()` 的回傳值〔L2〕
+
+```cpp
+SC_MODULE(M) {
+  sc_mutex mtx;
+  SC_CTOR(M) { SC_THREAD(a); SC_THREAD(b); }
+  void a() {
+    mtx.lock();
+    cout << "a locked @" << sc_time_stamp() << endl;
+    wait(5, SC_NS);
+    mtx.unlock();
+    cout << "a unlocked @" << sc_time_stamp() << endl;
+  }
+  void b() {
+    wait(1, SC_NS);
+    cout << "b trylock=" << mtx.trylock() << " @" << sc_time_stamp() << endl;
+    mtx.lock();
+    cout << "b locked @" << sc_time_stamp() << endl;
+    mtx.unlock();
+  }
+};
+int sc_main(int, char**) { M m("m"); sc_start(); return 0; }
+```
+
+輸出是？（同一時間點上 `a unlocked` 與 `b locked` 的先後不保證，比對時不看順序）
+
+- A. `a locked @0 s`、`b trylock=0 @1 ns`、`a unlocked @5 ns`、`b locked @5 ns`
+- B. `a locked @0 s`、`b trylock=-1 @1 ns`、`a unlocked @5 ns`、`b locked @5 ns`
+- C. `a locked @0 s`、`b locked @1 ns`、`a unlocked @5 ns`
+- D. 執行期錯誤，`lock` 不能重複
+
+<details>
+<summary>答案</summary>
+
+**B。** `a` 在 0 s 鎖住，持有 5 ns。`b` 在 1 ns 呼叫 `trylock()`，因為鎖被別人持有，回傳 `-1`（`sc_mutex.cpp:79–86`）。`b` 之後的 `lock()` 會阻塞，直到 5 ns `a` 解鎖。
+
+```
+a locked @0 s
+b trylock=-1 @1 ns
+a unlocked @5 ns
+b locked @5 ns
+```
+
+</details>
+
+---
+
+#### MC34：`sc_semaphore` 的計數〔L3〕
+
+```cpp
+SC_MODULE(M) {
+  sc_semaphore sem;
+  SC_CTOR(M) : sem("sem", 2) { SC_THREAD(u1); SC_THREAD(u2); SC_THREAD(u3); }
+  void use(const char* n) {
+    sem.wait();
+    cout << n << " got @" << sc_time_stamp() << endl;
+    wait(5, SC_NS);
+    sem.post();
+  }
+  void u1() { use("u1"); }
+  void u2() { use("u2"); }
+  void u3() { use("u3"); }
+};
+int sc_main(int, char**) { M m("m"); sc_start(); return 0; }
+```
+
+三個 thread 取得資源的時間是？（`u1` 與 `u2` 的先後不保證）
+
+- A. `u1 got @0 s`、`u2 got @0 s`、`u3 got @0 s`
+- B. `u1 got @0 s`、`u2 got @0 s`、`u3 got @5 ns`
+- C. `u1 got @0 s`、`u2 got @5 ns`、`u3 got @10 ns`
+- D. `u3` 永遠不會取得，因為死結
+
+<details>
+<summary>答案</summary>
+
+**B。** 初始計數為 2，所以 `u1`、`u2` 在 0 s 都取得。`u3` 的 `wait()` 阻塞，直到 `u1` 在 5 ns `post()`，計數回到 1，`u3` 取得（見 T10）。
+
+```
+u1 got @0 s
+u2 got @0 s
+u3 got @5 ns
+```
+
+</details>
+
+---
+
+#### MC35：`sc_spawn` 動態建立 process〔L2〕
+
+```cpp
+#include <sysc/kernel/sc_spawn.h>
+void worker() {
+  cout << "worker @" << sc_time_stamp() << endl;
+  wait(3, SC_NS);
+  cout << "worker done @" << sc_time_stamp() << endl;
+}
+SC_MODULE(M) {
+  SC_CTOR(M) { SC_THREAD(t); }
+  void t() {
+    wait(2, SC_NS);
+    sc_process_handle h = sc_spawn(&worker);
+    wait(10, SC_NS);
+    cout << "terminated=" << h.terminated() << " @" << sc_time_stamp() << endl;
+  }
+};
+int sc_main(int, char**) { M m("m"); sc_start(); return 0; }
+```
+
+輸出是？
+
+- A. `worker @2 ns`、`worker done @5 ns`、`terminated=1 @12 ns`
+- B. `worker @0 s`、`worker done @3 ns`、`terminated=1 @12 ns`
+- C. `worker @2 ns`、`worker done @5 ns`、`terminated=0 @12 ns`
+- D. 執行期 E519，`worker` 裡有 `wait()`，spawn 出來的 process 不能是 `SC_THREAD`
+
+<details>
+<summary>答案</summary>
+
+**A。** `t` 在 2 ns 才 `sc_spawn`，所以 `worker` 從 2 ns 開始。它 `wait(3, SC_NS)` 後在 5 ns 結束。`t` 在 12 ns 查詢 `h.terminated()` 得到 `1`。D 錯在 `sc_spawn` 預設產生的是 `SC_THREAD`，可以 `wait()`（見 T11）。
+
+```
+worker @2 ns
+worker done @5 ns
+terminated=1 @12 ns
+```
+
+</details>
+
+---
+
+#### MC36：`sc_pause()` 之後接著 `sc_start()`〔L2〕
+
+```cpp
+SC_MODULE(M) {
+  SC_CTOR(M) { SC_THREAD(t); }
+  void t() {
+    wait(3, SC_NS);
+    cout << "pause @" << sc_time_stamp() << endl;
+    sc_pause();
+    wait(2, SC_NS);
+    cout << "t @" << sc_time_stamp() << endl;
+  }
+};
+int sc_main(int, char**) {
+  M m("m");
+  sc_start();
+  cout << "returned @" << sc_time_stamp() << endl;
+  sc_start();
+  cout << "returned again @" << sc_time_stamp() << endl;
+  return 0;
+}
+```
+
+輸出是？
+
+- A. `pause @3 ns`、`returned @3 ns`、`t @5 ns`、`returned again @5 ns`
+- B. `pause @3 ns`、`t @5 ns`、`returned @5 ns`
+- C. `pause @3 ns`、`returned @3 ns`、`t @3 ns`、`returned again @5 ns`
+- D. `returned @0 s`、`pause @3 ns`、`t @5 ns`
+
+<details>
+<summary>答案</summary>
+
+**A。** `sc_pause()` 讓第一次 `sc_start()` 在 3 ns 返回。`sc_start()` 再呼叫時接著跑，`t` 的 `wait(2, SC_NS)` 讓它在 5 ns 印出，之後沒有事件，第二次 `sc_start()` 在 5 ns 返回（見 T7）。
+
+```
+pause @3 ns
+returned @3 ns
+t @5 ns
+returned again @5 ns
+```
+
+</details>
+
+---
+
+#### MC37：`SC_STOP_IMMEDIATE`〔L3〕
+
+```cpp
+SC_MODULE(M) {
+  SC_CTOR(M) { SC_THREAD(a); SC_THREAD(b); }
+  void a() {
+    wait(1, SC_NS);
+    sc_stop();
+    cout << "A after sc_stop" << endl;
+    wait(SC_ZERO_TIME);
+    cout << "A next delta" << endl;
+  }
+  void b() {
+    wait(1, SC_NS);
+    cout << "B same delta" << endl;
+  }
+};
+int sc_main(int, char**) {
+  sc_set_stop_mode(SC_STOP_IMMEDIATE);
+  M m("m");
+  sc_start();
+  cout << "end @" << sc_time_stamp() << endl;
+  return 0;
+}
+```
+
+輸出是？（忽略 `Info:` 那一行）
+
+- A. `A after sc_stop`、`B same delta`、`end @1 ns`
+- B. `A after sc_stop`、`end @1 ns`
+- C. `A after sc_stop`、`A next delta`、`B same delta`、`end @1 ns`
+- D. 全部都會印，包含 `A next delta`
+
+<details>
+<summary>答案</summary>
+
+**B。** `sc_stop()` 不會讓 `A` 目前這一行停下來，所以 `A after sc_stop` 會印。但 `SC_STOP_IMMEDIATE` 會清掉目前 delta 裡還沒執行的 runnable process（`sc_simcontext.cpp:1015`，對照 `:992` 的註解），所以 `B` 的 `same delta` 被跳過。下一個 delta 也不會開始，所以 `A next delta` 不會印。比較 MC19 的預設模式，`B` 會印出來。
+
+```
+A after sc_stop
+Info: /OSCI/SystemC: Simulation stopped by user.
+end @1 ns
+```
+
+</details>
+
+---
+
+#### MC38：`sc_fifo` 的 `nb_write` / `nb_read` 與 update 時序〔L3〕
+
+```cpp
+SC_MODULE(M) {
+  sc_fifo<int> f;
+  SC_CTOR(M) : f(2) { SC_THREAD(t); }
+  void t() {
+    int w1 = f.nb_write(1);
+    int w2 = f.nb_write(2);
+    int w3 = f.nb_write(3);
+    cout << "w1=" << w1 << " w2=" << w2 << " w3=" << w3 << endl;
+    cout << "num_available=" << f.num_available() << " num_free=" << f.num_free() << endl;
+    int v = 0;
+    int r1 = f.nb_read(v);
+    cout << "r=" << r1 << " v=" << v << endl;
+    wait(SC_ZERO_TIME);
+    cout << "num_available=" << f.num_available() << endl;
+    int r2 = f.nb_read(v);
+    cout << "r=" << r2 << " v=" << v << endl;
+    int r3 = f.nb_read(v);
+    cout << "r=" << r3 << " v=" << v << endl;
+    int r4 = f.nb_read(v);
+    cout << "r=" << r4 << " v=" << v << endl;
+  }
+};
+int sc_main(int, char**) { M m("m"); sc_start(); return 0; }
+```
+
+依序回答：（a）`w3` 是多少？（b）`wait(SC_ZERO_TIME)` 之前 `num_available()` 是多少？（c）`wait` 之前第一次 `nb_read` 的結果是多少？
+
+- A. (a) 1，(b) 2，(c) `r=1 v=1`
+- B. (a) 0，(b) 0，(c) `r=0 v=0`
+- C. (a) 0，(b) 2，(c) `r=1 v=1`
+- D. (a) 0，(b) 0，(c) `r=1 v=1`
+
+<details>
+<summary>答案</summary>
+
+**B。** 容量是 2，前兩次寫入成功，第三次 `nb_write` 失敗（回傳 0）。`num_free()` 立刻減少，但 `num_available()` 要等 update phase 才增加，所以同一個 delta 裡讀不到剛寫的資料（`sc_fifo.h:113`、`:350–356`）。`wait(SC_ZERO_TIME)` 之後 `num_available()` 變成 2，`nb_read` 才能讀到。
+
+```
+w1=1 w2=1 w3=0
+num_available=0 num_free=0
+r=0 v=0
+num_available=2
+r=1 v=1
+r=1 v=2
+r=0 v=2
+```
+
+</details>
+
+---
+
+---
+
 ### 選擇題驗證紀錄（2026-10-21）
 
 - 環境：本機 SystemC 2.3.3，`g++ -std=c++11 -O2`（見檔案開頭）。
@@ -1428,6 +2355,87 @@ R sig=8 @2 ns delta=4
 
 ---
 
+### L2-4：`sc_mutex` 與 `sc_semaphore`〔L2〕
+
+用 T10 的兩段程式回答：
+
+1. `trylock()` 回傳 `-1` 代表什麼？非持有者呼叫 `unlock()` 會怎樣？
+2. 「4 個 process 搶 2 個 DMA 通道」應該用 `sc_mutex` 還是 `sc_semaphore`？為什麼？
+3. 忘記 `unlock()`，會看到什麼症狀？kernel 會報錯嗎？
+
+<details>
+<summary>提示</summary>
+
+- 想想 mutex 的狀態只有「被誰持有」，semaphore 的狀態是「剩幾個」。
+- 忘記 unlock 的時候，還有沒有任何會叫醒等待者的事件？
+
+</details>
+
+<details>
+<summary>參考答案</summary>
+
+1. `-1` 表示鎖已被別的 process 持有，`trylock()` 沒有阻塞就返回。非持有者呼叫 `unlock()` 回傳 `-1`，鎖不會被解開（`sc_mutex.cpp:93–96`，實測見 T10）。
+2. `sc_semaphore`，初始值 2。mutex 只允許一個持有者，表達不了「兩個資源」。
+3. 其他 process 永遠阻塞，kernel 不會報錯；沒有 pending 事件時 `sc_start()` 就返回（實測見 T10 的 `t_mutex_leak`）。這種 bug 只能靠 log 或 end-of-sim 檢查發現，所以測試時要檢查每個 process 是否走完。
+
+</details>
+
+---
+
+### L2-5：`SC_CTHREAD` 與 reset〔L2〕
+
+用 T4 的 `t_cthread_reset2` 程式回答：
+
+1. 為什麼 `reset-branch @0 s` 會在第一個 clock edge 之前印出？
+2. `rst` 在 25 ns 拉高，為什麼 counter 要到 30 ns 才歸零？它在 40 ns 的第一個值是多少？
+3. 如果把 `reset_signal_is(rst, true)` 拿掉，reset 還會生效嗎？你要怎麼驗證？
+
+<details>
+<summary>提示</summary>
+
+- `SC_CTHREAD` 什麼時候開始執行？它是被 edge 叫醒的嗎？
+- reset 是在 edge 上檢查還是在 `rst` 寫入的當下檢查？
+
+</details>
+
+<details>
+<summary>參考答案</summary>
+
+1. `SC_CTHREAD` 在初始化階段就開始執行，不是等 edge。所以 reset 分支在 `0 s` 先跑一次，之後的第一個 `wait()` 才等下一個 edge。
+2. 30 ns 是 `rst` 為 true 時的第一個 posedge（`rst` 在 25 ns 寫入、經 update 生效，下一個 edge 才看得到）。之後 thread 從頭跑 reset 分支，第一個 `wait()` 讓它在 40 ns 才印第一個值，所以是 `count=0 @40 ns`。
+3. 不會。實測把 `reset_signal_is` 拿掉（其他不變），`count` 在 25–35 ns 的 reset 期間照樣增加：`count=0 @10 ns`、`1 @20`、`2 @30`、`3 @40`、`4 @50`。
+
+</details>
+
+---
+
+### L2-6：`sc_spawn` 的 process 型態與生命週期〔L2〕
+
+1. `sc_spawn(&worker)` 預設產生什麼型態的 process？它從哪個時間點開始跑？（參考 MC35）
+2. 如果要讓 spawn 出來的 process 只在某個 `sc_event` 觸發，且不要在初始化時執行，`sc_spawn_options` 要怎麼設？（參考 T11）
+3. `h.terminated()` 什麼時候是 `true`？它能不能代替同步（例如等 worker 結束再繼續）？
+
+<details>
+<summary>提示</summary>
+
+- 「spawn 的時間」與「process 的初始執行」是兩回事。
+- 查 `sc_process_handle` 的成員，看看有沒有 wait 之類的同步介面。
+
+</details>
+
+<details>
+<summary>參考答案</summary>
+
+1. 預設是 `SC_THREAD`，在呼叫 `sc_spawn()` 的那個時間點開始跑（MC35 實測在 2 ns 呼叫，`worker` 也在 2 ns 開始）。
+2. 用 `o.spawn_method()`、`o.set_sensitivity(&e)`、`o.dont_initialize()`（`t_spawn_opts` 的寫法）。
+3. process 結束後 `terminated()` 為 `true`。它只是查詢狀態，不會阻塞。要等它結束，必須自己用 event、semaphore 或 `sc_join` 之類的機制同步（`sc_join` 這一輪沒有驗證，請自己查 `sc_join.h`）。
+
+</details>
+
+---
+
+---
+
 ## L3：scheduler 口述
 
 ### L3-1：用一分鐘講完 SystemC scheduler 的 evaluate → update → delta notification 流程〔L3〕
@@ -1459,6 +2467,83 @@ SystemC 是 discrete-event simulation。一個 time step 內重複下面的 delt
 對照原始碼：`sc_simcontext::crunch` 實作 1～3，外層 `sc_simcontext::simulate` 實作時間推進；`sc_thread_process::wait` 與 `suspend_me()` 是 thread 的暫停點，最後透過 coroutine package（`sc_cor_pkg::yield`，本機 build 用 QuickThreads）切換堆疊。
 
 第 3 點請把你模型中的具體情境填進去，例如「這個 `wait` 是 `SC_THREAD` 裡的 timed wait，它被喚醒時間在 timed event queue 裡」，這部分要自己回答，我不替你編。
+
+</details>
+
+---
+
+### L3-2：elaboration 與 simulation callback〔L3〕
+
+1. 依序列出：建構子、`before_end_of_elaboration`、`end_of_elaboration`、`start_of_simulation`、`end_of_simulation`，各在什麼時候被呼叫？
+2. 為什麼不能在 `start_of_simulation()` 裡 `new` 一個 module？看到的錯誤是哪個代碼？
+3. 2.3.3 中，`sc_main` 正常返回而沒有呼叫 `sc_stop()` 時，`end_of_simulation()` 會不會被呼叫？你會怎麼驗證？標準條文你會去哪裡查？
+
+<details>
+<summary>提示</summary>
+
+- 想想「elaboration」結束之後，kernel 是否還允許註冊新的 module。
+- 看 `sc_simcontext::end()` 有哪些呼叫點（`grep -n "end()" sc_simcontext.cpp`）。
+
+</details>
+
+<details>
+<summary>參考答案</summary>
+
+1. 建構子：`sc_module` 物件建立時（elaboration）。`before_end_of_elaboration()`、`end_of_elaboration()`：elaboration 結束前後（MC30）。`start_of_simulation()`：第一次 `sc_start()` 進入模擬前。`end_of_simulation()`：模擬結束的通知（在 2.3.3 中只在 `sc_stop()` 之後，見 T8）。
+2. elaboration 結束後，module registry 不接受新 module，錯誤是 E529（`sc_module_registry.cpp:54`，實測見 T8）。
+3. 2.3.3 不會呼叫（`sc_simcontext::end()` 只在 `do_sc_stop_action()` 呼叫，`sc_simcontext.cpp:963`）。驗證方法是寫一個 `sc_main` 不呼叫 `sc_stop()`、在 `end_of_simulation` 印字，看有沒有輸出（MC30 的 D 選項就是這個陷阱）。標準條文 IEEE 1666-2011 本機沒有，這裡沒有核對，要查標準原文的 simulation termination 段落，不要只依賴實作行為。
+
+</details>
+
+---
+
+### L3-3：port 與 export 的綁定〔L3〕
+
+1. 為什麼 `sc_port` 的綁定要留到 elaboration 才做？綁定檢查在哪個時間點發生？（參考 MC31）
+2. 寫 `exp(port)` 為什麼編譯失敗？`sc_export` 應該綁什麼？（參考 T9）
+3. 面試官問：「為什麼 channel 不直接用指標傳給子模組？」你會怎麼回答？
+
+<details>
+<summary>提示</summary>
+
+- port 的意思是「我需要一個實作某 interface 的東西」。它本身不是實作。
+- 想想如果子模組直接拿到 `sc_fifo*`，換一個 channel 實作要改哪裡。
+
+</details>
+
+<details>
+<summary>參考答案</summary>
+
+1. port 在建構時還不知道誰會實作它，等整個 hierarchy 建好才能確認。檢查在 `sc_start()` 的 elaboration 結束時做，未綁定就報 E109（MC31）。
+2. `sc_export::operator()` 只接受 interface（`IF&`），port 不是 interface 的實作。export 應該綁到 channel（例如 `sc_fifo`）本身，子模組的 port 再綁到這個 export（T9 的 `t_export`）。
+3. 答案要點：port/export 讓 module 只依賴 interface，不依賴具體 channel；elaboration 時綁定，錯誤（未綁定、型別不符）在 elaboration 就會抓到；換實作或插入 TLM 中介層時不用改子模組。這是 TLM 的基礎概念。
+
+</details>
+
+---
+
+### L3-4：testbench 的控制流程〔L3〕
+
+情境：你寫一個 testbench，要跑 300 ns，每 100 ns 檢查一次 DUT 狀態；某個條件（例如 `done` 事件）發生時，要讓 `sc_main` 停下來檢查，然後繼續跑；全部結束時要收尾。
+
+1. 這三種需求分別用 `sc_start(t)`、`sc_pause()` 還是 `sc_stop()`？各舉一個適合的情境。
+2. 在 `sc_main` 裡呼叫 `sc_stop()`，會不會觸發 `end_of_simulation()`？（參考 T8）
+3. 用 `SC_STOP_IMMEDIATE` 會有什麼代價？為什麼 testbench 通常不用它？
+
+<details>
+<summary>提示</summary>
+
+- `sc_start(t)` 是相對時間；`sc_pause()` 是 process 通知 `sc_start` 返回；`sc_stop()` 是結束。
+- 想想 `SC_STOP_IMMEDIATE` 會跳過哪些 process。
+
+</details>
+
+<details>
+<summary>參考答案</summary>
+
+1. 每 100 ns 檢查：用 `sc_start(100, SC_NS)` 的迴圈。`done` 事件要 main 介入：process 裡 `sc_pause()`，`sc_main` 在 `sc_start` 返回後檢查，再 `sc_start()` 續跑（MC36）。全部結束：`sc_stop()`。
+2. 會。實測 `sc_stop()` 從 `sc_main` 呼叫時會印 `Simulation stopped by user.` 並觸發 `end_of_simulation()`（MC30）。
+3. 代價是 delta 中剩下的 process 直接被跳過（MC37），狀態可能不一致，檢查結果就不可靠。testbench 一般用預設的 `SC_STOP_FINISH_DELTA`，讓目前 delta 跑完再停。
 
 </details>
 
@@ -1544,6 +2629,161 @@ coarse(10us): wakeups=9999 wall=0.001s
 
 ---
 
+### L4-2：你的 msg IP 中的 channel 選擇〔L4〕
+
+1. 你的 msg IP 裡，哪些地方用 `sc_signal`、哪些用 `sc_fifo`、哪些用 `sc_event`？每一種各舉一個例子，說明你為什麼這樣選。
+2. 如果把其中一個 `sc_fifo` 換成 `sc_buffer` 或直接用 `sc_event` 通知，行為會改變哪些地方？用 MC9、MC15、MC38 的規則回答。
+3. 如果你的模型有 back-pressure 的問題（producer 等 consumer），你會用 `write()` 的阻塞行為，還是 `nb_write()` 加 `num_free()` 檢查？各自的代價是什麼？
+
+<details>
+<summary>提示</summary>
+
+- 先想清楚每個通道要表達的是「值」、「佇列」還是「發生了一次」。
+- 如果是 `sc_fifo`，想想 `num_available()` 和 `num_free()` 各在什麼時候改變。
+
+</details>
+
+<details>
+<summary>參考答案（骨架，要自己用你的 IP 補）</summary>
+
+1. 這一題要用你的實際模型回答，我不替你編。判斷的骨架是：「值要保留到下次讀」用 signal 或 fifo；「只是通知有事發生」用 event；「有順序、可能多筆」用 fifo（或 `sc_event_queue`，MC22）。
+2. 要看的規則：`sc_buffer` 每次寫都發事件（MC15）；`sc_event` 同一時間只保留一個 pending 通知（MC9）；`sc_fifo` 的資料要下一個 delta 才能讀（MC38）。
+3. 要說清楚兩者的代價：阻塞 `write()` 讓 producer 自動等待，但只能在 thread 裡用；`nb_write()` 要自己處理失敗的情況，但能在 method 裡使用。
+
+</details>
+
+---
+
+## 手寫練習（只給規格與骨架，請自己寫）
+
+這一段跟前面不一樣：**沒有參考解答**。先照規格寫、用骨架裡的 `check()` 自己檢查，寫完再請我看你的版本（會給 review 意見，不會直接貼完整解答）。
+
+### EX-1：用 `sc_semaphore` 限制同時使用的通道數〔L3〕
+
+**規格**
+- 4 個 requester（`r0`～`r3`），每個重複 3 次：取得 resource → 使用 4 ns → 歸還。
+- 同時可用的 resource 數量是 2。
+- 每次取得與歸還都印出 `<name> acquire @時間` / `<name> release @時間`。
+- 用計數器 `inuse` 記錄目前使用中的數量；取得後 `++`，歸還前 `--`，並記錄 `max_inuse` 與 `acquisitions`。
+
+**骨架（`ex1_skel.cpp`，需要你補 TODO）**
+
+```cpp
+#include <systemc>
+using namespace sc_core;
+using std::cout;
+using std::endl;
+
+static void check(bool ok, const char* msg) { cout << (ok ? "PASS " : "FAIL ") << msg << endl; }
+
+SC_MODULE(Arbiter) {
+  sc_semaphore sem;   // TODO: 初始化成 2 個 resource（建構子初始化列表）
+  int inuse;          // 目前使用中的數量
+  int max_inuse;      // 觀察到的最大同時使用數
+  int acquisitions;   // 總共取得次數
+  SC_CTOR(Arbiter) : sem("sem", 1) /* TODO: 改成 2 */, inuse(0), max_inuse(0), acquisitions(0) {
+    // TODO: 用 SC_THREAD 註冊 4 個 requester。SC_THREAD 不能帶參數，
+    //       請寫 4 個小 wrapper（r0..r3）各自呼叫 requester(id)。
+  }
+  void requester(int id) {
+    // TODO: 重複 3 次：sem.wait() -> 記錄 inuse++、max_inuse、acquisitions++ 並印出 -> wait(4 ns) -> inuse-- 並印出 -> sem.post()
+    (void)id;
+  }
+};
+
+int sc_main(int, char**) {
+  Arbiter arb("arb");
+  sc_start();
+  // TODO: 用 check() 檢查：max_inuse == 2、acquisitions == 12、inuse == 0
+  check(false, "TODO: fill in checks");
+  return 0;
+}
+```
+
+**自我檢查（harness 的 `check()` 應該全部 PASS）**
+- `max_inuse == 2`
+- `acquisitions == 12`
+- `inuse == 0`（模擬結束時歸零）
+
+**提示**
+1. `SC_THREAD` 不能傳參數。要區分 4 個 requester，寫 4 個小的 wrapper，各自呼叫 `requester(id)`。
+2. `sc_semaphore` 的建構子第二個參數是初始計數；`sem.wait()` 會阻塞，`sem.post()` 加一（T10）。
+3. 「`inuse` 變化」與「`sem` 取得」要寫在 `wait()` 之後或之前？想想計數器的正確性：在取得成功後才能 `++`。
+4. 如果 `max_inuse` 是 3，代表你的 semaphore 沒有正確初始化，檢查建構子初始化列表。
+
+---
+
+### EX-2：用 `SC_CTHREAD` 寫同步 reset 的計數器〔L2〕
+
+**規格**
+- `Counter` module：`sc_in<bool> clk`、`sc_signal<bool> rst`（active-high，同步 reset）。
+- 每個 posedge 印出 `count=N @時間`，然後 `N++`。reset 生效後 `N` 從 0 重新開始。
+- `sc_main` 建立 10 ns 的 `sc_clock`，綁到 `clk`。
+- driver：`rst` 在 25 ns 拉高，35 ns 拉低。
+- `sc_start(60, SC_NS)`。
+
+**骨架（`ex2_skel.cpp`，需要你補 TODO）**
+
+```cpp
+#include <systemc>
+using namespace sc_core;
+using std::cout;
+using std::endl;
+
+SC_MODULE(Counter) {
+  sc_in<bool> clk;        // 由 sc_main 綁定 sc_clock
+  sc_signal<bool> rst;    // 同步、active-high reset
+  int count;
+  SC_CTOR(Counter) : count(0) {
+    // TODO: SC_CTHREAD(run, clk.pos())，並用 reset_signal_is(rst, true) 設定 reset
+    SC_THREAD(driver);    // TODO: 若要用 thread 驅動 rst，保留這行，否則刪除
+  }
+  void driver() {
+    // TODO: 在 25 ns 拉高 rst，維持一個 clock cycle 後拉低（時間自己算，注意 posedge 的位置）
+  }
+  void run() {
+    // TODO: reset 分支與主迴圈；每個 posedge 印出 "count=N @時間"，然後 count++
+  }
+};
+
+int sc_main(int, char**) {
+  sc_clock clk("clk", 10, SC_NS);
+  Counter c("c");
+  c.clk(clk);
+  sc_start(60, SC_NS);
+  return 0;
+}
+```
+
+**自我檢查**
+- 先在紙上推算每一行的時間，再跑，看是否一致。
+- 把 `rst` 的時間改成 45 ns 與 55 ns，預測輸出會怎麼變。
+
+**提示**
+1. `SC_CTHREAD` 在初始化時就開始執行，第一個 `wait()` 等的是下一個 edge（T4、MC27）。
+2. reset 分支要放在主迴圈之前，reset 生效時 thread 會從頭執行（T4、L2-5）。
+3. `rst` 的寫入在 update phase 才生效，所以 25 ns 寫入的值要到下一個 posedge 才看得到（L2-3）。
+
+---
+
+
+## 下一輪可以加考
+
+以下是還沒出題、或只做了一半的主題。下一輪挑 2–3 題做，不必全部。
+
+- **sc_mutex 的遞迴鎖定**：同一個 process 再次呼叫 `lock()` 的行為（`sc_mutex.cpp:65–72` 的 `m_owner` 判斷），要用程式驗證後再出題。
+- **sc_semaphore 的公平性**：標準沒有保證先到先得；可以設計一個會暴露差異的情境，但要標明「依實作，不保證」。
+- **`sc_join` 等待多個 spawn 的 process**：目前 T11 只說明 `terminated()` 不會阻塞，還沒驗證 `sc_join`。
+- **`async_reset_signal_is` 與 `reset_signal_is` 的差異**：本輪只驗證了同步 reset（edge 上檢查）。
+- **`sc_clock` 的 duty cycle、start_time、`posedge_first`**：本輪只用了預設值。
+- **`wait(t, SC_NS, list)` 與 `sc_event_and_list` 的 timeout 組合**：MC10、MC11 只有單一事件與 OR/AND。
+- **多個 module 的 `end_of_simulation` 順序**：目前只有一個 module，順序未驗證。
+- **`sc_port` 的綁定策略**（如 `SC_ONE_OR_MORE_BOUND`）與 E109 的關係：T9 只說明未綁定會報錯。
+- **`SC_METHOD` 的 `next_trigger(time)` 與靜態敏感度組合**：MC16 的延伸，讓 method 在兩種觸發之間切換。
+- **`sc_time` 的大數值與比較**：超出 64 位元 tick 範圍時的行為（只是出題方向，尚未實測）。
+
+---
+
 ## 核對紀錄（2026-10-21）
 
 - 所有程式碼用 `g++ -std=c++11`（見上）編譯並執行；輸出為實測。L1-1 的 `E519` 訊息、L1-3 的 immediate notify 遺失、L2-1～L2-3 的輸出、L4-1 的 wall-clock 都出自實跑。
@@ -1606,3 +2846,32 @@ coarse(10us): wakeups=9999 wall=0.001s
        void drv() { wait(1, SC_NS); v.write(1); wait(1, SC_NS); v.write(0); }
      };
      ```
+
+---
+
+## 核對紀錄（2026-11-05 第二輪）
+
+- **環境**：本機 SystemC 2.3.3，library 在 `/home/alan/cpp_practice/side_project/uArch/systemc-2.3.3`（`lib-linux64/libsystemc.so`）。編譯 `g++ -std=c++11 -O0 -I$S/include x.cpp -L$S/lib-linux64 -lsystemc -Wl,-rpath,$S/lib-linux64`。實際的測試程式與輸出存在 `/tmp/claude-1000/-mnt-c-Users-FengAn-Documents-resume/29103af2-e193-4832-9e43-1b02a70074da/scratchpad/sc/`（`run.sh` 負責編譯與執行）。
+- **新增題目（MC24–MC38、L2-4–L2-6、L3-2–L3-4、L4-2、EX-1、EX-2）**：每個 predict-the-output 程式都獨立編譯、執行，輸出貼的是實測結果。同一時間點上 process 先後不一致的行，比對時不看順序（MC33、MC34、MC19 同類）。
+- **教學範例（T1–T11）**：每個附輸出的範例都實跑過。T1 的 E519、T8 的 E529、T9 的 E109 與 export 寫法的編譯錯誤、T10 的 mutex 回傳值與 starvation、T11 的 spawn 選項與 E519，都是實測。
+- **修正過程中自己發現的問題（已修正，未進入最終題目）**：
+  - 初版 MC26 的程式在 4 ns 被 `e` 叫醒後又呼叫 `next_trigger(e)`，導致 5 ns 的 `tick` 不被處理。這是測試程式的寫法，不是 kernel 的 bug；另寫了只在 1 ns 呼叫 `next_trigger` 的對照版本（T3 的 `t_nt_cond`），5 ns 會醒，符合 IEEE 語意。
+  - 初版 MC27 用 `sc_clock` 直接當 `SC_CTHREAD` 的 sensitivity，g++ 編譯失敗（`sc_clock` 沒有 `pos()`，`posedge_event()` 也不能當 `SC_CTHREAD` 的 sensitivity）。改成 `sc_in<bool>` 再綁 `sc_clock`。
+  - 初版 MC29 的程式我原本想寫成「警告」，實測是 E514 錯誤並結束，已依實測修正。
+  - 初版 MC30 沒有呼叫 `sc_stop()`，實測 `end_of_simulation` 沒有印出，所以加上 `sc_stop()`，並在 T8 說明這個行為。
+  - 初版 MC38 的 `cout << f.nb_read(v) << v` 寫法在同一個運算式中修改並讀取 `v`，有 unsequenced 的問題。改成分開的語句。
+  - 初版 MC35 缺 `#include <sysc/kernel/sc_spawn.h>`，實測 `sc_spawn` 不在 `<systemc>` 的展開範圍內，補上。
+- **原始碼核對（SystemC 2.3.3）**：
+  - `sc_event::cancel()`：`sc_event.cpp:66` 起（T2）。
+  - `sc_simcontext::end()` 只在 `do_sc_stop_action()` 中呼叫：`sc_simcontext.cpp:959–968`、`:1031–1040`；`stop()` 的註解說明 sc_main 直接呼叫時會做 end-of-simulation 通知：`sc_simcontext.cpp:990–1000`（T8）。
+  - `SC_STOP_IMMEDIATE` 的 `m_runnable->init()`：`sc_simcontext.cpp:1015`（MC37）。
+  - `sc_pause()` 的 `m_paused` 檢查：`sc_simcontext.cpp:589–591`、`:892–897`（MC36、T7）。
+  - `sc_mutex::trylock()` / `unlock()` 的回傳值：`sc_mutex.cpp:79–86`、`:93–96`（MC33、T10）。
+  - `sc_fifo` 的 `num_free()` / `num_available()` 與 update：`sc_fifo.h:93`、`:113`、`:285`、`:350–356`（MC38、T1）。
+  - E514：`sc_time.cpp:396`（MC29）。E109：`sc_port.cpp:235`（MC31）。E529：`sc_module_registry.cpp:54`（T8）。E519 的兩個位置：`sc_wait.cpp:179`（MC3）與 `sc_wait.cpp:93`（T1，blocking fifo write），以及 `sc_wait.cpp:179`（T11，spawn 成 method）。
+  - 既有的 `sc_simcontext.cpp:595`、`:867–870`、`:929`（"hold off on the delta"）也重新確認，與 L2-2、MC20 的敘述一致。`:796` 是 `initialize` 裡的 `no_crunch` 判斷，與 MC20 的敘述一致，未逐行追完整條件。
+- **重跑既有題目**：L1-3、L2-1、L2-2、L2-3 的輸出與原文逐行一致。既有 MC 題目未重跑，沿用 2026-10-21 的實測紀錄。
+- **未核對 / 只依實作**：
+  - IEEE 1666-2011 條文本身：本機沒有標準文件，以下都只是 2.3.3 的實作行為：`end_of_simulation` 只在 `sc_stop()` 後觸發、port 綁定檢查（E109）發生在 `end_of_elaboration` callback 之前（MC31 的程式沒有覆寫 callback，只看到 E109 與沒有 callback 輸出，這是觀察）、`SC_CTHREAD` 初始化時就執行、`sc_mutex` 的回傳值、`sc_fifo` 的 update 時序。
+  - `sc_join`、`async_reset_signal_is`、`sc_clock` 的進階參數：只在「下一輪可以加考」列出，尚未驗證。
+- **事實修正**：本輪沒有發現既有題目的錯誤，既有內容未改動。新增部分的修正見上面的「修正過程中自己發現的問題」。
