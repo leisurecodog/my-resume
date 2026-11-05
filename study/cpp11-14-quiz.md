@@ -4,12 +4,13 @@
 
 用法：先看題目，嘗試在紙上或白板口頭作答/手寫，再展開 `<details><summary>參考答案</summary>` 對照。每題標記常考公司/類型（觀念題、手寫題、陷阱題）。
 
-**難度分級**（標在每題標題後）：L1 學習（看懂概念，附提示）→ L2 應用（預測輸出、找錯、動手改）→ L3 面試（開放式問答與白板題）→ L4 深入（陷阱、效能、原理）。建議順序：先做選擇題（MC1–MC25，由淺到深），再做「問答題與手寫題」：第零模組（L1–L2），最後是第一模組之後的 L3、L4 題。
+**難度分級**（標在每題標題後）：L1 學習（看懂概念，附提示）→ L2 應用（預測輸出、找錯、動手改）→ L3 面試（開放式問答與白板題）→ L4 深入（陷阱、效能、原理）。建議順序：先讀「教學導讀」（G1–G12，只讀你還不熟的主題），再做選擇題（MC1–MC43，由淺到深），再做「問答題與手寫題」：第零模組（L1–L2），然後是第一模組之後的 L3、L4 題，最後是第七模組補充問答與第八模組手寫練習。
 
 ---
 
 ## 目錄
-- [選擇題：先建立直覺 (MC1–MC25)](#選擇題先建立直覺mc1mc25)（先做這一段，再做下面的問答題）
+- [教學導讀 (G1–G12)](#教學導讀g1g12)（先讀，再做選擇題）
+- [選擇題：先建立直覺 (MC1–MC43)](#選擇題先建立直覺mc1mc43)（再做下面的問答題）
 - [第零模組：L1 入門 與 L2 應用 (L1-1–L1-4、L2-1–L2-4)](#第零模組l1-入門-與-l2-應用)
 - [第一模組：記憶體管理與智慧指標 (Q1–Q3)](#第一模組記憶體管理與智慧指標)
 - [第二模組：Move Semantics、右值與生命週期 (Q4–Q6)](#第二模組move-semantics右值與生命週期)
@@ -17,10 +18,170 @@
 - [第四模組：物件導向、型別推導與編譯期計算 (Q10–Q13)](#第四模組物件導向型別推導與編譯期計算)
 - [第五模組：底層系統、並行與 Bit 操作 (Q14–Q15)](#第五模組底層系統並行與-bit-操作)
 - [第六模組：白板手寫實作題 (C1–C2)](#第六模組白板手寫實作題)
+- [第七模組：補充問答 (Q16–Q22)](#第七模組補充問答q16q22)
+- [第八模組：手寫練習 (E1–E2)](#第八模組手寫練習e1e2只給規格與骨架)
 
 ---
 
-## 選擇題：先建立直覺（MC1–MC25）
+## 教學導讀（G1–G12）
+
+這一節是給還不熟的主題用的。每節四段：**白話說明 → 小例子（已在本機 g++ 實測）→ 常見陷阱 → 深入題號**。前面模組已經完整展開的主題（例如 Q7、Q9、Q10），這裡只做摘要與指向，不重複長篇解說。讀完再進選擇題。
+
+### G1：lambda 捕獲與隱式 `this`（深入：Q7、C2、MC35、MC36、Q16）
+
+- **白話**：`[=]` 不是「把整個物件複製一份」。它只複製 lambda 內實際用到的**區域變數**。在成員函式裡用到成員 `m` 時，被捕獲的其實是 `this` 指標，所以 lambda 讀到的是物件**現在**的 `m`。
+- **例子**（`-std=c++14`，`[m = m]` 是 C++14）：
+
+  ```cpp
+  struct S {
+    int m = 1;
+    std::function<int()> by_this()  { return [=] { return m; }; }      // 捕獲 this
+    std::function<int()> by_value() { return [m = m] { return m; }; }  // 複製 m
+  };
+  S s; auto a = s.by_this(); auto b = s.by_value(); s.m = 5;
+  // a() 得到 5，b() 得到 1
+  ```
+- **陷阱**：lambda 活得比物件久，`[=]` 與 `[this]` 都會懸空（見 Q16）。C++20 起 `[=]` 隱式捕獲 `this` 會得到 deprecated 警告（實測 `-std=c++20 -Wall`：`implicit capture of 'this' via '[=]' is deprecated in C++20`），寫成 `[this]` 或 `[=, this]` 才明確。
+
+### G2：`shared_ptr` 循環與 `weak_ptr`（深入：L2-3、Q1、Q17、MC16、MC37）
+
+- **白話**：`shared_ptr` 的 strong count 是「擁有者人數」。兩個物件互相持有就永遠到不了 0。拆循環的做法是找出**從屬**那一方，讓它改持有 `weak_ptr`。`weak_ptr` 不保證物件還在，每次使用都要 `lock()`；拿到空的 `shared_ptr` 就代表已經被釋放。
+- **例子**（實測輸出 `1 2`、`parent=root`，之後 `~root`、`~child`）：
+
+  ```cpp
+  struct Node {
+    std::weak_ptr<Node> parent;               // 不擁有父節點
+    std::vector<std::shared_ptr<Node>> kids;  // 擁有子節點
+  };
+  if (auto p = child->parent.lock()) { /* p 有效才使用 */ }
+  ```
+- **陷阱**：從 `this` 另外包一個 `shared_ptr`（`std::shared_ptr<Node>(this)`）會建立第二個 control block，同一個物件會被 delete 兩次。本機 ASan 實測報 `attempting free on address which was not malloc()-ed`。要從成員函式拿到自己的 `shared_ptr`，應用 `enable_shared_from_this`（MC37）。
+
+### G3：Rule of Zero（深入：Q6、L2-4、MC21、MC38、MC39、Q18）
+
+- **白話**：成員都選會自己管理資源的型別（`unique_ptr`、`vector`、`string`），類別就不用寫 destructor、copy、move。編譯器會生成正確版本，這就是 Rule of Zero。
+- **例子**（`-std=c++11` 與 `c++14` 都通過 static_assert）：
+
+  ```cpp
+  struct LogFile {
+    explicit LogFile(const char* path) : fp_(std::fopen(path, "w")) {}
+    // 不寫 destructor / copy / move
+   private:
+    std::unique_ptr<std::FILE, FcloseFn> fp_;   // FcloseFn 是無狀態 struct（見 Q3）
+  };
+  static_assert(std::is_move_constructible<LogFile>::value, "");
+  static_assert(!std::is_copy_constructible<LogFile>::value, "");
+  ```
+- **陷阱**：只要自己寫了 destructor，就不會再生成 move（MC21）。而且 `unique_ptr` 成員讓 copy 被刪除，所以「寫了解構子」加「有 `unique_ptr` 成員」的類別**既不能 copy 也不能 move**（MC39：`D d2(std::move(d1));` 編譯錯誤）。
+
+### G4：`std::function` 的開銷（深入：Q9、MC22、MC34、Q19）
+
+- **白話**：`std::function` 用 type erasure 包住任何 callable，呼叫是間接呼叫，編譯器通常不能 inline。捕獲夠小且 trivially copyable 時可以放在物件內（SBO）；否則要 heap 配置。
+- **例子**（`-std=c++11` 與 `c++14` 都輸出 `2`）：
+
+  ```cpp
+  template <class F> void run_fast(F&& f) { f(); }                       // 模板：型別在編譯期固定，可 inline
+  void run_slow(const std::function<void()>& f) { f(); }                 // 間接呼叫，大捕獲可能 heap
+  ```
+- **陷阱**：MC34 實測（libstdc++）：捕獲 `int*` 配置 0 次；捕獲 8 bytes 但有使用者定義 copy 的型別配置 1 次；捕獲 64 bytes 配置 1 次。SBO 規則是實作細節，不要寫進設計假設。在每秒百萬次的 callback 熱路徑上，這些配置與間接呼叫會變成瓶頸（Q19）。
+
+### G5：完美轉發與 `std::forward`（深入：Q4、MC32、MC33、Q20）
+
+- **白話**：`template <class T> void f(T&& x)` 中的 `T&&` 是 forwarding reference：傳 lvalue 進來時 `T` 是 `U&`，傳 rvalue 進來時 `T` 是 `U`。但 `x` 一旦有名字就是 lvalue，所以要用 `std::forward<T>(x)` 把「原本是不是 rvalue」還給下一層。
+- **例子**（實測輸出 `const& && | const& const&`）：
+
+  ```cpp
+  void sink(const int&) { /* const& */ }
+  void sink(int&&)      { /* && */ }
+  template <class T> void good(T&& x) { sink(std::forward<T>(x)); }
+  template <class T> void bad(T&& x)  { sink(x); }
+  // good(1) 呼叫 sink(int&&)；bad(1) 呼叫 sink(const int&)
+  ```
+- **陷阱**：忘了 `forward`，所有參數都會變成 lvalue。`std::forward` 只能用在 forwarding reference 上；非模板的 `T&&`（例如 `std::vector<T>::push_back(T&&)`）不是 forwarding reference（見 Q4）。
+
+### G6：`constexpr`：C++11 與 C++14 的差別（深入：Q12、MC24、MC40、MC41）
+
+- **白話**：`constexpr` 函式「可以」在編譯期執行，但**不保證**。只有在必須是常數的地方（陣列大小、template 參數、`constexpr` 變數初始化）才被強制在編譯期算。C++11 的 `constexpr` 函式只能有一個 `return`，所以要靠遞迴；C++14 才允許區域變數與迴圈。
+- **例子**（`-std=c++11` 會在 `fact` 報 `body of 'constexpr' function ... not a return-statement`；`-std=c++14` 輸出 `55 120`）：
+
+  ```cpp
+  constexpr int fib(int n) { return n < 2 ? n : fib(n - 1) + fib(n - 2); }  // C++11 可用
+  constexpr int fact(int n) {                                               // C++14 才可用
+    int r = 1;
+    for (int i = 2; i <= n; ++i) r *= i;
+    return r;
+  }
+  ```
+- **陷阱**：`int n = 3; constexpr int c = sq(n);` 編譯錯誤（`the value of 'n' is not usable in a constant expression`）。`constexpr` 只是「能」，`int a = sq(n);` 就是執行期呼叫，完全合法。C++11 的 `constexpr` 成員函式隱含 `const`，所以 `constexpr void set()` 在 C++11 不能編譯（MC41）。
+
+### G7：`enum class`（深入：L1-2、MC3、MC27、Q13）
+
+- **白話**：`enum class` 有獨立作用域（`Color::RED`），不會隱式轉成整數，可以指定底層型別（`: std::uint8_t`，沒寫就是 `int`）。代價是位元運算子不會自動存在，要自己寫 `operator|`。
+- **例子**（實測輸出 `10 1` 與 `2`）：
+
+  ```cpp
+  enum class Perm : std::uint8_t { None = 0, R = 0b01, W = 0b10 };
+  constexpr Perm operator|(Perm a, Perm b) {
+    return static_cast<Perm>(static_cast<std::uint8_t>(a) | static_cast<std::uint8_t>(b));
+  }
+  // Perm p = Perm::R | Perm::W;    // 沒有上面的 operator| 就編譯錯誤（MC27）
+  // int raw = static_cast<int>(Perm::W);   // 要轉整數必須顯式
+  ```
+- **陷阱**：`enum class` 的 `|`、`&`、`<` 都要自己定義；直接比較兩種不同 enum 也會是編譯錯誤，這正是它的設計目的。
+
+### G8：`override` 與 `final`（深入：L1-2、Q10、MC42）
+
+- **白話**：`override` 要求編譯器確認「我真的覆寫了 base 的 virtual 函式」；簽名差一點（例如少了 `const`）就報錯，而不是悄悄變成新函式。`final` 禁止再繼承（class 上）或再覆寫（函式上）。
+- **例子**（實測：`'void D::f()' marked 'override', but does not override`）：
+
+  ```cpp
+  struct Base { virtual void f() const {} };
+  struct Derived : Base { void f() override {} };   // 錯誤：Base::f 是 const
+  ```
+- **陷阱**：`override` 不能取代 virtual 解構子；base 會被 delete 的話，解構子還是要 `virtual`（Q10、MC19）。
+
+### G9：`std::array`（深入：MC26、MC28、Q21）
+
+- **白話**：固定大小、值語意的陣列。知道自己的 `size()`，可以用 `by value` 傳遞，`at()` 會做邊界檢查。拿來當暫存器庫比 C 陣列安全。
+- **例子**（實測 `static_assert(sizeof(regs) == 64)` 通過）：
+
+  ```cpp
+  std::array<std::uint32_t, 16> regs{};   // 16 個元素全部零初始化，sizeof == 64
+  ```
+- **陷阱**：大小必須是常數（MC28）。`operator[]` 越界是 UB，`at()` 才會丟 `std::out_of_range`。C 陣列當函式參數 `int a[4]` 只是指標，`sizeof(a)` 是 8（`-Wsizeof-array-argument` 警告，Q21）。
+
+### G10：`noexcept` 與 `move_if_noexcept`（深入：Q5、MC8、MC20、MC29、MC30、Q22）
+
+- **白話**：`noexcept` 是**承諾**，編譯器不會替你檢查。如果例外真的從 `noexcept` 函式離開，程式會呼叫 `std::terminate`，而不是被外層 `catch`。`vector` 重新配置時，用 `move_if_noexcept` 決定要 move 還是 copy：move 不是 noexcept 且有 copy 時才 copy。
+- **例子**（實測：印出 `start`、`in f` 後 abort，exit 134，不會印 `caught`）：
+
+  ```cpp
+  void thrower() { throw 1; }
+  void f() noexcept { thrower(); }   // 例外離開 noexcept 函式 -> std::terminate
+  ```
+- **陷阱**：忘了在 move ctor 加 `noexcept` 不會出錯，只會讓 `vector` 悄悄改用 copy（MC20）。寫的時候用 `static_assert(std::is_nothrow_move_constructible<T>::value, "")` 把承諾鎖住。
+
+### G11：`initializer_list` 的陷阱（深入：MC5、MC13、MC31、L1-1）
+
+- **白話**：`{...}` 初始化會先找 `std::initializer_list<T>` 建構子，只要有可行的就優先用它，不管 `()` 版本怎麼寫。`initializer_list` 本身只是指向底層陣列的視窗，**不擁有**那塊陣列。
+- **例子**（實測 `3 1 3` 與 `2 ab`）：
+
+  ```cpp
+  int n = 3;
+  std::vector<int> a(n);     // 3 個 0
+  std::vector<int> b{n};     // 1 個元素，值為 3
+  std::vector<std::string> s{2, "ab"};   // 2 不能轉成 string，改走 vector(size_type, const T&)：2 個 "ab"
+  ```
+- **陷阱**：回傳 `std::initializer_list` 會懸空。反例：`std::initializer_list<int> make() { return {1, 2, 3}; }`，g++ 給 `-Winit-list-lifetime` 警告，執行後讀到的是垃圾值（本機兩次結果不同）。不要把 `initializer_list` 存起來或回傳，要保存就用 `std::vector`。
+
+### G12：放進 SystemC 風格的模型時怎麼組合
+
+- 模型程式裡這些特性常一起出現：`enum class` 定義暫存器欄位（G7）、`std::array` 放暫存器（G9）、`constexpr` 放位址表（G6）、lambda 當 callback 時注意捕獲的 `this` 生命週期（G1、Q16）、`unique_ptr` 管 transaction 緩衝區（G3）、`noexcept` move 讓容器重配置保持快（G10）。
+- 「structured bindings」（`auto [a, b] = ...`）是 C++17，不在本檔 C++11/14 的範圍內，這裡不教。
+
+---
+
+## 選擇題：先建立直覺（MC1–MC43）
 
 只讀過沒寫過的人，最快的學法是「先猜、再看編譯器怎麼說」。這一段全是單選題，由淺到深。建議做法：
 
@@ -725,6 +886,549 @@ std::atomic<int> ac{0};
 
 ---
 
+### 補充題（MC26–MC43）：array、noexcept、forwarding、lambda、智慧指標與 constexpr
+
+這一段對應上面的教學導讀 G1–G11。每題程式碼都在本機 g++ 11.4 實際編譯、執行過（`-std=c++11` 與 `-std=c++14` 都跑過，有標明的除外）。
+
+---
+
+#### MC26：`std::array` 的大小與初始化〔L1〕
+
+```cpp
+#include <array>
+#include <iostream>
+int main() {
+  std::array<int, 4> a{1, 2};
+  std::cout << a.size() << " " << sizeof(a) << " " << a[2] << " " << a[3] << "\n";
+  std::array<int, 3> b{};
+  std::cout << b.front() << b.back() << "\n";
+}
+```
+
+輸出是？
+
+- A. `4 16 0 0` 與 `00`
+- B. `2 8 0 0` 與 `00`
+- C. `4 16 2 0` 與 `10`
+- D. 編譯錯誤
+
+<details>
+<summary>答案</summary>
+
+**A。** `std::array<int, 4>` 是固定大小的聚合型別，大小寫在型別裡，不會退化成指標。只給了前兩個初值，其餘元素做值初始化成 `0`。`sizeof(a)` 是 `4 * sizeof(int)`，在這個平台是 16。實測輸出 `4 16 0 0` 與 `00`。
+
+</details>
+
+---
+
+#### MC27：`enum class` 直接用 `|`〔L1〕
+
+```cpp
+enum class Flags : unsigned { A = 1u, B = 2u };
+int main() { Flags f = Flags::A | Flags::B; }
+```
+
+結果是？
+
+- A. 編譯通過，`f` 的值是 `3`
+- B. 編譯錯誤：找不到可用的 `operator|`
+- C. 編譯通過，`f` 是 `Flags::A`
+- D. 編譯通過，但執行期有未定義行為
+
+<details>
+<summary>答案</summary>
+
+**B。** `enum class` 不會隱式轉成整數，也不會自動提供位元運算子。實測 `no match for 'operator|' (operand types are 'Flags' and 'Flags')`，`-std=c++11` 與 `c++14` 相同。要用的話，自己寫 `constexpr Flags operator|(Flags, Flags)`（見 G7）。
+
+</details>
+
+---
+
+#### MC28：陣列大小要求常數〔L1〕
+
+```cpp
+#include <array>
+int main() {
+  int n = 4;
+  std::array<int, n> a{};    // (1)
+  const int m = 4;
+  std::array<int, m> b{};    // (2)
+}
+```
+
+(1) 與 (2) 的情況是？
+
+- A. 兩個都可以編譯
+- B. 兩個都是編譯錯誤
+- C. (1) 錯誤，(2) 可以
+- D. (1) 可以，(2) 錯誤
+
+<details>
+<summary>答案</summary>
+
+**C。** `std::array` 的大小是模板參數，必須是常數表達式（constant expression）。`n` 是一般變數，實測 `the value of 'n' is not usable in a constant expression`；`const int m = 4;` 是整數常數，可以。`-std=c++11` 與 `c++14` 結果相同。
+
+</details>
+
+---
+
+#### MC29：`std::move_if_noexcept` 的回傳型別〔L3〕
+
+```cpp
+#include <type_traits>
+#include <utility>
+struct NoCopyThrowMove { NoCopyThrowMove(NoCopyThrowMove&&) {} NoCopyThrowMove(const NoCopyThrowMove&) = delete; };
+struct CopyThrowMove { CopyThrowMove(CopyThrowMove&&) {} CopyThrowMove(const CopyThrowMove&) {} };
+struct CopyNoexceptMove { CopyNoexceptMove(CopyNoexceptMove&&) noexcept {} CopyNoexceptMove(const CopyNoexceptMove&) {} };
+```
+
+下列哪一個敘述是**錯誤**的？
+
+- A. `std::move_if_noexcept` 作用在 `NoCopyThrowMove&` 上，回傳型別是 `NoCopyThrowMove&&`
+- B. 作用在 `CopyThrowMove&` 上，回傳 `const CopyThrowMove&`，所以 `vector` 擴容時會複製
+- C. 作用在 `CopyNoexceptMove&` 上，回傳型別是 `CopyNoexceptMove&&`
+- D. 只要 move constructor 是 `noexcept`，回傳型別一定是 `const T&`
+
+<details>
+<summary>答案</summary>
+
+**D。** 依 [util.move_if_noexcept]，只有「move 不是 `noexcept`」**且**「有可用的 copy constructor」時回傳 `const T&`，否則回傳 `T&&`。`noexcept` move 的情況回傳 `T&&`。A、B、C 三個 `static_assert` 都實測通過。
+
+</details>
+
+---
+
+#### MC30：從 `noexcept` 函式丟出例外〔L2〕
+
+```cpp
+#include <iostream>
+void thrower() { throw 1; }
+void f() noexcept { std::cout << "in f" << std::endl; thrower(); }
+int main() {
+  std::cout << "start" << std::endl;
+  try { f(); } catch (...) { std::cout << "caught" << std::endl; }
+  std::cout << "end" << std::endl;
+}
+```
+
+輸出是？
+
+- A. `start`、`in f`、`caught`、`end`
+- B. `start`、`in f`、`caught`
+- C. `start`、`in f`，然後程式呼叫 `std::terminate` 中止，不會印出 `caught` 與 `end`
+- D. 編譯錯誤
+
+<details>
+<summary>答案</summary>
+
+**C。** 例外離開 `noexcept` 函式時，標準規定呼叫 `std::terminate`（[except.spec]）。`main` 的 `catch` 接不到它。實測 exit code 134（SIGABRT），stderr 印 `terminate called after throwing an instance of 'int'`。這題用 `std::endl` 讓前兩行在中止前刷出；如果用 `\n`，在 pipe 下這些字可能被丟失。
+
+</details>
+
+---
+
+#### MC31：`std::vector<std::string>{2, "ab"}`〔L2〕
+
+```cpp
+#include <iostream>
+#include <string>
+#include <vector>
+int main() {
+  std::vector<std::string> a{2, "ab"};
+  std::vector<std::string> b(2, "ab");
+  std::cout << a.size() << " " << a[0] << " " << b.size() << " " << b[1] << "\n";
+}
+```
+
+輸出是？
+
+- A. `2 ab 2 ab`
+- B. `1 ab 2 ab`
+- C. 編譯錯誤
+- D. `1 2 2 ab`
+
+<details>
+<summary>答案</summary>
+
+**A。** `{2, "ab"}` 先試 `std::initializer_list<std::string>`，但 `2` 不能隱式轉成 `std::string`，這條路不成立，於是退回一般建構子 `vector(size_type, const T&)`，結果等同 `b`。實測 `2 ab 2 ab`。
+
+提醒：不要用字面值 `0` 做這個實驗。`0` 是 null pointer constant，可以轉成 `const char*`，會讓 initializer_list 路徑成立，之後的行為不要依賴。
+
+</details>
+
+---
+
+#### MC32：有 `std::forward` 與沒有的差別〔L2〕
+
+```cpp
+#include <iostream>
+#include <utility>
+void target(int&) { std::cout << "lvalue "; }
+void target(int&&) { std::cout << "rvalue "; }
+template <class T> void fwd(T&& x) { target(std::forward<T>(x)); }
+template <class T> void nofwd(T&& x) { target(x); }
+int main() {
+  int a = 1;
+  fwd(a); fwd(2); fwd(std::move(a)); std::cout << "\n";
+  nofwd(a); nofwd(2); nofwd(std::move(a)); std::cout << "\n";
+}
+```
+
+輸出是？
+
+- A. `lvalue rvalue rvalue` / `lvalue lvalue lvalue`
+- B. `lvalue lvalue lvalue` / `lvalue lvalue lvalue`
+- C. `lvalue rvalue rvalue` / `lvalue rvalue rvalue`
+- D. 編譯錯誤
+
+<details>
+<summary>答案</summary>
+
+**A。** `fwd` 用 `std::forward<T>(x)` 保留原本的值類別；`nofwd` 的 `x` 有名字，永遠是 lvalue。實測輸出如 A 所示，`-std=c++11` 與 `c++14` 相同。
+
+</details>
+
+---
+
+#### MC33：forwarding reference 的推導結果〔L3〕
+
+```cpp
+#include <type_traits>
+template <class T> struct tag {};
+template <class T> tag<T> deduce(T&&);
+int main() {
+  int x = 0; const int cx = 0;
+  static_assert(std::is_same<decltype(deduce(x)), tag<int&>>::value, "A");
+  static_assert(std::is_same<decltype(deduce(cx)), tag<const int&>>::value, "B");
+  static_assert(std::is_same<decltype(deduce(0)), tag<int>>::value, "C");
+}
+```
+
+下列哪一個敘述正確？
+
+- A. 三個 `static_assert` 全部通過
+- B. A 會失敗，因為 lvalue 推導出的是 `int`
+- C. B 會失敗，因為 `const` 會被丟掉
+- D. C 會失敗，因為右值推導出的是 `int&&`
+
+<details>
+<summary>答案</summary>
+
+**A。** 這是 forwarding reference 的推導規則：lvalue `x` 推出 `T = int&`，`const int` 的 lvalue 推出 `T = const int&`，右值 `0` 推出 `T = int`（參數型別是 `int&&`）。實測三個 `static_assert` 都通過，`-std=c++11` 與 `c++14` 相同。
+
+</details>
+
+---
+
+#### MC34：`std::function` 什麼時候會 heap 配置？〔L3〕
+
+```cpp
+#include <cstdlib>
+#include <functional>
+#include <iostream>
+#include <new>
+static int g_allocs = 0;
+void* operator new(std::size_t n) { ++g_allocs; void* p = std::malloc(n ? n : 1); if (!p) throw std::bad_alloc(); return p; }
+void operator delete(void* p) noexcept { std::free(p); }
+void operator delete(void* p, std::size_t) noexcept { std::free(p); }
+struct NT { int* p; NT(int* q) : p(q) {} NT(const NT& o) : p(o.p) {} ~NT() {} };  // 8 bytes，非 trivially copyable
+struct Big { char buf[64]; };
+int main() {
+  int x = 1; int* ptr = &x; NT nt(&x); Big big{};
+  int before, used[3];
+  before = g_allocs; std::function<int()> a = [ptr] { return *ptr; };       used[0] = g_allocs - before;
+  before = g_allocs; std::function<int()> b = [nt] { return *nt.p; };       used[1] = g_allocs - before;
+  before = g_allocs; std::function<int()> c = [big] { return big.buf[0]; }; used[2] = g_allocs - before;
+  std::cout << used[0] << " " << used[1] << " " << used[2] << "\n";
+  std::cout << a() << b() << c() << "\n";
+}
+```
+
+下列哪一個敘述正確？（本題的結論是 libstdc++ 的實作行為）
+
+- A. 只要捕獲的物件小於 16 bytes，`std::function` 就不會 heap 配置
+- B. 小且 trivially copyable 的捕獲不配置；小但**不是** trivially copyable（即使只有 8 bytes）的捕獲仍會配置
+- C. 只有超過 64 bytes 的捕獲才會配置
+- D. `std::function` 永遠會 heap 配置
+
+<details>
+<summary>答案</summary>
+
+**B。** 實測第一行輸出 `0 1 1`，第二行 `110`（`operator new` 的呼叫次數）。`int*` 的 lambda 不配置；`NT` 只有 8 bytes，但因為不是 trivially copyable 也配置了；`Big` 是 64 bytes 所以配置。判斷條件不只是大小，這是 libstdc++ 的 SBO 實作細節，libc++ 或 MSVC 不要假設相同。
+
+</details>
+
+---
+
+#### MC35：`[=]` 與 `[m = m]`（C++14）〔L2〕
+
+```cpp
+#include <functional>
+#include <iostream>
+struct S {
+  int m = 1;
+  std::function<int()> by_this()  { return [=] { return m; }; }
+  std::function<int()> by_value() { return [m = m] { return m; }; }
+};
+int main() {
+  S s;
+  auto a = s.by_this();
+  auto b = s.by_value();
+  s.m = 5;
+  std::cout << a() << " " << b() << "\n";
+}
+```
+
+輸出是？（本題用 `-std=c++14`）
+
+- A. `1 1`
+- B. `5 5`
+- C. `5 1`
+- D. `1 5`
+
+<details>
+<summary>答案</summary>
+
+**C。** `[=]` 在成員函式中實際捕獲的是 `this`，所以 `a()` 讀到修改後的 `s.m`，得到 5。`[m = m]` 在建立 lambda 時複製一份 `m`，之後的修改看不到，得到 1。實測 `5 1`。C++20 下 `-Wall` 還會對 `[=]` 給 deprecated 警告（見 G1）。
+
+</details>
+
+---
+
+#### MC36：每個 lambda 都有自己的型別〔L2〕
+
+```cpp
+#include <iostream>
+#include <type_traits>
+int main() {
+  auto f = [] { return 1; };
+  auto g = [] { return 1; };
+  static_assert(std::is_same<decltype(f), decltype(g)>::value, "same closure type?");
+  std::cout << f() << g() << "\n";
+  g = f;
+}
+```
+
+下列哪一個敘述正確？
+
+- A. `f` 與 `g` 的型別相同，所以 `g = f;` 可以編譯
+- B. 每個 lambda 運算式都有獨一無二的 closure type，即使函式本體一模一樣；兩者型別不同，`g = f;` 也不能編譯
+- C. 無捕獲的 lambda 不能轉成函式指標
+- D. `auto` 會把 lambda 型別抹掉，所以 `decltype(f)` 與 `decltype(g)` 一定相同
+
+<details>
+<summary>答案</summary>
+
+**B。** 實測兩件事：`static_assert` 失敗（closure type 不同），`g = f;` 報 `no match for 'operator='`。這也是 `std::function` 存在的原因之一：把不同 closure 統一成同一個型別。`-std=c++11` 與 `c++14` 相同。
+
+</details>
+
+---
+
+#### MC37：建構子中呼叫 `shared_from_this()`〔L3〕
+
+```cpp
+#include <iostream>
+#include <memory>
+struct N : std::enable_shared_from_this<N> {
+  N() {
+    try { auto p = shared_from_this(); (void)p; std::cout << "ok\n"; }
+    catch (const std::bad_weak_ptr&) { std::cout << "bad_weak_ptr\n"; }
+  }
+};
+int main() {
+  auto n = std::make_shared<N>();
+  auto m = n->shared_from_this();
+  std::cout << m.use_count() << "\n";
+}
+```
+
+在 libstdc++ 上，輸出是？
+
+- A. `ok` 與 `1`
+- B. `ok` 與 `2`
+- C. `bad_weak_ptr` 與 `2`
+- D. 編譯錯誤
+
+<details>
+<summary>答案</summary>
+
+**C。** 建構子執行時，還沒有任何 `shared_ptr` 擁有這個物件。C++11/14 的 [util.smartptr.enab] 把 `shared_from_this()` 的前提寫成「`*this` 已被 `shared_ptr` 擁有」，不滿足就是前置條件違反，標準層面不該依賴。libstdc++ 的實作會丟 `std::bad_weak_ptr`，實測如 C。正確做法是物件被 `shared_ptr` 接管之後才呼叫。`-std=c++11` 與 `c++14` 結果相同。
+
+</details>
+
+---
+
+#### MC38：只有 `unique_ptr` 成員的類別〔L2〕
+
+```cpp
+#include <memory>
+#include <type_traits>
+struct Z { std::unique_ptr<int> p; };
+static_assert(std::is_move_constructible<Z>::value, "A");
+static_assert(!std::is_copy_constructible<Z>::value, "B");
+static_assert(std::is_nothrow_move_constructible<Z>::value, "C");
+```
+
+關於 `Z`，下列哪一個敘述正確？
+
+- A. `Z` 不能 move，因為沒有宣告 move constructor
+- B. `Z` 可以 move、不能 copy，而且 move constructor 是 `noexcept`
+- C. `Z` 可以 copy，因為 `unique_ptr` 會自動深拷貝
+- D. `Z` 不能放進 `std::vector`
+
+<details>
+<summary>答案</summary>
+
+**B。** `Z` 沒有宣告任何特殊成員，編譯器自動生成 move constructor（[class.copy]），而且成員都是 `noexcept` move，所以結果也是 `noexcept`。copy 會被刪除。三個 `static_assert` 都通過。D 錯：move-only 型別可以放進 `vector`。
+
+</details>
+
+---
+
+#### MC39：自己寫了解構子的 `unique_ptr` 類別〔L3〕
+
+```cpp
+#include <memory>
+#include <utility>
+struct D { std::unique_ptr<int> p; ~D() {} };
+int main() { D d1; D d2(std::move(d1)); }
+```
+
+結果是？
+
+- A. 編譯通過，`d2` 接管了 `p`
+- B. 編譯錯誤：選到被刪除的 copy constructor，因為宣告解構子後不會生成 move constructor
+- C. 編譯通過，`d2` 是用 copy 建構的
+- D. 編譯通過，但 `d1.p` 仍然持有資源，會有兩個 owner
+
+<details>
+<summary>答案</summary>
+
+**B。** 自己宣告了解構子，就不會隱式生成 move constructor（[class.copy]）。而 copy constructor 因為 `unique_ptr` 成員而被定義為 deleted，`D d2(std::move(d1));` 會選到它，實測 `use of deleted function 'D::D(const D&)'`。把 `~D() {}` 拿掉後，同一段程式就能編譯（見 G3）。
+
+</details>
+
+---
+
+#### MC40：`constexpr` 函式的兩種呼叫〔L2〕
+
+```cpp
+#include <iostream>
+constexpr int sq(int x) { return x * x; }
+int main() {
+  int n = 3;
+  int a = sq(n);            // (1)
+  constexpr int b = sq(4);  // (2)
+  std::cout << a << " " << b << "\n";
+}
+```
+
+下列哪一個敘述正確？
+
+- A. (1) 和 (2) 都在編譯期計算
+- B. (1) 在執行期呼叫，(2) 在編譯期計算；若把 (1) 改成 `constexpr int c = sq(n);`，會編譯錯誤
+- C. (1) 和 (2) 都一定在執行期計算，因為 `sq` 有 `constexpr`
+- D. (1) 會編譯錯誤
+
+<details>
+<summary>答案</summary>
+
+**B。** `constexpr` 函式「可以」在編譯期執行。(1) 的參數 `n` 不是常數，所以是執行期呼叫，完全合法；(2) 的結果必須是編譯期常數，`sq(4)` 滿足。實測輸出 `9 16`，`-std=c++11` 與 `c++14` 相同。改成 `constexpr int c = sq(n);` 時報 `the value of 'n' is not usable in a constant expression`。
+
+</details>
+
+---
+
+#### MC41：`constexpr void` 成員函式〔L3〕
+
+```cpp
+struct P {
+  int v = 0;
+  constexpr void set(int x) { v = x; }
+};
+int main() { P p; p.set(3); }
+```
+
+關於這段程式，下列哪一個敘述正確？
+
+- A. `-std=c++11` 與 `-std=c++14` 都能編譯
+- B. `-std=c++11` 不能編譯（`void` 回傳與隱含的 `const`），`-std=c++14` 可以
+- C. `-std=c++11` 可以，`-std=c++14` 不行
+- D. 兩個標準都不能編譯，因為 `constexpr` 不能用在成員函式
+
+<details>
+<summary>答案</summary>
+
+**B。** C++11 的 `constexpr` 函式不能回傳 `void`，而且非 static 成員函式隱含 `const`，所以 `v = x` 會報 `assignment of member 'P::v' in read-only object`。C++14 放寬這兩點（見 Q12）。實測 C++11 失敗、C++14 通過。
+
+</details>
+
+---
+
+#### MC42：`override` 與 `final`〔L2〕
+
+三段程式各自獨立：
+
+```cpp
+// (A)
+struct B { virtual void f() const {} };
+struct D : B { void f() override {} };
+
+// (B)
+struct B2 { virtual void g() {} };
+struct D2 final : B2 { void g() override {} };
+struct E2 : D2 {};
+
+// (C)
+struct B3 { virtual void h() {} };
+struct D3 : B3 { void h() override final {} };
+struct E3 : D3 { void h() override {} };
+```
+
+哪些會編譯失敗？
+
+- A. 只有 (A)
+- B. 只有 (A) 和 (B)
+- C. (A)、(B)、(C) 都會失敗
+- D. 三段都能編譯
+
+<details>
+<summary>答案</summary>
+
+**C。** (A) `marked 'override', but does not override`，少了 `const`，不是覆寫。(B) `cannot derive from 'final' base`。(C) `overriding final function`。實測三段在 `-std=c++11` 與 `c++14` 都失敗。
+
+</details>
+
+---
+
+#### MC43：`decltype(x)` 與 `decltype((x))`〔L3〕
+
+```cpp
+#include <type_traits>
+int main() {
+  int x = 0;
+  static_assert(std::is_same<decltype(x), int>::value, "A");
+  static_assert(std::is_same<decltype((x)), int&>::value, "B");
+}
+```
+
+下列哪一個敘述正確？
+
+- A. `decltype(x)` 與 `decltype((x))` 都是 `int`
+- B. `decltype(x)` 是 `int`，`decltype((x))` 是 `int&`
+- C. `decltype(x)` 是 `int&`，`decltype((x))` 是 `int`
+- D. 兩者都是 `int&`
+
+<details>
+<summary>答案</summary>
+
+**B。** 未加括號的名稱，`decltype` 回傳宣告時的型別。加了括號的 `(x)` 是 lvalue 運算式，依 [dcl.type.decltype] 推導成 `int&`。實測兩個 `static_assert` 都通過，`-std=c++11` 與 `c++14` 相同。這也是 Q11 中 `decltype(auto)` 懸空陷阱的根源。
+
+</details>
+
+---
+
 ### 選擇題驗證紀錄（2026-10-21）
 
 - 環境：`g++ -std=c++14 -Wall`（MC4、MC24 另用 `-std=c++11` 對照）；MC14、MC15 用 `-fsanitize=address`；MC25 用 `-O2 -pthread`，本機 12 核心。
@@ -747,7 +1451,15 @@ std::atomic<int> ac{0};
 
 **答對：** `auto` 型別推導（MC1 對應）、`auto&` 保留 const、copy 與綁定的輸出預測、`unique_ptr` 不可複製與 `std::move` 轉移所有權、lambda 值捕獲 vs 參考捕獲、`mutable` lambda 輸出 `3 0`。
 
-**下一輪可以加考：** lambda `[=]` 與 `this`（隱式捕獲）、`shared_ptr` 循環參考（第零模組 L2-3）、第零模組 L2-4 Rule of Zero（自己寫完貼來 review）、`std::function` 開銷。
+**複習輪（2026-11-05，回顧上述前三個弱點）：**
+
+- `auto` 與 const（已用 g++ `static_assert` 驗證）：`const int ci; const int& cr = ci;` 下 `auto a = ci` 答對 `int`；`auto& b = ci` 漏 `&`（應為 `const int&`）；`auto c = cr` 答成 `int&`（應為 `int`，`auto` 先剝 `&` 再剝頂層 const）；`decltype(cr) d` 答對 `const int&`。追問 `const int* p; auto q = p;` 答成 `int*`（應為 `const int*`，底層 const 不剝）；`int* const pc; auto r = pc;` 的 `r` 答對 `int*`，但答成 `*r = 1` 不能編譯（兩行都能編譯，把 `r` 當成 `pc`）。
+- `std::move`：仍先答「move address」（錯，它只是轉型）；搬資料的是 move constructor（答對）。SSO 在兩層提示後推出長字串 move 位址相同（對），但短字串答成位址相同（應為不同，字元複製到 `s2` 自己的內部 buffer）。
+- `unique_ptr` move 後：答對是 null、`if (p)` 為 false、`*p` 是 UB；但答成 `p.get()` 是 UB（應為回傳 `nullptr`），且把 `*p` 的原因說成 dangling（應為解參考 null，dangling 是指向已釋放物件）。
+- 本輪每題都有附理由，有進步；但理由常只講類別（「because short string」），沒推導。
+- 三塊都還沒穩，下一個 session 開頭再抽問：頂層 vs 底層 const、`auto` 剝 `&`、SSO move 的位址、null vs dangling。
+
+**下一輪可以加考：** 上次的四項已轉成題目：lambda `[=]` 與隱式 `this`（MC35、MC36、Q16、G1）、`shared_ptr` 循環與 `weak_ptr`（L2-3、Q17、MC37、G2）、Rule of Zero（L2-4、MC38、MC39、Q18、G3）、`std::function` 開銷（MC34、Q19、G4）。下一輪口頭先問 MC35、MC39、Q16、Q19 各一題，不先給答案；E1、E2 等 Alan 交稿後再 review。MC29、MC33、Q20 是 forwarding 與 noexcept 的補強，可排在 Q4、Q5 之後。
 
 ---
 
@@ -1324,7 +2036,7 @@ Control Block 包含：
 - **`shared_ptr` 採用型別擦除（Type Erasure）**：
   - 刪除器儲存在 Control Block 內部（以函式指標或虛擬函式封裝）。
   - 無論自訂刪除器是什麼型別，指標本身的型別永遠是 `std::shared_ptr<T>`，可以任意放入 `std::vector<std::shared_ptr<T>>` 或互相賦值。
-  - `std::shared_ptr<void>` 可藉由 Control Block 內擦除的 deleter 正確呼叫解構；但 `std::unique_ptr<void>` 屬於未定義行為或編譯錯誤。
+  - `std::shared_ptr<void>` 可藉由 Control Block 內擦除的 deleter 正確呼叫解構；但 `std::unique_ptr<void>` 是確定的編譯錯誤（實測 `can't delete pointer to incomplete type`，來自 `default_delete` 的 static_assert）。
   - 代價是 Control Block 較大，且觸發釋放時存在 indirect function call 開銷。
 </details>
 
@@ -1530,7 +2242,7 @@ public:
       return x + y;
   };
   ```
-- **底層函式指標轉型**：無捕獲的 Generic Lambda，編譯器同樣會生成泛型的函式指標轉換模板：`template<typename T1, typename T2> operator auto(*)(T1, T2)() const;`。
+- **底層函式指標轉型**：無捕獲的 Generic Lambda 會生成 conversion function template，因此可以轉成具體的函式指標：`int (*fp)(int, int) = add;`（`add` 是 `[](auto a, auto b) { return a + b; }`）。實測 `-std=c++14` 通過；`-std=c++11` 連 generic lambda 本身都不合法。
 
 </details>
 
@@ -1602,6 +2314,8 @@ public:
 - **`final` 的幫助**：
   - 當指標或引用的靜態型別是指向標記為 `final` 的類別（例如 `Derived*`），或呼叫的成員函式本身被宣告為 `final` 時，編譯器確定不可能再有更深層的衍生類別覆寫該函式，因此可以 100% 安全地去除 vtable 查找，轉為直接呼叫並進行 inline 優化。
 - **C++14 Sized Deallocation 陷阱**：若 Base class destructor 缺少 `virtual`，除了衍生類別資源無法釋放外，C++14 引入 Sized Deallocation（`operator delete(void*, std::size_t)`）後，還會把 Base 的較小 size 傳遞給 allocator，導致底層記憶體釋放器結構毀損。
+
+</details>
 
 **上次的弱點：** 尚未考過。
 
@@ -1754,6 +2468,8 @@ public:
 - **Memory-Mapped I/O (MMIO) 暫存器指標 / 硬體暫存器**：使用 `volatile`（告知編譯器不可優化掉任何硬體 read/write）。
   - **底層驅動細節**：在 ARM/RISC-V 等弱記憶體架構實體晶片中，除了 `volatile` 阻止編譯器優化，通常還需搭配匯流排硬體屏障（如 Linux `readl()`/`writel()` 內部的 `dsb`），防止 CPU Store Buffer 合併寫入。
 - **多執行緒（Multi-threaded）共享旗標、計數器、狀態同步**：使用 `std::atomic`。
+
+</details>
 
 **上次的弱點：** 尚未考過。
 
@@ -1988,6 +2704,390 @@ private:
 
 ---
 
+## 第七模組：補充問答（Q16–Q22）
+
+這一模組對應教學導讀 G1–G10，並補上 `std::array`、forwarding 與 callback 設計的開放式題。Q16–Q18 的程式碼可以直接編譯；Q19–Q22 偏設計與面試追問，答案以本機實測與條文名稱為準。
+
+### Q16：找錯：lambda 捕獲 `this` 與 callback 的生命週期〔L2〕
+
+```cpp
+#include <functional>
+#include <iostream>
+#include <memory>
+#include <vector>
+struct Scheduler { std::vector<std::function<void()>> cbs; };
+struct Device {
+  int count = 0;
+  void arm(Scheduler& s) {
+    s.cbs.push_back([=] { std::cout << "tick " << ++count << "\n"; });   // 寫法 A
+  }
+};
+int main() {
+  Scheduler s;
+  {
+    Device d;
+    d.arm(s);
+  }                              // d 解構
+  for (auto& cb : s.cbs) cb();   // 執行期會怎樣？
+}
+```
+
+1. 這段程式在執行期會發生什麼事？編譯器為什麼不報錯？
+2. 有人把寫法 A 改成 `[this]`，這樣能解決問題嗎？
+3. 給出一個能讓 callback 在 `Device` 已經消失時安全結束的修法（`Device` 要用 `shared_ptr` 管理）。
+
+<details>
+<summary>提示</summary>
+
+- `Device d` 離開 scope 之後，`cbs` 裡的 lambda 還留著什麼？
+- `[this]` 與 `[=]` 捕獲的是同一種東西嗎？
+- 回呼保存的應該是「強」還是「弱」的參照？
+
+</details>
+
+<details>
+<summary>參考答案</summary>
+
+1. `d` 解構後，lambda 內保存的 `this` 變成懸空指標，執行時寫入已釋放的 `count`，屬於未定義行為。本機實測 segmentation fault（exit 139）。編譯器只看語法，不分析物件的生命週期。
+2. 不能。`[this]` 與 `[=]`（隱式捕獲 `this`）捕獲的都是同一個指標，生命週期問題一樣（見 G1）。
+3. 修法：`Device` 繼承 `std::enable_shared_from_this<Device>`，由 `make_shared` 建立；回呼只保存 `std::weak_ptr<Device>`，執行時 `lock()`，拿不到就跳過。
+
+   ```cpp
+   struct Device : std::enable_shared_from_this<Device> {
+     int count = 0;
+     void arm(Scheduler& s) {
+       std::weak_ptr<Device> w = shared_from_this();
+       s.cbs.push_back([w] {
+         if (auto d = w.lock()) std::cout << "tick " << ++d->count << "\n";
+         else std::cout << "device gone, skip\n";
+       });
+     }
+   };
+   // main: auto d = std::make_shared<Device>(); d->arm(s); ... 離開 scope 後再執行 cbs
+   ```
+
+   實測輸出 `tick 1`、`device gone, skip`、`done`，`-std=c++11` 與 `c++14` 相同。如果 callback 一定比物件先結束，也可以改成由 owner 持有 callback，而不是反過來；但那是設計上的保證，不是編譯器能幫你檢查的。
+
+</details>
+
+**上次的弱點：** 尚未考過。
+
+---
+
+### Q17：設計題：parent / child 樹的所有權〔L3〕
+
+設計一個樹狀結構 `Node`，每個節點有 `name`、子節點清單、父節點指標。
+
+1. 寫出成員的型別，並說明誰擁有誰。
+2. 如果 parent 也改用 `std::shared_ptr`，會發生什麼事？用哪個工具抓得到？
+3. 父節點被 `reset()` 之後，子節點還能不能取得父節點？
+
+<details>
+<summary>參考答案</summary>
+
+1. `std::vector<std::shared_ptr<Node>> kids`（父擁有子），`std::weak_ptr<Node> parent`（子不擁有父）。父節點由 `root` 的 `shared_ptr` 擁有，子節點由父節點的 `kids` 擁有。實測範例：
+
+   ```cpp
+   struct Node {
+     std::string name;
+     std::weak_ptr<Node> parent;
+     std::vector<std::shared_ptr<Node>> kids;
+     explicit Node(std::string n) : name(std::move(n)) {}
+     ~Node() { std::cout << "~" << name << "\n"; }
+   };
+   // root->kids.push_back(child); child->parent = root;
+   // root.use_count() == 1，child.use_count() == 2
+   // child.reset(); root.reset(); 依序印 ~root、~child
+   ```
+
+   `-std=c++11` 與 `c++14` 輸出相同：`1 2`、`parent=root`、`~root`、`~child`、`end`。
+
+2. 如果 `child->parent` 也是 `shared_ptr`，父與子互相持有，兩邊的 count 都不會歸零，形成循環（見 L2-3）。用 `-fsanitize=address` 編譯後，程式結束時 LeakSanitizer 會報 leak。
+3. 不行。`weak_ptr::lock()` 會回傳空的 `shared_ptr`，所以子節點要先檢查 `if (auto p = child->parent.lock())`。
+
+</details>
+
+**上次的弱點：** 尚未考過。
+
+---
+
+### Q18：設計題：用 Rule of Zero 包住 C 的 `FILE*`〔L3〕
+
+規格：把 `std::FILE*` 包成 `LogFile` 類別。要求：destructor 會 `fclose`；類別是 move-only；**不要自己寫任何 destructor、copy 或 move 成員**。
+
+1. 成員型別與 deleter 要怎麼選？struct functor 與 lambda 的差別是什麼（對應 Q3）？
+2. 為什麼 `LogFile` 會變成 move-only？如果業務需要 copy，能不能只靠 Rule of Zero 做到？
+
+<details>
+<summary>參考答案</summary>
+
+1. `std::unique_ptr<std::FILE, FcloseFn>`，其中 `FcloseFn` 是無狀態的 struct（`void operator()(std::FILE* f) const noexcept { if (f) std::fclose(f); }`）。這樣 `sizeof` 與裸指標相同（實測 `sizeof(std::unique_ptr<std::FILE, FcloseFn>) == sizeof(void*)`），而函式指標 deleter 會變成兩個指標大小（實測 `2 * sizeof(void*)`）。
+2. `unique_ptr` 的 copy constructor 被刪除，所以 `LogFile` 也隱式地不能 copy，而 move 會自動生成且是 `noexcept`（實測 `is_move_constructible`、`is_nothrow_move_constructible` 為真，`is_copy_constructible` 為假）。如果業務真的需要 copy，要改成 `std::shared_ptr<std::FILE>`（語意改變：多個擁有者，最後一個關檔），而不是手寫 copy。
+
+   實測程式：`static_assert` 三項通過，`LogFile b(std::move(a));` 可以編譯執行，`-std=c++11` 與 `c++14` 相同。
+
+</details>
+
+**上次的弱點：** 尚未考過。
+
+---
+
+### Q19：設計題：callback 用 `std::function` 還是模板參數？〔L3〕
+
+情境：一個 TLM 風格的模型，每個 transaction 完成時要通知一次，模擬跑到每秒數百萬次 transaction。
+
+1. 用 `std::function<void(Payload&)>` 當 callback 與用模板參數 `template <class CB> void run(CB&& cb)` 各有什麼優缺點？
+2. 什麼情況下 `std::function` 仍然是合理選擇？
+
+<details>
+<summary>參考答案</summary>
+
+1. 模板參數：沒有 type erasure，呼叫可以 inline，沒有 heap 配置；代價是每種 callable 會實例化一份程式碼，而且要把型別存進 class 時必須再加一個模板參數。`std::function`：型別統一，可以放進容器或成員；代價是間接呼叫（通常不能 inline）、捕獲大時 heap 配置（MC34）、而且必須是 copy-constructible（MC22）。
+2. 在初始化時註冊一次、不在每個 transaction 的熱路徑上，或是需要在執行期替換 callback 的情況。SystemC 的 standard socket 本身就不用 `std::function`，而是綁 pure virtual 介面（見 Q9）。
+
+   本機實測的基準：`run_fast` 與 `run_slow` 都能正確呼叫（輸出 `2`），但 `run_slow` 的成本是否可接受，要用 profiler 量，不是靠直覺。
+
+</details>
+
+**上次的弱點：** 尚未考過。
+
+---
+
+### Q20：寫一個 `make` 工廠（完美轉發）〔L3〕
+
+規格：`template <class T, class... Args> std::unique_ptr<T> make(Args&&... args)`，內部用 `new T(...)` 轉交參數。
+
+1. 為什麼參數要寫成 `Args&&...`，而不是 `Args...`？
+2. 把 `std::forward<Args>(args)...` 拿掉，改成 `args...`，會發生什麼事？
+3. 給定 `S` 有 `explicit S(std::string&&)` 與 `explicit S(const std::string&)` 兩個建構子，`make<S>(std::string("x"))` 與 `make<S>(y)`（`y` 是 `std::string` 的左值）各會選哪個？
+
+<details>
+<summary>參考答案</summary>
+
+1. `Args&&` 是 forwarding reference，可以接受 lvalue 與 rvalue，不會多做一次 copy 或 move。用值傳遞 `Args...` 會先複製一份，再交給 `new`。
+2. 參數在 `make` 內都有名字，全部變成 lvalue，所以 rvalue 也會選 `const std::string&` 的建構子，失去移動的機會。實測：
+
+   ```text
+   make_good<S>(std::string("x"))  -> rvalue ctor
+   make_bad<S>(std::string("x"))   -> lvalue ctor
+   make_good<S>(y)                 -> lvalue ctor
+   ```
+
+3. `make<S>(std::string("x"))` 選 `explicit S(std::string&&)`（rvalue ctor）；`make<S>(y)` 選 `explicit S(const std::string&)`（lvalue ctor）。這就是 forwarding 的效果。`Args&&...`（variadic template）與 `std::forward` 都是 C++11 語法，`-std=c++11` 可以直接編譯。
+
+</details>
+
+**上次的弱點：** 尚未考過。
+
+---
+
+### Q21：`std::array`、C 陣列與參數傳遞〔L2〕
+
+```cpp
+#include <array>
+#include <iostream>
+void raw(int a[4]) { std::cout << "raw param sizeof=" << sizeof(a) << "\n"; }
+void by_value(std::array<int, 4> a) { std::cout << "copy size=" << a.size() << "\n"; }
+int main() {
+  int arr[4] = {1, 2, 3, 4};
+  std::array<int, 4> sa = {{1, 2, 3, 4}};
+  std::cout << "C array sizeof=" << sizeof(arr) << " std::array sizeof=" << sizeof(sa) << "\n";
+  raw(arr);
+  by_value(sa);
+}
+```
+
+1. 三個 `sizeof` 各是多少？為什麼 `raw` 裡的 `sizeof(a)` 不是 16？
+2. `by_value(sa)` 會發生什麼事？改成 `const std::array<int, 4>&` 有什麼差別？
+3. 暫存器庫應該用 `std::array` 還是 `std::vector`？各說一個理由。
+
+<details>
+<summary>參考答案</summary>
+
+1. 本平台（`int` 4 bytes）：C 陣列 `sizeof(arr) == 16`、`std::array` 也是 16。`raw` 的參數 `int a[4]` 會退化成 `int*`，所以 `sizeof(a) == 8`；g++ 會給 `-Wsizeof-array-argument` 警告。實測輸出與此相同。
+2. 傳值會整個複製 16 bytes 的陣列（實測 `copy size=4`）。改成 `const std::array<int, 4>&` 就沒有複製，只傳參考。
+3. `std::array`：大小在編譯期已知，不需要 heap，`at()` 可以做邊界檢查，適合固定數量的暫存器。`std::vector`：大小要在執行期才決定、或需要改變大小時使用。
+   補充：`static_assert(ca[1] == 2)` 與 `static_assert(ca.size() == 3)` 在 libstdc++ 的 `-std=c++11` 與 `c++14` 都通過；這是實作行為，標準上 `constexpr` 的條件沒有逐條核對。
+
+</details>
+
+**上次的弱點：** 尚未考過。
+
+---
+
+### Q22：設計題：`noexcept`、move 與封包池〔L4〕
+
+情境：一個 `Packet` 類別有 `std::string name` 與 `std::vector<uint8_t> payload`，放在 `std::vector<Packet>` 裡，模擬器會 `push_back` 與 `reserve`。
+
+1. 如果 `Packet` 的 move constructor 沒有 `noexcept`，而且 `Packet` 有 copy constructor，`vector` 擴容時會發生什麼事？
+2. 如果 `Packet` 改成只有 move（例如成員含 `unique_ptr`），`noexcept` 還重要嗎？
+3. 在本機 libstdc++ 上，`std::vector<int>` 與 `std::string` 的 move constructor 是否為 `noexcept`？你會怎麼把這個假設寫進程式碼？
+
+<details>
+<summary>參考答案</summary>
+
+1. `vector` 擴容時改用 copy（[util.move_if_noexcept]），實際上每次擴容都做深拷貝，效能變差但不出錯（見 Q5、MC20）。
+2. 還是重要。沒有 copy 時 `vector` 仍會 move，但 move 途中若丟出例外，`vector` 只能保證 basic exception guarantee（見 Q5 情境 B）。
+3. 實測 `std::is_nothrow_move_constructible<std::vector<int>>` 與 `<std::string>` 都為真（`-std=c++11` 與 `c++14` 相同）。寫進程式碼的方式是 `static_assert(std::is_nothrow_move_constructible<Packet>::value, "...")`，讓 `Packet` 的 move 被編譯器檢查。`Packet` 的 move 只要成員都是 `noexcept` move，就會自動是 `noexcept`（Rule of Zero，見 G3）。
+
+   注意：這些只是 libstdc++ 的實測結果，標準的對應條文（[vector] 與 [string] 的 move constructor 規定）沒有逐條核對。
+
+</details>
+
+**上次的弱點：** 尚未考過。
+
+---
+
+## 第八模組：手寫練習（E1–E2，只給規格與骨架）
+
+這一模組是**你自己寫**的練習：只給規格、測試骨架與提示，**不附完成版**。寫完貼上來，我再做 review（符合 Alan 的練習規則）。驗收方式一律是：骨架中的 `main` 與 `assert` 全部通過，且 `-fsanitize=address,undefined` 沒有報告。
+
+---
+
+### E1：用 `weak_ptr` 寫一個不延長壽命的觀察者中心（Hub）〔L3〕
+
+**規格**
+
+1. `Sink` 已給在骨架裡：`total` 與 `on(int)`（累加）。
+2. `Hub` 只記住觀察者，**不能**因為訂閱而延長 `Sink` 的壽命（訂閱前後 `use_count()` 不變）。
+3. `void subscribe(const std::shared_ptr<Sink>& s)`：加入清單。
+4. `void notify(int v)`：對每個仍活著的 `Sink` 呼叫 `on(v)`；已過期的要從清單移除。
+5. `std::size_t live_count() const`：目前仍活著的 `Sink` 數量。
+6. 只用 C++11 語法（不要用 init capture、generic lambda）。
+
+**測試骨架（存成 `e1_test.cpp`）**
+
+```cpp
+// g++ -std=c++11 -Wall -Wextra -fsanitize=address,undefined e1_test.cpp -o e1 && ./e1
+#include <cassert>
+#include <cstddef>
+#include <iostream>
+#include <memory>
+#include <vector>
+
+struct Sink {
+  int total = 0;
+  void on(int v) { total += v; }
+};
+
+class Hub {
+ public:
+  void subscribe(const std::shared_ptr<Sink>& s);  // TODO 1
+  void notify(int v);                              // TODO 2
+  std::size_t live_count() const;                  // TODO 3
+ private:
+  std::vector</* TODO 0 */> subs_;                 // 選擇正確的成員型別
+};
+
+int main() {
+  Hub h;
+  auto a = std::make_shared<Sink>();
+  {
+    auto b = std::make_shared<Sink>();
+    h.subscribe(a);
+    h.subscribe(b);
+    assert(h.live_count() == 2);
+    h.notify(3);
+    assert(b->total == 3);
+  }                                  // b 離開 scope
+  h.notify(4);                       // b 已過期，應被移除
+  assert(h.live_count() == 1);
+  assert(a->total == 7);
+  assert(a.use_count() == 1);        // Hub 不能增加 strong count
+  std::cout << "all passed\n";
+}
+```
+
+**提示**
+
+- 清單的元素應該是哪一種智慧指標？為什麼？（對應 Q1）
+- 要使用物件之前，要用哪個成員函式確認它還活著？它回傳什麼型別？
+- `expired()` 與 `lock()` 有什麼不同？`live_count()` 需要 `lock()` 嗎？
+- 一次移除多個元素可以用 erase-remove idiom（`std::remove_if` 加上 `erase`）。
+
+**驗收**：印出 `all passed`，sanitizer 沒有報告。
+
+（參考解不放在檔案裡，請自己寫；寫完貼上來我看。）
+
+---
+
+### E2：`enum class` 權限位元 + `std::array` 暫存器庫（RegBank）〔L3〕
+
+**規格**
+
+1. `enum class Access : std::uint8_t`，值為 `None = 0`、`Read = 0b01`、`Write = 0b10`。
+2. 寫 `constexpr Access operator|(Access, Access)` 與 `constexpr bool allows(Access have, Access need)`（`have` 包含 `need` 的所有位元時為 `true`）。
+3. `RegBank`：`static constexpr std::size_t kCount = 4;`。成員用 `std::array<Access, kCount>`（權限）與 `std::array<std::uint32_t, kCount>`（值）。**不要宣告任何 destructor、copy 或 move 成員**（Rule of Zero）。
+4. `set_access(i, a)`：越界丟 `std::out_of_range`（用 `at()`）。
+5. `write(i, v)`：越界丟 `std::out_of_range`；沒有 `Write` 權限丟 `std::logic_error`。
+6. `read(i)`：越界丟 `std::out_of_range`；沒有 `Read` 權限丟 `std::logic_error`。
+7. 骨架中的兩個 `static_assert` 必須通過（move 建構與指派都是 `noexcept`）。
+8. `-std=c++11` 與 `-std=c++14` 都要通過。
+
+**測試骨架（存成 `e2_test.cpp`）**
+
+```cpp
+// g++ -std=c++11 -Wall -Wextra -fsanitize=address,undefined e2_test.cpp -o e2 && ./e2
+#include <array>
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <iostream>
+#include <stdexcept>
+#include <type_traits>
+
+// TODO 1：enum class Access : std::uint8_t { None = 0, Read = 0b01, Write = 0b10 };
+// TODO 2：constexpr Access operator|(Access, Access)
+// TODO 3：constexpr bool allows(Access have, Access need)
+
+class RegBank {
+ public:
+  static constexpr std::size_t kCount = 4;
+  // TODO 4：不要宣告 destructor / copy / move。成員只用標準程式庫型別。
+  void set_access(std::size_t i, Access a);    // 越界 -> std::out_of_range（用 at()）
+  void write(std::size_t i, std::uint32_t v);  // 越界 -> out_of_range；無 Write -> std::logic_error
+  std::uint32_t read(std::size_t i) const;     // 越界 -> out_of_range；無 Read -> std::logic_error
+ private:
+  // TODO 5：std::array<Access, kCount> 與 std::array<std::uint32_t, kCount>
+};
+
+static_assert(std::is_nothrow_move_constructible<RegBank>::value, "move ctor 應為 noexcept");
+static_assert(std::is_nothrow_move_assignable<RegBank>::value, "move assign 應為 noexcept");
+
+int main() {
+  RegBank rb;
+  rb.set_access(0, Access::Read | Access::Write);
+  rb.set_access(1, Access::Read);
+  rb.write(0, 42);
+  assert(rb.read(0) == 42);
+  rb.set_access(2, Access::Read);
+  assert(rb.read(2) == 0);                 // 未寫入的暫存器讀出 0
+  bool threw = false;
+  try { rb.write(1, 5); } catch (const std::logic_error&) { threw = true; }
+  assert(threw);
+  threw = false;
+  try { rb.read(4); } catch (const std::out_of_range&) { threw = true; }
+  assert(threw);
+  RegBank moved(std::move(rb));
+  assert(moved.read(0) == 42);
+  std::cout << "all passed\n";
+}
+```
+
+**提示**
+
+- `enum class` 的 `|` 不會自動存在。operator 要宣告在 enum 所在的 namespace，才找得到（ADL）。
+- 轉成底層整數做位元運算（`static_cast<std::uint8_t>`），結果再轉回 `Access`。
+- `allows` 可以寫成「`(have & need) == need`」的形式，注意兩邊都要先轉成整數。
+- `std::array::at()` 越界時丟 `std::out_of_range`，`operator[]` 越界是 UB。
+- 「不寫特殊成員」成立的前提，是每個成員本身都能正確 move。`std::array<Access, 4>` 滿足嗎？（對應 G3、G10）
+
+**驗收**：印出 `all passed`，sanitizer 沒有報告，`-std=c++11` 與 `-std=c++14` 都能編譯。
+
+（參考解不放在檔案裡，請自己寫；寫完貼上來我看。）
+
+---
+
 ## 核對紀錄與審查修正（2026-10-21）
 
 1. **標準依據**：
@@ -2049,3 +3149,40 @@ private:
    - 實測：`size()` 回傳 `regs_.size()` 的參考解通過 harness（`all passed`，ASan/UBSan 乾淨）；另存 `n_` 的版本在 `assert(a.size() == 0)` 處 abort。
    - 修改：規格第 1 點補上「`size()` 由 `regs_` 推得，不另存 `n_`」。
 
+### 補充題驗證紀錄（2026-11-05）
+
+- 環境：g++ 11.4.0（Ubuntu 22.04），`-std=c++11` 與 `-std=c++14`，`-Wall -Wextra`；sanitizer 題另加 `-fsanitize=address,undefined`。每題一支 `.cpp`，同時編譯兩個標準、執行、記錄 exit code 與 stdout/stderr。答案裡的輸出與錯誤訊息都是實測結果。
+- 教學導讀：G1（`[=]`、`[m = m]`）、G2（`this` 二次 control block）、G3（Rule of Zero 與 `D d2(std::move(d1))`）、G4（`run_fast`/`run_slow` 輸出 `2`，MC34 計數）、G5（forwarding 輸出）、G6（`fib`/`fact` 在 C++11/14 的差異，`sq(n)` 錯誤訊息）、G7（`Perm` 輸出 `10 1`、`2`）、G8（`override` 錯誤訊息）、G9（`sizeof == 64` 通過）、G10（`terminate`，exit 134）、G11（`3 1 3`、`2 ab`；`init_dangle` 的 `-Winit-list-lifetime` 警告與垃圾值）。
+- 選擇題：
+  - MC26、MC28、MC31、MC32、MC33、MC35、MC36、MC37、MC38、MC39、MC40、MC41、MC42、MC43：編譯與輸出如答案所述，`-std=c++11` 與 `c++14` 都跑過。
+  - MC27：`no match for 'operator|'`。
+  - MC29：三個 `static_assert` 通過（A、B、C 為真；D 為假）。
+  - MC30：程式 exit 134，stdout 為 `start`、`in f`。為避免 `-Wterminate` 警告把答案提前洩漏，`f` 內改為呼叫 `thrower()`，警告消失。
+  - MC34：輸出 `0 1 1` 與 `110`（libstdc++ 行為，`-std=c++11`、`c++14` 相同）。
+  - MC35：`5 1`（`-std=c++14`）。`-std=c++11` 下 GCC 對 `[m = m]` 只給警告 `lambda capture initializers only available with '-std=c++14'`，不是錯誤，所以題目標 C++14，不以 C++11 錯誤作為判準。`-std=c++20 -Wall` 對 `[=]` 有 `implicit capture of 'this' via '[=]' is deprecated in C++20` 警告（實測）。
+  - MC36：`static_assert` 失敗、`g = f` 報 `no match for 'operator='`。
+  - MC37：`bad_weak_ptr` 與 `2`（libstdc++ 行為，見下方未驗證項）。
+  - MC39：加上 `~D() {}` 時 `use of deleted function 'D::D(const D&)'`；不加解構子時通過。
+- 問答題：
+  - Q3：`std::unique_ptr<void>` 實測 `can't delete pointer to incomplete type`（`/usr/include/c++/11/bits/unique_ptr.h`，`default_delete` 的 static_assert），C++11/14 都是編譯錯誤。
+  - Q8：`int (*fp)(int, int) = add;` 在 `-std=c++14` 通過；`-std=c++11` 連 generic lambda 本身都不合法。
+  - Q16：buggy 版未加 sanitizer 時 segfault（exit 139）；加 `-fsanitize=address` 時報 `stack-use-after-scope`；修正版輸出 `tick 1`、`device gone, skip`、`done`。
+  - Q17：`1 2`、`parent=root`、`~root`、`~child`、`end`。
+  - Q18：三個 `static_assert` 通過；`LogFile b(std::move(a));` 編譯執行通過。
+  - Q19：`run_fast` 與 `run_slow` 輸出 `2`（見 G4）。
+  - Q20：`rvalue ctor`、`lvalue ctor`、`lvalue ctor`（第二行是 `make_bad` 的輸出）。
+  - Q21：C 陣列與 `std::array` 的 `sizeof` 都是 16；`raw` 參數 `sizeof` 是 8（`-Wsizeof-array-argument`）；`copy size=4`；`static_assert(ca[1] == 2)` 與 `static_assert(ca.size() == 3)` 在兩個標準都通過。
+  - Q22：`std::vector<int>` 與 `std::string` 的 move ctor 為 `is_nothrow_move_constructible` 真（libstdc++）；`unique_ptr<FILE, FcloseFn>` 為 1 個指標大小，函式指標 deleter 為 2 個指標大小。
+- 手寫練習（E1、E2）：參考解放在 scratchpad（不在檔案裡），在 `-std=c++11` 與 `c++14`、`-fsanitize=address,undefined` 下輸出 `all passed`。骨架本身不能編譯（預期，TODO 尚未完成）。
+- 事實修正（2026-11-05）：
+  1. Q3：`unique_ptr<void>` 原本寫「未定義行為或編譯錯誤」，實測是確定的編譯錯誤，已改寫。
+  2. Q8：`operator auto(*)(T1, T2)() const` 的寫法不合法，改成實測可用的函式指標轉換敘述。
+- 未驗證或只有實作行為（需要標準原文或其他編譯器才能確認）：
+  - 條文名稱：本檔引用的 [dcl.init.list]、[except.spec]、[class.copy]、[util.move_if_noexcept]、[util.smartptr.enab]、[dcl.type.decltype] 等，**只對照名稱，未核對標準全文**，本機沒有 ISO 原文。
+  - MC37 的 `shared_from_this()` 結果是 libstdc++ 行為，標準層面屬前置條件，未核對條文細節。
+  - MC34 的 SBO 門檻與 trivially copyable 規則是 libstdc++ 實作，libc++ 與 MSVC 未驗證。
+  - MC31 的 `{2, "ab"}` 退回一般建構子，是 libstdc++ 實測；未核對 [dcl.init.list] 的逐步規則。
+  - Q21 / Q22 的 `constexpr` 與 `noexcept` 結論只代表 libstdc++ 行為。
+  - MC12（既有題）本輪未更動，仍只驗證了 libstdc++ 的行為。
+- 範圍決定：
+  - 「structured use in SystemC-style code」若指 structured bindings，那是 C++17，不在本檔範圍；G12 只說明為何不教。
