@@ -1459,6 +1459,14 @@ int main() {
 - 本輪每題都有附理由，有進步；但理由常只講類別（「because short string」），沒推導。
 - 三塊都還沒穩，下一個 session 開頭再抽問：頂層 vs 底層 const、`auto` 剝 `&`、SSO move 的位址、null vs dangling。
 
+**新主題（2026-11-05，先教再考）：G1 lambda 與隱式 `this`、G2 `shared_ptr` 循環與 `weak_ptr`**（程式碼均已用 g++ 實跑）
+
+- G1：`[=]{ return ++n; }`（`n` 是成員）答對印出 `2`，並知道改的是 `this->n`；但把原因說成「改了 this 指標」（應為：捕獲的是 `this` 指標，`operator()` 的 const 只擋指標本身，指向的物件不是 const，所以 `++n` 能過，與頂層 const 同一概念）。懸空題答對（物件已解構，`this` dangling，UB）。改成不依賴 `this`：能說出要 init capture 加 `mutable`，但寫成 `[m=m]`（抄範例變數名，應為 `[n = n]() mutable { return ++n; }`）。實測：`f()` 得 `1 2`、`c.n` 仍為 0；不加 `mutable` 報 `increment of read-only variable 'n'`。
+- G2：A/B 循環參考印出 `22` 無解構（答對，理由為 count 不為 0）；`B::a` 改 `weak_ptr` 後印 `12`，輸出 `~A`、`~B`（順序答對，但需補推導：決定順序的是 count 何時歸零，不是宣告順序）。`lock()` 之後 `p` 為空、`if (p)` 為 false（答對）；答不出為什麼不能直接 `*w`（缺：`lock()` 回傳 `shared_ptr` 讓物件在使用期間保活，`weak_ptr` 沒有 `operator*`，`expired()` 後再用在多執行緒下有競態）。
+- 這輪的錯多是抄寫對照不仔細與「只給結果、理由只講類別」，不是觀念空白。下一輪抽問：G1 的 `this` 捕獲與頂層 const 的關係、`weak_ptr::lock()` 的設計理由。
+- G3（Rule of Zero，先教再考）：`struct D { unique_ptr<int> p; ~D(){} }; D d2(std::move(d1));` 答對不能編譯；原因的第二句說成「destructor can't be moved」（應為：自己宣告 destructor 就不隱式生成 move ctor，右值退到 copy ctor，而 copy 因 `unique_ptr` 是 deleted）。修法一：刪掉 `~D()`（答對，未附理由）。修法二：第一次答「不知道」，給 `= default` 提示後先寫成 `~D(const&)=default`（destructor 不能有參數，`const&` 是 copy），第二層提示後寫出 `D(D&&) = default;` 並正確說明理由。實測：只加 move ctor 時，`d3 = std::move(d2)` 仍報 `use of deleted function 'D::operator=(const D&)'`，要連 `D& operator=(D&&) = default;` 一起寫才過（宣告 move ctor 會讓 move assignment 不再隱式生成）。
+- **L2-4（RegBank 改 Rule of Zero）已出題、Alan 尚未交稿**。已給第一層提示（`std::vector<uint32_t>(n)` 自動填 0）；待他貼稿 review，不先給解。review 時問他：為什麼頂部四個 `static_assert`（move-only、noexcept）不用自己寫任何東西就會通過。
+
 **下一輪可以加考：** 上次的四項已轉成題目：lambda `[=]` 與隱式 `this`（MC35、MC36、Q16、G1）、`shared_ptr` 循環與 `weak_ptr`（L2-3、Q17、MC37、G2）、Rule of Zero（L2-4、MC38、MC39、Q18、G3）、`std::function` 開銷（MC34、Q19、G4）。下一輪口頭先問 MC35、MC39、Q16、Q19 各一題，不先給答案；E1、E2 等 Alan 交稿後再 review。MC29、MC33、Q20 是 forwarding 與 noexcept 的補強，可排在 Q4、Q5 之後。
 
 ---
