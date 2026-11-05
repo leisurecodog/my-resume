@@ -2,7 +2,7 @@
 
 對應 `tasks/learning-plan.md` 的 TLM-2.0 項目，完成標準：能畫出 read/write 流程並解釋加速原理。
 
-用法：先做選擇題（MC1–MC36，由淺到深，程式碼都能在本機跑；MC23 起是 AT 專題），再做後面的口述題。口述題先只看題目，用講的方式回答（像在面試現場），講完再展開參考答案對照。每題最後的「上次的弱點」是 2026-10-20 第一次口試的紀錄；Q6–Q8 是之後補的，還沒考過。
+用法：先讀「教學導讀」，再做選擇題（MC1–MC53，由淺到深，程式碼都能在本機跑；MC23 起是 AT 專題，MC37 起是 2026-11-05 補的題目），再做後面的口述題（Q1–Q15）與手寫練習（E1、E2）。口述題先只看題目，用講的方式回答（像在面試現場），講完再展開參考答案對照。每題最後的「上次的弱點」是 2026-10-20 第一次口試的紀錄；Q6–Q8 是之後補的，Q9–Q15 是 2026-11-05 補的，都還沒考過。
 
 情境題請用三段式回答：**元件 + 事件 + 軟體看到的現象**。
 
@@ -10,7 +10,409 @@ Q4 與 Q6–Q8 的參考答案已對照 SystemC 2.3.3 原始碼核對過（`~/cp
 
 ---
 
-## 選擇題：先建立直覺（MC1–MC36）
+## 教學導讀（先讀這段，再做題）
+
+這一段是給第一次接觸 TLM-2.0 的人。每個主題都有三塊：**白話解釋**、**小範例**（完整程式，已在本機編譯執行，輸出寫在程式後面）、**常見陷阱**。已經在 MC 或 Q 裡講過細節的主題，這裡只給重點與題號，不重複。
+
+範例的編譯指令與上面相同，開頭的 `#include` 與 `using` 也一樣（見下方「程式碼省略的開頭」）。
+
+### T1　Generic payload：欄位與所有權
+
+**白話**：payload（`tlm_generic_payload`）是一筆交易的信封。initiator 負責填 command、address、data pointer、data length、streaming width，response status 預設是 INCOMPLETE；target 負責把資料讀寫進 data pointer，並設定 response status。
+
+所有權只有一個問題：**誰建立、誰負責，到交易結束為止**。
+
+- 只用 `b_transport` 時，交易在函式返回時就結束，payload 可以放在堆疊或成員變數上重複使用。
+- 用 AT（`nb_transport_*`），或 payload 在函式返回後還會被別的元件用到時，要用 memory manager（`tlm_mm_interface`）加上 `acquire()` / `release()` 做 reference counting。計數歸零時呼叫 `free()`，通常是把 payload 還進 pool（見 MC15、Q8）。
+
+```cpp
+#include <vector>
+struct Pool : tlm::tlm_mm_interface {
+  std::vector<tlm::tlm_generic_payload*> free_list;
+  int frees = 0;
+  tlm::tlm_generic_payload* get() {
+    if (free_list.empty()) return new tlm::tlm_generic_payload(this);
+    tlm::tlm_generic_payload* p = free_list.back(); free_list.pop_back(); return p;
+  }
+  void free(tlm::tlm_generic_payload* gp) { ++frees; gp->reset(); free_list.push_back(gp); }
+};
+int sc_main(int, char**) {
+  Pool pool;
+  tlm::tlm_generic_payload* a = pool.get();
+  a->set_address(0x100);
+  a->acquire();           // ref = 1
+  a->acquire();           // ref = 2
+  a->release();           // ref = 1
+  cout << "refs=" << a->get_ref_count() << " frees=" << pool.frees << endl;
+  a->release();           // ref = 0 -> free -> back to pool
+  cout << "refs=" << a->get_ref_count() << " frees=" << pool.frees << " pooled=" << pool.free_list.size() << endl;
+  tlm::tlm_generic_payload* b = pool.get();
+  cout << "same object reused: " << (a == b) << " addr=0x" << std::hex << b->get_address() << std::dec << endl;
+  return 0;
+}
+```
+
+```text
+refs=1 frees=0
+refs=0 frees=1 pooled=1
+same object reused: 1 addr=0x100
+```
+
+第三行的 `addr=0x100` 是重點：`reset()` 不會把 address 清掉，下一次使用前要自己把欄位設好（事實修正 5）。
+
+**常見陷阱**
+
+1. 沒有 mm 卻呼叫 `acquire()`：assert 失敗（MC15）。
+2. 把堆疊上的 extension 掛在 payload 上，payload 還活著就離開 scope。payload 解構時會對每個掛著的 extension 呼叫 `free()`，預設實作是 `delete this`（`tlm_gp.h:60`、`tlm_gp.cpp:284-287`）。堆疊物件被 `delete` 是未定義行為。本機實測結果不固定：有時 SIGSEGV（exit 139），有時 SIGABRT（exit 134），見 MC53。離開 scope 前要 `clear_extension<T>()`（MC14）。
+3. 把 `reset()` 當成「完全清空」。它只釋放 auto extension（`set_auto_extension` 掛上的），response status、address、command 都保留（MC39）。
+
+### T2　Socket 種類怎麼選
+
+**白話**：socket 是模組之間的接頭。TLM-2.0 的底層介面很多，`tlm_utils` 的 socket 幫你包好了。
+
+| socket | 用在哪裡 | 重點 |
+|---|---|---|
+| `simple_initiator_socket` / `simple_target_socket` | 一般 IP（CPU、memory、peripheral） | 只註冊需要的 callback；b / nb 會自動轉換（MC13、MC28） |
+| `simple_target_socket_tagged` | 一個 module 內，每個來源各用一個 socket，靠 `register` 時給的 id 區分（範例 `SimpleBusLT.h:36-51`） | callback 第一個參數 `int id` 是你在 `register_b_transport(..., id)` 時給的值（MC50）；一個 tagged socket 只能 bind 一次（第二次 bind 報 E109，本機實跑） |
+| `passthrough_target_socket` | bus 的上游（接 initiator 的那一側） | 不做 b / nb 轉換；沒註冊的 callback 被呼叫時報 `SC_REPORT_ERROR`（事實修正 1） |
+| `multi_passthrough_target_socket` / `multi_passthrough_initiator_socket` | 一個 socket 要接多個 initiator 或 target | 可以多次 bind；callback 的 `id` 是綁定順序（MC16） |
+
+bus 的最小例子（上游 passthrough、下游 simple，已實跑）：
+
+```cpp
+#include <tlm_utils/passthrough_target_socket.h>
+struct Mem : sc_module {
+  tlm_utils::simple_target_socket<Mem> socket;
+  SC_CTOR(Mem) : socket("socket") { socket.register_b_transport(this, &Mem::b); }
+  void b(tlm::tlm_generic_payload& gp, sc_time& d) {
+    cout << "  mem sees 0x" << std::hex << gp.get_address() << std::dec << " delay=" << d << endl;
+    d += sc_time(4, SC_NS);
+    gp.set_response_status(tlm::TLM_OK_RESPONSE);
+  }
+};
+struct Bus : sc_module {
+  tlm_utils::passthrough_target_socket<Bus> in;
+  tlm_utils::simple_initiator_socket<Bus> out;   // 2.3.3 沒有 passthrough_initiator_socket；bus 下游可用 simple 或 multi_passthrough_initiator_socket
+  SC_CTOR(Bus) : in("in"), out("out") { in.register_b_transport(this, &Bus::b); }
+  void b(tlm::tlm_generic_payload& gp, sc_time& d) { d += sc_time(1, SC_NS); out->b_transport(gp, d); }
+};
+struct Init : sc_module {
+  tlm_utils::simple_initiator_socket<Init> socket;
+  SC_CTOR(Init) : socket("socket") { SC_THREAD(run); }
+  void run() {
+    unsigned char buf[4]; tlm::tlm_generic_payload gp; sc_time d = SC_ZERO_TIME;
+    gp.set_command(tlm::TLM_READ_COMMAND); gp.set_address(0x40); gp.set_data_ptr(buf); gp.set_data_length(4);
+    socket->b_transport(gp, d);
+    cout << "init: " << gp.get_response_string() << " delay=" << d << endl;
+  }
+};
+int sc_main(int, char**) {
+  Init i("i"); Bus b("b"); Mem m("m");
+  i.socket.bind(b.in);
+  b.out.bind(m.socket);
+  sc_start();
+  return 0;
+}
+```
+
+```text
+  mem sees 0x40 delay=1 ns
+init: TLM_OK_RESPONSE delay=5 ns
+```
+
+Bus 把 `delay` 一路加下去（bus 1 ns、memory 4 ns），initiator 最後拿到 5 ns，而且 address 沒有被改（這個 bus 沒有做 base 扣除，見 T8）。
+
+**常見陷阱**
+
+1. 以為 passthrough 會自動轉換：不會，只有 simple socket 會（事實修正 1）。
+2. 以為 tagged 和 multi 一樣：tagged 的 socket 只能 bind 一次，要多個來源就要多個 socket，id 是你自己給的；multi 可以多次 bind，id 是綁定順序。
+3. 直接用底層 `tlm_initiator_socket` / `tlm_target_socket`：要自己實作整組介面，大部分 model 用 simple 就夠（Q7）。
+
+### T3　b_transport 的時間標註與 quantum keeper
+
+**白話**：`b_transport` 的 `sc_time& delay` 是「這筆交易已經花掉多少時間」。每一層都把自己的延遲加進去，target 不 `wait`。initiator 決定什麼時候真的 `wait`：每筆都 `wait`（慢但時序準），或用 `tlm_quantumkeeper` 把時間攢在 local time，超過 quantum 才 sync（快，但時序不準，見 Q3）。
+
+quantum keeper 常用的四組函式：
+
+- `reset()`：local time 歸零，並算出下一個同步點（用全域 quantum，對齊到整數倍）。thread 開頭與每次 sync 之後都要有。
+- `inc(t)` / `set(t)`：`inc` 是累加；`set` 是把 local time 設成絕對值 `t`，不是加上去。
+- `need_sync()`：`sc_time_stamp() + local >= next_sync_point`。`next_sync_point` 是**絕對時間**，中間 `wait` 不會改它（MC52）。
+- `sync()`：`wait(local)` 再 `reset()`。`set_and_sync(t)` 是「`set(t)`，需要的話再 `sync()`」（MC42）。
+
+```cpp
+struct Mem : sc_module {
+  tlm_utils::simple_target_socket<Mem> socket;
+  SC_CTOR(Mem) : socket("socket") { socket.register_b_transport(this, &Mem::b); }
+  void b(tlm::tlm_generic_payload& gp, sc_time& d) { d += sc_time(10, SC_NS); gp.set_response_status(tlm::TLM_OK_RESPONSE); }
+};
+struct Cpu : sc_module {
+  tlm_utils::simple_initiator_socket<Cpu> socket;
+  tlm_utils::tlm_quantumkeeper qk;
+  int syncs = 0;
+  SC_CTOR(Cpu) : socket("socket") { SC_THREAD(run); }
+  void run() {
+    qk.reset();
+    unsigned char buf[4];
+    for (int i = 0; i < 10; ++i) {
+      tlm::tlm_generic_payload gp;
+      gp.set_command(tlm::TLM_READ_COMMAND); gp.set_address(4 * i); gp.set_data_ptr(buf); gp.set_data_length(4);
+      sc_time d = qk.get_local_time();
+      socket->b_transport(gp, d);
+      qk.set(d);
+      if (qk.need_sync()) { qk.sync(); ++syncs; }
+    }
+    cout << "syncs=" << syncs << " now=" << sc_time_stamp() << " local=" << qk.get_local_time() << endl;
+  }
+};
+int sc_main(int, char**) {
+  tlm_utils::tlm_quantumkeeper::set_global_quantum(sc_time(50, SC_NS));
+  Cpu c("c"); Mem m("m");
+  c.socket.bind(m.socket);
+  sc_start();
+  return 0;
+}
+```
+
+```text
+syncs=2 now=100 ns local=0 s
+```
+
+10 次存取、每次 10 ns、quantum 50 ns：local time 每累積到 50 ns 才 sync 一次，所以是 2 次 sync，而不是 10 次 `wait`。注意 `d` 是 `qk.get_local_time()` 的副本，target 加上去的延遲要用 `qk.set(d)` 寫回。
+
+**常見陷阱**
+
+1. 忘了 `reset()`：`need_sync()` 一開始就是 true，每筆都 sync，沒有加速，也沒有錯誤訊息（MC9）。
+2. 以為 quantum 是「從 reset 起算 N ns」：其實同步點是全域時間的整數倍（MC10）。
+3. 改了全域 quantum 卻沒有 `reset()`：新值要到下一次 `reset()` / `sync()` 才生效（MC44）。
+4. 記錄時間用 `sc_time_stamp()`：應該用 `get_current_time()`，它把 local time 算進去（MC11）。
+5. 有副作用的 peripheral 存取前要先 sync（Q3）。
+
+### T4　DMI：拿指標、提示與作廢
+
+**白話**：DMI（direct memory interface）讓 initiator 直接拿到 memory 的指標。之後在範圍內的讀寫不再經過 `b_transport`，只要把 latency 加到 local time。流程：
+
+1. target 在 `b_transport` 裡 `set_dmi_allowed(true)` 當作提示。規範是：若同位址、同種存取的 DMI request 會成功，target 必須把提示設成 true；initiator 可以忽略提示（`tlm_fw_bw_ifs.h`，DMI hint 註解）。
+2. initiator 呼叫 `get_direct_mem_ptr(gp, dmi)`，檢查**回傳的 bool**。
+3. 之後在 `dmi` 的範圍內用 `dmi.get_dmi_ptr()` 直接存取，並把 read / write latency 加到 local time（MC21 是完整流程）。
+4. target 的狀態改變時，走 backward 呼叫 `invalidate_direct_mem_ptr(start, end)` 作廢。全部作廢用 `0` 到 `(sc_dt::uint64)-1`（Q4）。
+
+**常見陷阱**
+
+1. 以為 `get_direct_mem_ptr` 失敗時 `granted access` 會是 0。預設的 fallback 會把權限設成 READ_WRITE 再回傳 false，只能看 bool（MC47；`simple_target_socket.h:363-366`）。
+2. 作廢不會中斷領先中的 initiator：它在 local time 內可能還拿著舊指標（MC21）。
+3. 在 invalidate 的回呼裡呼叫 `get_direct_mem_ptr`：不允許（`tlm_fw_bw_ifs.h`）。
+4. DMI 繞過 target：target 看不到這些存取，tracing 與計數會少（Q5）。
+
+### T5　transport_dbg：除錯存取
+
+**白話**：debugger 要看記憶體、改暫存器，但不能改變模擬：不加時間、不觸發副作用。`transport_dbg(gp)` 回傳成功搬移的 byte 數，範圍是 0 到要求的長度。沒有註冊 callback 時回傳 0（MC12）。bus 只做 decode 和轉送，不加 delay。
+
+重點是三條規則（`tlm_fw_bw_ifs.h`，transport_dbg 註解）：不加時間、不能有副作用、回傳值 ≤ 要求長度。部分搬移是合法的（MC45）。
+
+**常見陷阱**
+
+1. 回傳 0 不是錯誤，是「不支援」。讀不到東西時先查 target 有沒有註冊（MC12）。
+2. 回傳值小於要求長度：呼叫端要自己看數字，不能假設全部成功（MC45）。
+3. 規範說不能 `wait`、不能改模擬時間，但 2.3.3 的 socket 不會檢查。實測在 thread 裡 `wait` 會正常推進時間（MC48）。這是違反規範，不是 SystemC 會報錯的事。
+4. data 的順序是 host endianness（T9）。
+
+### T6　Byte enable 與 streaming width
+
+**白話**：
+
+- **byte enable**：payload 帶一個遮罩指標與長度。`0xff` 的 byte 要存取，`0x00` 的不要（`TLM_BYTE_ENABLED` 巨集是 `0xff`，`tlm_gp.h:113`）。遮罩長度可以比 data length 短，會循環使用：`tlm_gp.cpp:241` 是 `m_byte_enable[i % m_byte_enable_length]`。
+- **streaming width**：每一拍傳幾個 byte。預設是 **0**，不是 data length。
+
+下面的 target 寫法和 SystemC 範例 `memory.cpp` 的檢查一樣（第 104–108 行）。
+
+```cpp
+struct Reg : sc_module {
+  tlm_utils::simple_target_socket<Reg> socket;
+  SC_CTOR(Reg) : socket("socket") { socket.register_b_transport(this, &Reg::b_transport); }
+  void b_transport(tlm::tlm_generic_payload& gp, sc_time&) {
+    if (gp.get_byte_enable_ptr()) { gp.set_response_status(tlm::TLM_BYTE_ENABLE_ERROR_RESPONSE); return; }
+    if (gp.get_streaming_width() != gp.get_data_length()) { gp.set_response_status(tlm::TLM_BURST_ERROR_RESPONSE); return; }
+    gp.set_response_status(tlm::TLM_OK_RESPONSE);
+  }
+};
+struct Init : sc_module {
+  tlm_utils::simple_initiator_socket<Init> socket;
+  SC_CTOR(Init) : socket("socket") { SC_THREAD(run); }
+  void send(const char* label, bool use_be, unsigned sw) {
+    unsigned char buf[4] = {0xaa, 0xbb, 0xcc, 0xdd};
+    unsigned char be[4] = {0xff, 0x00, 0xff, 0x00};
+    tlm::tlm_generic_payload gp;
+    sc_time d = SC_ZERO_TIME;
+    gp.set_command(tlm::TLM_WRITE_COMMAND);
+    gp.set_address(0);
+    gp.set_data_ptr(buf);
+    gp.set_data_length(4);
+    if (sw) gp.set_streaming_width(sw);
+    if (use_be) { gp.set_byte_enable_ptr(be); gp.set_byte_enable_length(4); }
+    socket->b_transport(gp, d);
+    cout << label << ": " << gp.get_response_string() << endl;
+  }
+  void run() {
+    send("plain, sw=0 (default)", false, 0);
+    send("plain, sw=4", false, 4);
+    send("with byte enable, sw=4", true, 4);
+  }
+};
+int sc_main(int, char**) {
+  Init i("i"); Reg r("r");
+  i.socket.bind(r.socket);
+  sc_start();
+  return 0;
+}
+```
+
+```text
+plain, sw=0 (default): TLM_BURST_ERROR_RESPONSE
+plain, sw=4: TLM_OK_RESPONSE
+with byte enable, sw=4: TLM_BYTE_ENABLE_ERROR_RESPONSE
+```
+
+**常見陷阱**
+
+1. 忘了設 streaming width：預設 0，這個 target 就回 `TLM_BURST_ERROR_RESPONSE`（第一行）。一般的連續存取要設成等於 data length。
+2. 帶了 byte enable 給不支援它的 target：回 `TLM_BYTE_ENABLE_ERROR_RESPONSE`。
+3. byte enable 的長度與 data length 不同時，遮罩怎麼循環要和 target 的實作一致（Q8）。
+
+### T7　Response status 與錯誤處理
+
+這一塊的完整表格在 Q8 第 3 題；每個狀態的 `is_response_error()` 判斷見 MC2；忘了設 status 會變成 INCOMPLETE，也算錯誤（MC3）。只要記一條：**target 的每條路徑都要設 status，initiator 的每次呼叫都要檢查**。
+
+### T8　Address map 與 router
+
+**白話**：router（bus）收到全域位址後，決定要交給哪個 target。轉送前把位址改成 target 的本地 offset，回來時改回原值（MC7 的寫法）。這個「改回」是範例 bus 的建議慣例，不是本機原始碼的規定（事實修正 2）。沒有任何 target 負責的位址，router 直接回 `TLM_ADDRESS_ERROR_RESPONSE`，不轉送（MC49 的輸出）。
+
+```text
+  t0 sees addr=0x4
+init addr=0x4 status=TLM_OK_RESPONSE delay=5 ns
+  t1 sees addr=0x4
+init addr=0x1004 status=TLM_OK_RESPONSE delay=5 ns
+init addr=0x3000 status=TLM_ADDRESS_ERROR_RESPONSE delay=0 s
+```
+
+**常見陷阱**
+
+1. 忘了改回位址：initiator 看到的位址就變了（MC7 第二段對照）。
+2. 每一層都要把自己的延遲加進同一個 `delay`；只有最後的 initiator 決定何時 `wait`（MC7）。
+3. 跨 target 邊界的交易怎麼處理，標準沒有規定，是實作選擇（Q6 第 4 題、Q13）。
+4. 手寫練習 E1 就是這一題的完整版。
+
+### T9　Endianness 與 host 順序
+
+**白話**：payload 的 data 是 byte 陣列。`transport_dbg` 的規範是 data 一律用 host 的 endianness（`tlm_fw_bw_ifs.h`，transport_dbg 註解）。如果 initiator 的 endianness 和 host 不同，SystemC 提供 `tlm_to_hostendian_word<T>` / `tlm_from_hostendian_word<T>`（`tlm_endian_conv.h:112-113`、`531`、`562`）：送出前轉成 host 順序，回來後轉回 initiator 的順序。檔頭註解的限制：只用在 initiator 內部；交易建立時呼叫 `to_` 函式、交易完成時呼叫對應的 `from_` 函式；兩者的 template 參數與 bus 寬度要一樣；不能直接拿來當 bridge 用。範例用法見 `examples/tlm/lt_mixed_endian/src/me_traffic_generator.cpp:235、252、292、309`。
+
+先看 host 本身的順序（MC46，x86-64 是 little endian）：
+
+```cpp
+#include <cstdint>
+int sc_main(int, char**) {
+  uint32_t v = 0x11223344;
+  unsigned char b[4];
+  memcpy(b, &v, 4);
+  cout << std::hex << (int)b[0] << " " << (int)b[3] << endl;
+  return 0;
+}
+```
+
+```text
+44 11
+```
+
+**常見陷阱**
+
+1. 以為 `buf[0]` 一定是最低位元組：取決於主機（MC46）。
+2. 只呼叫 `to_` 忘了 `from_`，或兩邊的 template 參數與寬度不一致（檔頭註解建議一律呼叫 `from_`）。
+3. `tlm_to_hostendian_word` / `tlm_from_hostendian_word` 的 round trip 本次沒有實跑，這一段只依標頭註解與範例呼叫點寫。要練習時請自己跑一次確認。
+
+### T10　Base protocol：ignorable 與 mandatory extension
+
+**白話**：extension 是附在交易上的額外資訊（例如 AXI ID、secure bit）。收到不認得的 extension 時：
+
+- **ignorable**：可以忽略，交易照常完成。
+- **mandatory**：必須處理；不能處理時要回錯誤。
+
+```cpp
+struct Tag : tlm::tlm_extension<Tag> {
+  int value = 0;
+  tlm::tlm_extension_base* clone() const { return new Tag(*this); }
+  void copy_from(const tlm::tlm_extension_base& e) { value = static_cast<const Tag&>(e).value; }
+};
+struct Other : tlm::tlm_extension<Other> {   // 目標不認得的 extension
+  tlm::tlm_extension_base* clone() const { return new Other(*this); }
+  void copy_from(const tlm::tlm_extension_base&) {}
+};
+struct Target : sc_module {
+  tlm_utils::simple_target_socket<Target> socket;
+  SC_CTOR(Target) : socket("socket") { socket.register_b_transport(this, &Target::b_transport); }
+  void b_transport(tlm::tlm_generic_payload& gp, sc_time&) {
+    if (!gp.get_extension<Tag>()) { gp.set_response_status(tlm::TLM_COMMAND_ERROR_RESPONSE); return; }  // mandatory
+    gp.set_response_status(tlm::TLM_OK_RESPONSE);   // Other 不認得，直接忽略（ignorable）
+  }
+};
+struct Init : sc_module {
+  tlm_utils::simple_initiator_socket<Init> socket;
+  SC_CTOR(Init) : socket("socket") { SC_THREAD(run); }
+  void send(const char* label, bool with_tag, bool with_other) {
+    unsigned char buf[4];
+    tlm::tlm_generic_payload gp;
+    sc_time d = SC_ZERO_TIME;
+    gp.set_command(tlm::TLM_READ_COMMAND); gp.set_address(0); gp.set_data_ptr(buf); gp.set_data_length(4);
+    Tag t; Other o;
+    if (with_tag) gp.set_extension(&t);
+    if (with_other) gp.set_extension(&o);
+    socket->b_transport(gp, d);
+    cout << label << ": " << gp.get_response_string() << endl;
+    gp.clear_extension<Tag>(); gp.clear_extension<Other>();
+  }
+  void run() {
+    send("no tag, no other", false, false);
+    send("tag only", true, false);
+    send("tag + unknown Other", true, true);
+    send("unknown Other only", false, true);
+  }
+};
+int sc_main(int, char**) {
+  Init i("i"); Target t("t");
+  i.socket.bind(t.socket);
+  sc_start();
+  return 0;
+}
+```
+
+```text
+no tag, no other: TLM_COMMAND_ERROR_RESPONSE
+tag only: TLM_OK_RESPONSE
+tag + unknown Other: TLM_OK_RESPONSE
+unknown Other only: TLM_COMMAND_ERROR_RESPONSE
+```
+
+`ignorable` 與 `mandatory` 是 IEEE 1666 TLM-2.0 base protocol 的用語。2.3.3 的 TLM 標頭與原始碼（`include/tlm*`、`src/tlm*`）裡找不到這兩個字（`grep` 沒有結果），本機只有範例慣例：`examples/tlm/lt_extension_mandatory` 的 target 在 extension 不存在時印出 `not present - ERROR`。標準條文本機沒有，這裡**未核對條文**，以上面的實跑為準。
+
+**常見陷阱**
+
+1. 以為 extension 會自動跟著 bus 複製：bus 只轉交 payload；只有 `deep_copy_from` 才會 clone（MC40）。
+2. 以為 mandatory 的檢查是 socket 自動做的：2.3.3 的 socket 不會檢查，是 target 自己要寫（上面的 `if`）。
+
+### T11　AT 收尾：回傳值、提前完成、回傳路徑、PEQ
+
+這一塊的題目大多在 MC17–MC36，這裡只整理規則與題號。
+
+- `TLM_ACCEPTED`：收到了、phase 沒動，之後會用另一個方向回覆（MC17、MC24）。
+- `TLM_UPDATED`：phase 已推進，要看 `phase` 這個 in/out 參數（MC17、MC24）。
+- `TLM_COMPLETED`：整筆交易已經結束，不必再看 phase（MC18、MC24）。
+- **提前完成**：target 在第一次 forward 呼叫就回 `TLM_COMPLETED`，資料與 status 必須在返回前寫好（MC18）；或者 target 在 `BEGIN_REQ` 的回程回 `TLM_UPDATED` + `END_REQ`，之後自己送 `BEGIN_RESP`，initiator 對 `BEGIN_RESP` 回 `TLM_COMPLETED`（MC17、MC34）。
+- **回傳路徑**：target 只用 backward 送 `END_REQ`、`BEGIN_RESP`；initiator 只用 forward 送 `BEGIN_REQ`、`END_RESP`（MC26；MC35 說明 socket 不會檢查方向）。
+- **end-response 規則**：對 `BEGIN_RESP` 回 `TLM_ACCEPTED` 就必須之後送 `END_RESP`，否則下一筆回應永遠送不出（MC36）。
+- **payload 要活到交易結束**：非阻塞交易的 payload 不能只放在 `nb_transport_fw` 的堆疊上（MC17 的 segfault 經驗）。
+- **PEQ**：`peq_with_get` 要用 `while` 取完到期的項目，否則剩下的會卡住（MC31）；同一時間的項目維持通知順序（MC29）。`peq_with_cb_and_phase` 會依時間排序，並在到期時呼叫 callback（MC30、MC32）。
+
+---
+
+## 選擇題：先建立直覺（MC1–MC53）
 
 單選題，由淺到深（L1 → L3）。做法跟其他兩份題庫一樣：先在紙上選，再展開看每個選項為什麼對或錯，最後挑幾題自己打進編譯器跑（編譯指令見下面，記得 `-std=c++11`）。
 
@@ -2371,6 +2773,848 @@ socket 認定「回應已完成」的條件是 `TLM_COMPLETED`，或 `TLM_UPDATE
 
 ---
 
+### 補充題（MC37–MC53，2026-11-05 補）
+
+這一批補的是教學導讀 T1–T10 的題目。順序同樣是 L1 → L3。**用到 extension 的題目都會把 `Tag` 定義寫在題目裡**（與 MC14 相同），不需要另外找。
+
+#### MC37：`tlm_dmi` 的預設權限〔L1〕
+
+```cpp
+int sc_main(int, char**) {
+  tlm::tlm_dmi d;
+  cout << d.get_granted_access() << " " << d.is_read_allowed() << d.is_write_allowed() << endl;
+  d.set_granted_access(tlm::tlm_dmi::DMI_ACCESS_READ);
+  cout << d.get_granted_access() << " " << d.is_read_allowed() << d.is_write_allowed() << endl;
+  d.set_granted_access(tlm::tlm_dmi::DMI_ACCESS_READ_WRITE);
+  cout << d.is_read_allowed() << d.is_write_allowed() << endl;
+  return 0;
+}
+```
+
+三行輸出是？（`get_granted_access()` 以整數印出）
+
+- A. `0 00`、`1 10`、`10`
+- B. `0 00`、`1 10`、`11`
+- C. `0 11`、`1 10`、`11`
+- D. `0 00`、`0 00`、`11`
+
+<details>
+<summary>答案</summary>
+
+**B。** `tlm_dmi` 預設的 granted access 是 `DMI_ACCESS_NONE`（0），讀寫都不允許。設成 READ（1）之後只有 `is_read_allowed()` 為真；設成 READ_WRITE（3）兩者都為真（`tlm_dmi.h` 的 `dmi_access_e`）。
+
+```
+0 00
+1 10
+11
+```
+
+</details>
+
+---
+
+#### MC38：哪一行能編譯〔L1〕
+
+下面四行各自放在 `sc_main` 裡單獨編譯，哪一行能編譯成功？
+
+- A. `tlm::tlm_sync_enum r = tlm::BEGIN_REQ;`
+- B. `tlm::tlm_generic_payload gp; gp.set_response_status(0);`
+- C. `tlm::tlm_phase p = tlm::BEGIN_REQ; tlm::tlm_sync_enum r = tlm::TLM_UPDATED; cout << p << " " << r << endl;`
+- D. `tlm::tlm_generic_payload gp; gp.set_command(2);`
+
+<details>
+<summary>答案</summary>
+
+**C。** A 是把 phase 值放進 sync enum（GCC：`cannot convert 'tlm::tlm_phase_enum' to 'tlm::tlm_sync_enum'`）；B 和 D 是把整數直接放進 enum 參數（GCC：`invalid conversion from 'int' to ...`）。C 的 phase 和 sync enum 各自用對應的值，編譯成功：
+
+```
+BEGIN_REQ 1
+```
+
+另一個陷阱：`tlm::tlm_phase p = tlm::TLM_ACCEPTED;` **會**編譯成功（sync enum 先轉成整數，再經過 `tlm_phase(unsigned int)` 這個建構子，`tlm_phase.h:46`，註解寫著 should be dropped），印出的是 `UNINITIALIZED_PHASE`，因為 `TLM_ACCEPTED` 的數值是 0。編譯器不會替你檢查語意，要靠自己看 enum 的型別。
+
+</details>
+
+---
+
+#### MC39：`reset()` 之後，payload 裡還剩什麼〔L2〕
+
+```cpp
+struct Tag : tlm::tlm_extension<Tag> {
+  int value = 0;
+  tlm::tlm_extension_base* clone() const { return new Tag(*this); }
+  void copy_from(const tlm::tlm_extension_base& e) { value = static_cast<const Tag&>(e).value; }
+};
+
+int sc_main(int, char**) {
+  unsigned char buf[4];
+  tlm::tlm_generic_payload gp;
+  Tag tag; tag.value = 42;
+  gp.set_command(tlm::TLM_WRITE_COMMAND);
+  gp.set_address(0x10);
+  gp.set_data_ptr(buf);
+  gp.set_data_length(4);
+  gp.set_response_status(tlm::TLM_OK_RESPONSE);
+  gp.set_extension(&tag);
+  gp.reset();
+  cout << "cmd=" << (int)gp.get_command() << " addr=0x" << std::hex << gp.get_address() << std::dec
+       << " len=" << gp.get_data_length() << " status=" << gp.get_response_string() << endl;
+  cout << "ptr_kept=" << (gp.get_data_ptr() == buf) << " ext_kept=" << (gp.get_extension<Tag>() != 0) << endl;
+  gp.clear_extension<Tag>();
+  return 0;
+}
+```
+
+兩行輸出是？（command 以整數印出）
+
+- A. `cmd=0 addr=0x0 len=0 status=TLM_INCOMPLETE_RESPONSE`、`ptr_kept=0 ext_kept=0`
+- B. `cmd=1 addr=0x10 len=4 status=TLM_OK_RESPONSE`、`ptr_kept=1 ext_kept=0`
+- C. `cmd=1 addr=0x10 len=4 status=TLM_OK_RESPONSE`、`ptr_kept=1 ext_kept=1`
+- D. `cmd=1 addr=0x10 len=4 status=TLM_INCOMPLETE_RESPONSE`、`ptr_kept=1 ext_kept=0`
+
+<details>
+<summary>答案</summary>
+
+**C。** `reset()` 的實作只有兩件事：把 `m_gp_option` 設回預設，然後 `m_extensions.free_entire_cache()`（`tlm_gp.cpp:128-132`）。`free_entire_cache()` 只走訪 cache 裡的項目，而 cache 只收 `set_auto_extension` 掛上的 extension（`tlm_array.h:102-111`）。所以用 `set_extension` 手動掛的 `tag` 還在，command、address、length、response status 也都保留。
+
+```
+cmd=1 addr=0x10 len=4 status=TLM_OK_RESPONSE
+ptr_kept=1 ext_kept=1
+```
+
+這題直接修正了 Q8 第 5 題的說法（見下方「事實修正 5」）：`reset()` 不會清掉手動掛的 extension。要清要自己 `clear_extension`。
+
+</details>
+
+---
+
+#### MC40：`deep_copy_from` 會複製什麼〔L2〕
+
+```cpp
+struct Tag : tlm::tlm_extension<Tag> {
+  int value = 0;
+  tlm::tlm_extension_base* clone() const { return new Tag(*this); }
+  void copy_from(const tlm::tlm_extension_base& e) { value = static_cast<const Tag&>(e).value; }
+};
+
+int sc_main(int, char**) {
+  unsigned char a[4] = {1, 2, 3, 4}, b[4] = {0, 0, 0, 0};
+  tlm::tlm_generic_payload orig, copy;
+  Tag t; t.value = 42;
+  orig.set_command(tlm::TLM_READ_COMMAND);
+  orig.set_address(8);
+  orig.set_data_ptr(a);
+  orig.set_data_length(4);
+  orig.set_response_status(tlm::TLM_OK_RESPONSE);
+  orig.set_extension(&t);
+  copy.set_data_ptr(b);
+  copy.deep_copy_from(orig);
+  cout << "data=" << (int)b[0] << (int)b[3] << " addr=" << copy.get_address()
+       << " status=" << copy.get_response_string() << endl;
+  Tag* ct = copy.get_extension<Tag>();
+  cout << "ext=" << (ct ? ct->value : -1) << " same_ptr=" << (ct == &t) << endl;
+  orig.clear_extension<Tag>();
+  return 0;
+}
+```
+
+兩行輸出是？
+
+- A. `data=14 addr=8 status=TLM_OK_RESPONSE`、`ext=42 same_ptr=1`
+- B. `data=14 addr=8 status=TLM_INCOMPLETE_RESPONSE`、`ext=-1 same_ptr=0`
+- C. `data=14 addr=8 status=TLM_OK_RESPONSE`、`ext=42 same_ptr=0`
+- D. `data=00 addr=0 status=TLM_OK_RESPONSE`、`ext=42 same_ptr=0`
+
+<details>
+<summary>答案</summary>
+
+**C。** `deep_copy_from` 複製 command、address、長度、response status，並把 data 內容 `memcpy` 進 copy 自己的 buffer（`tlm_gp.cpp:137-153`）。extension 不是共用指標：copy 會呼叫 `clone()` 取得一個新物件，所以 `value` 是 42，但位址不同（`same_ptr=0`）。
+
+```
+data=14 addr=8 status=TLM_OK_RESPONSE
+ext=42 same_ptr=0
+```
+
+所以「深複製」在 TLM 裡指的是資料與 extension 都複製一份；如果 extension 沒有實作 `clone()`，複製會被略過（`tlm_gp.cpp` 的 `if(ext)` 判斷）。
+
+</details>
+
+---
+
+#### MC41：同一型別的 extension 掛兩次〔L2〕
+
+```cpp
+struct Tag : tlm::tlm_extension<Tag> {
+  int value = 0;
+  tlm::tlm_extension_base* clone() const { return new Tag(*this); }
+  void copy_from(const tlm::tlm_extension_base& e) { value = static_cast<const Tag&>(e).value; }
+};
+
+int sc_main(int, char**) {
+  tlm::tlm_generic_payload gp;
+  Tag t1, t2; t1.value = 1; t2.value = 2;
+  Tag* old1 = gp.set_extension(&t1);
+  Tag* old2 = gp.set_extension(&t2);
+  cout << (old1 == 0) << " " << (old2 == &t1) << " " << gp.get_extension<Tag>()->value << endl;
+  gp.clear_extension<Tag>();
+  cout << (gp.get_extension<Tag>() == 0) << endl;
+  return 0;
+}
+```
+
+兩行輸出是？
+
+- A. `0 0 2`、`0`
+- B. `1 1 2`、`1`
+- C. `1 0 1`、`0`
+- D. 編譯錯誤：同一型別的 extension 不能掛兩次
+
+<details>
+<summary>答案</summary>
+
+**B。** 每個 extension 型別在 payload 上只有一個槽（索引是 `T::ID`）。`set_extension` 會回傳被換掉的舊指標（`tlm_gp.cpp` 的 `set_extension` 回傳 `tmp`），第一次是 0，第二次是 `&t1`；之後 `get_extension` 拿到的是 `t2`。`clear_extension<T>()` 把槽清成 0，之後取出是 0。
+
+```
+1 1 2
+1
+```
+
+注意：舊的 `t1` 不會被任何人 delete，因為它本來就是堆疊物件；這正是 T1 的陷阱，只是這裡沒有 payload 解構，所以不會 crash。
+
+</details>
+
+---
+
+#### MC42：`set_and_sync` 的 `t` 是絕對值還是增量〔L2〕
+
+```cpp
+SC_MODULE(M) {
+  tlm_utils::tlm_quantumkeeper qk;
+  SC_CTOR(M) { SC_THREAD(run); }
+  void run() {
+    qk.reset();
+    qk.set_and_sync(sc_time(150, SC_NS));
+    cout << "now=" << sc_time_stamp() << " local=" << qk.get_local_time() << " need_sync=" << qk.need_sync() << endl;
+    qk.set_and_sync(sc_time(30, SC_NS));
+    cout << "now=" << sc_time_stamp() << " local=" << qk.get_local_time() << " need_sync=" << qk.need_sync() << endl;
+  }
+};
+int sc_main(int, char**) {
+  tlm_utils::tlm_quantumkeeper::set_global_quantum(sc_time(100, SC_NS));
+  M m("m");
+  sc_start();
+  return 0;
+}
+```
+
+（全域 quantum 設為 100 ns。）兩行輸出是？
+
+- A. `now=0 s local=150 ns need_sync=1`、`now=0 s local=180 ns need_sync=1`
+- B. `now=150 ns local=0 s need_sync=0`、`now=150 ns local=30 ns need_sync=0`
+- C. `now=150 ns local=0 s need_sync=0`、`now=150 ns local=180 ns need_sync=0`
+- D. `now=0 s local=150 ns need_sync=0`、`now=150 ns local=30 ns need_sync=0`
+
+<details>
+<summary>答案</summary>
+
+**B。** `set_and_sync(t)` 先 `set(t)`，**把 local time 設成絕對值 t**，不是加上去。第一次：local = 150 ns，`0 + 150 >= 100` 成立，所以 `sync()`：`wait(150)`，時間到 150 ns，再 `reset()`，下一個同步點變成 150 + 100 = 250 ns。第二次：local 設成 30 ns（不是 180 ns），`150 + 30 < 250`，不需要 sync。
+
+```
+now=150 ns local=0 s need_sync=0
+now=150 ns local=30 ns need_sync=0
+```
+
+</details>
+
+---
+
+#### MC43：`need_sync` 的邊界是 `>=`〔L2〕
+
+```cpp
+SC_MODULE(M) {
+  tlm_utils::tlm_quantumkeeper qk;
+  SC_CTOR(M) { SC_THREAD(run); }
+  void run() {
+    qk.reset();
+    qk.inc(sc_time(99, SC_NS));
+    cout << "local=" << qk.get_local_time() << " need_sync=" << qk.need_sync() << endl;
+    qk.inc(sc_time(1, SC_NS));
+    cout << "local=" << qk.get_local_time() << " need_sync=" << qk.need_sync() << endl;
+  }
+};
+int sc_main(int, char**) {
+  tlm_utils::tlm_quantumkeeper::set_global_quantum(sc_time(100, SC_NS));
+  M m("m");
+  sc_start();
+  return 0;
+}
+```
+
+（全域 quantum 設為 100 ns。）兩行輸出是？
+
+- A. `local=99 ns need_sync=1`、`local=100 ns need_sync=1`
+- B. `local=99 ns need_sync=0`、`local=100 ns need_sync=1`
+- C. `local=99 ns need_sync=0`、`local=100 ns need_sync=0`
+- D. `local=99 ns need_sync=1`、`local=100 ns need_sync=0`
+
+<details>
+<summary>答案</summary>
+
+**B。** `need_sync()` 的判斷式是 `sc_time_stamp() + local >= next_sync_point`（`tlm_quantumkeeper.h`），是 `>=`。local 剛好等於 quantum 時就要 sync。這個邊界常被寫成 `>`，寫錯時會多跑一段時間才同步。
+
+```
+local=99 ns need_sync=0
+local=100 ns need_sync=1
+```
+
+</details>
+
+---
+
+#### MC44：中途改全域 quantum〔L3〕
+
+```cpp
+SC_MODULE(M) {
+  tlm_utils::tlm_quantumkeeper qk;
+  SC_CTOR(M) { SC_THREAD(run); }
+  void run() {
+    qk.reset();                                                  // next sync point = 100 ns
+    tlm_utils::tlm_quantumkeeper::set_global_quantum(sc_time(10, SC_NS));
+    qk.inc(sc_time(50, SC_NS));
+    cout << "before sync: need_sync=" << qk.need_sync() << endl;
+    qk.sync();                                                   // wait(50 ns), then reset()
+    qk.inc(sc_time(50, SC_NS));
+    cout << "after sync: now=" << sc_time_stamp() << " need_sync=" << qk.need_sync() << endl;
+  }
+};
+int sc_main(int, char**) {
+  tlm_utils::tlm_quantumkeeper::set_global_quantum(sc_time(100, SC_NS));
+  M m("m");
+  sc_start();
+  return 0;
+}
+```
+
+兩行輸出是？
+
+- A. `before sync: need_sync=1`、`after sync: now=50 ns need_sync=0`
+- B. `before sync: need_sync=0`、`after sync: now=50 ns need_sync=1`
+- C. `before sync: need_sync=0`、`after sync: now=100 ns need_sync=0`
+- D. 編譯錯誤：`set_global_quantum` 不能在 thread 裡呼叫
+
+<details>
+<summary>答案</summary>
+
+**B。** 中途改全域 quantum 不會影響已經算好的 `next_sync_point`（在 `reset()` 時就算好了，還是 100 ns）。所以第一次 `need_sync` 是 0。`sync()` 之後的 `reset()` 才用新的 quantum：下一個同步點是 50 + 10 = 60 ns。再 `inc(50)` 後 local 是 50，`50 + 50 >= 60`，需要 sync。
+
+```
+before sync: need_sync=0
+after sync: now=50 ns need_sync=1
+```
+
+結論：改 quantum 之後要等下一次 `reset()` 或 `sync()` 才會用到新值。
+
+</details>
+
+---
+
+#### MC45：`transport_dbg` 只搬一部分〔L2〕
+
+```cpp
+struct Mem : sc_module {
+  tlm_utils::simple_target_socket<Mem> socket;
+  unsigned char mem[8];
+  SC_CTOR(Mem) : socket("socket") {
+    for (int i = 0; i < 8; ++i) mem[i] = 0x10 + i;
+    socket.register_transport_dbg(this, &Mem::dbg);
+  }
+  unsigned int dbg(tlm::tlm_generic_payload& gp) {
+    sc_dt::uint64 a = gp.get_address();
+    if (a >= 8) return 0;
+    unsigned int room = 8 - (unsigned)a;
+    unsigned int n = gp.get_data_length() < room ? gp.get_data_length() : room;
+    memcpy(gp.get_data_ptr(), mem + a, n);
+    return n;
+  }
+};
+struct Init : sc_module {
+  tlm_utils::simple_initiator_socket<Init> socket;
+  SC_CTOR(Init) : socket("socket") { SC_THREAD(run); }
+  void run() {
+    unsigned char buf[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    tlm::tlm_generic_payload gp;
+    gp.set_command(tlm::TLM_READ_COMMAND);
+    gp.set_address(4);
+    gp.set_data_ptr(buf);
+    gp.set_data_length(8);
+    unsigned int n = socket->transport_dbg(gp);
+    cout << "n=" << n << " buf=" << std::hex;
+    for (int i = 0; i < 8; ++i) cout << (int)buf[i] << " ";
+    cout << std::dec << endl;
+  }
+};
+int sc_main(int, char**) {
+  Init i("i");
+  Mem m("m");
+  i.socket.bind(m.socket);
+  sc_start();
+  return 0;
+}
+```
+
+輸出是？（`n` 是十進位，buf 是十六進位）
+
+- A. `n=8 buf=14 15 16 17 18 19 1a 1b`
+- B. `n=4 buf=14 15 16 17 0 0 0 0`
+- C. `n=0 buf=0 0 0 0 0 0 0 0`
+- D. `n=8 buf=14 15 16 17 0 0 0 0`
+
+<details>
+<summary>答案</summary>
+
+**B。** 要求從位址 4 讀 8 byte，但記憶體只有 8 byte，所以 target 只能搬 4 byte，回傳 4。`buf` 的前 4 格拿到 `0x14`–`0x17`，後 4 格沒被碰過，還是 0。這是部分搬移，`transport_dbg` 的回傳值就是用來判斷這件事的（`tlm_fw_bw_ifs.h`：回傳值必須 ≤ 要求的 byte 數）。
+
+```
+n=4 buf=14 15 16 17 0 0 0 0
+```
+
+</details>
+
+---
+
+#### MC46：主機的 byte 順序〔L2〕
+
+```cpp
+#include <cstdint>
+int sc_main(int, char**) {
+  uint32_t v = 0x11223344;
+  unsigned char b[4];
+  memcpy(b, &v, 4);
+  cout << std::hex << (int)b[0] << " " << (int)b[3] << endl;
+  return 0;
+}
+```
+
+兩個數字（十六進位）是？（以 x86-64 Linux 主機為準）
+
+- A. `11 44`
+- B. `44 11`
+- C. `11 22`
+- D. `44 44`
+
+<details>
+<summary>答案</summary>
+
+**B。** x86-64 是 little endian，最低位元組 `0x44` 放在最前面，最高位元組 `0x11` 放在最後。這個結果取決於主機：在 big endian 主機上會是 `11 44`。`transport_dbg` 的 data 用的就是這個 host 順序，所以寫 debugger 時不能假設 `buf[0]` 是最低位元組（T9）。
+
+```
+44 11
+```
+
+</details>
+
+---
+
+#### MC47：DMI 提示與 `get_direct_mem_ptr` 的失敗〔L3〕
+
+```cpp
+struct Target : sc_module {
+  tlm_utils::simple_target_socket<Target> socket;
+  SC_CTOR(Target) : socket("socket") { socket.register_b_transport(this, &Target::b_transport); }
+  void b_transport(tlm::tlm_generic_payload& gp, sc_time& delay) {
+    *gp.get_data_ptr() = 7;
+    gp.set_dmi_allowed(true);
+    delay += sc_time(10, SC_NS);
+    gp.set_response_status(tlm::TLM_OK_RESPONSE);
+  }
+};
+struct Init : sc_module {
+  tlm_utils::simple_initiator_socket<Init> socket;
+  SC_CTOR(Init) : socket("socket") { SC_THREAD(run); }
+  void run() {
+    unsigned char buf[1];
+    tlm::tlm_generic_payload gp;
+    sc_time delay = SC_ZERO_TIME;
+    gp.set_command(tlm::TLM_READ_COMMAND);
+    gp.set_address(0);
+    gp.set_data_ptr(buf);
+    gp.set_data_length(1);
+    socket->b_transport(gp, delay);
+    cout << "hint=" << gp.is_dmi_allowed() << endl;
+    tlm::tlm_dmi dmi;
+    bool ok = socket->get_direct_mem_ptr(gp, dmi);
+    cout << "get=" << ok << " ptr_null=" << (dmi.get_dmi_ptr() == 0) << " access=" << dmi.get_granted_access() << endl;
+  }
+};
+int sc_main(int, char**) {
+  Init i("i");
+  Target t("t");
+  i.socket.bind(t.socket);
+  sc_start();
+  return 0;
+}
+```
+
+兩行輸出是？（`access` 以整數印出）
+
+- A. `hint=0`、`get=1 ptr_null=0 access=3`
+- B. `hint=1`、`get=1 ptr_null=0 access=1`
+- C. `hint=1`、`get=0 ptr_null=1 access=3`
+- D. `hint=1`、`get=0 ptr_null=1 access=0`
+
+<details>
+<summary>答案</summary>
+
+**C。** 提示是 1，但 target 沒有註冊 `get_direct_mem_ptr` callback，所以 socket 的預設 fallback 執行：把 `dmi` 設成「整個範圍、可讀寫」（`allow_read_write()`，access = 3），然後回傳 false（`simple_target_socket.h:363-366`）。所以 `access=3` 不代表可以用 DMI，**只能看回傳的 bool**。
+
+```
+hint=1
+get=0 ptr_null=1 access=3
+```
+
+關於規範：`tlm_fw_bw_ifs.h` 要求的是「若 DMI 會成功，target 必須把提示設成 true」；沒有禁止「提示是 true 但 DMI 失敗」。所以這個 target 不算違規，只是 initiator 會白試一次。
+
+</details>
+
+---
+
+#### MC48：`transport_dbg` 裡呼叫 `wait()`〔L3〕
+
+```cpp
+struct Target : sc_module {
+  tlm_utils::simple_target_socket<Target> socket;
+  SC_CTOR(Target) : socket("socket") { socket.register_transport_dbg(this, &Target::dbg); }
+  unsigned int dbg(tlm::tlm_generic_payload&) {
+    wait(1, SC_NS);
+    return 0;
+  }
+};
+struct Init : sc_module {
+  tlm_utils::simple_initiator_socket<Init> socket;
+  SC_CTOR(Init) : socket("socket") { SC_THREAD(run); }
+  void run() {
+    unsigned char buf[4];
+    tlm::tlm_generic_payload gp;
+    gp.set_command(tlm::TLM_READ_COMMAND);
+    gp.set_address(0);
+    gp.set_data_ptr(buf);
+    gp.set_data_length(4);
+    unsigned int n = socket->transport_dbg(gp);
+    cout << "n=" << n << " now=" << sc_time_stamp() << endl;
+  }
+};
+int sc_main(int, char**) {
+  Init i("i");
+  Target t("t");
+  i.socket.bind(t.socket);
+  sc_start();
+  return 0;
+}
+```
+
+輸出是？
+
+- A. `n=0 now=0 s`
+- B. `n=0 now=1 ns`
+- C. 執行期錯誤：`transport_dbg` 裡不能 `wait`，模擬中止
+- D. 編譯錯誤：debug callback 不能有 `wait`
+
+<details>
+<summary>答案</summary>
+
+**B。** 呼叫端是 `SC_THREAD`，所以 `wait` 合法，socket 也不檢查，時間照樣前進到 1 ns。這是違反規範的寫法：`tlm_fw_bw_ifs.h` 的 transport_dbg 註解寫明 debug 存取不能 `wait`、不能 notify、不能讓模擬時間前進。2.3.3 不會替你檢查，所以程式不會報錯，錯誤要靠 code review 找。（如果呼叫端是 `SC_METHOD`，這份題庫沒有實跑。）
+
+```
+n=0 now=1 ns
+```
+
+</details>
+
+---
+
+#### MC49：router 的位址還原與錯誤回應〔L2〕
+
+```cpp
+struct Target : sc_module {
+  tlm_utils::simple_target_socket<Target> socket;
+  std::string name;
+  SC_CTOR(Target) : socket("socket") { socket.register_b_transport(this, &Target::b_transport); }
+  void b_transport(tlm::tlm_generic_payload& gp, sc_time& delay) {
+    cout << "  " << name << " sees addr=0x" << std::hex << gp.get_address() << std::dec << endl;
+    delay += sc_time(5, SC_NS);
+    gp.set_response_status(tlm::TLM_OK_RESPONSE);
+  }
+};
+struct Router : sc_module {
+  tlm_utils::simple_target_socket<Router> in;
+  tlm_utils::simple_initiator_socket<Router> out0, out1;
+  SC_CTOR(Router) : in("in"), out0("out0"), out1("out1") {
+    in.register_b_transport(this, &Router::b_transport);
+  }
+  void b_transport(tlm::tlm_generic_payload& gp, sc_time& delay) {
+    sc_dt::uint64 a = gp.get_address();
+    if (a < 0x1000) {
+      out0->b_transport(gp, delay);
+    } else if (a < 0x2000) {
+      gp.set_address(a - 0x1000);
+      out1->b_transport(gp, delay);
+      gp.set_address(a);
+    } else {
+      gp.set_response_status(tlm::TLM_ADDRESS_ERROR_RESPONSE);
+    }
+  }
+};
+struct Init : sc_module {
+  tlm_utils::simple_initiator_socket<Init> socket;
+  SC_CTOR(Init) : socket("socket") { SC_THREAD(run); }
+  void issue(sc_dt::uint64 a) {
+    unsigned char buf[4];
+    tlm::tlm_generic_payload gp;
+    sc_time delay = SC_ZERO_TIME;
+    gp.set_command(tlm::TLM_READ_COMMAND);
+    gp.set_address(a);
+    gp.set_data_ptr(buf);
+    gp.set_data_length(4);
+    socket->b_transport(gp, delay);
+    cout << "init addr=0x" << std::hex << a << std::dec << " status=" << gp.get_response_string()
+         << " delay=" << delay << endl;
+  }
+  void run() {
+    issue(0x0004);
+    issue(0x1004);
+    issue(0x3000);
+  }
+};
+int sc_main(int, char**) {
+  Init i("i");
+  Router r("r");
+  Target t0("t0"), t1("t1");
+  t0.name = "t0"; t1.name = "t1";
+  i.socket.bind(r.in);
+  r.out0.bind(t0.socket);
+  r.out1.bind(t1.socket);
+  sc_start();
+  return 0;
+}
+```
+
+輸出是？（`0x4` 送給 t0；`0x1004` 送給 t1；`0x3000` 不屬於任何 target）
+
+- A. 和正確答案相同，但 t1 看到的是 `addr=0x1004`（router 沒有扣 base）
+- B. `  t0 sees addr=0x4`、`init addr=0x4 status=TLM_OK_RESPONSE delay=5 ns`、`  t1 sees addr=0x4`、`init addr=0x1004 status=TLM_OK_RESPONSE delay=5 ns`、`init addr=0x3000 status=TLM_ADDRESS_ERROR_RESPONSE delay=0 s`
+- C. 和正確答案相同，但最後一行是 `status=TLM_GENERIC_ERROR_RESPONSE`
+- D. 和正確答案相同，但 `0x3000` 那行的 delay 是 `5 ns`（router 也會把 target 的延遲算進去）
+
+<details>
+<summary>答案</summary>
+
+**B。** router 把 `0x1004` 扣掉 base `0x1000` 再送給 t1，所以 t1 看到 `0x4`；回來時還原成 `0x1004`，initiator 看到的仍是原值。`0x3000` 沒有 target 負責，router 直接回 `TLM_ADDRESS_ERROR_RESPONSE`，**不轉送**，所以 delay 還是 0（只有 target 加了 5 ns）。
+
+```
+  t0 sees addr=0x4
+init addr=0x4 status=TLM_OK_RESPONSE delay=5 ns
+  t1 sees addr=0x4
+init addr=0x1004 status=TLM_OK_RESPONSE delay=5 ns
+init addr=0x3000 status=TLM_ADDRESS_ERROR_RESPONSE delay=0 s
+```
+
+這個 router 沒有加自己的解碼延遲，E1 的參考寫法會加 2 ns（那題的規格）。
+
+</details>
+
+---
+
+#### MC50：tagged socket 的 `id`〔L2〕
+
+```cpp
+struct Target : sc_module {
+  tlm_utils::simple_target_socket_tagged<Target> socket;
+  SC_CTOR(Target) : socket("socket") { socket.register_b_transport(this, &Target::b_transport, 7); }
+  void b_transport(int id, tlm::tlm_generic_payload& gp, sc_time&) {
+    cout << "id=" << id << " addr=0x" << std::hex << gp.get_address() << std::dec << endl;
+    gp.set_response_status(tlm::TLM_OK_RESPONSE);
+  }
+};
+struct Init : sc_module {
+  tlm_utils::simple_initiator_socket<Init> socket;
+  SC_CTOR(Init) : socket("socket") { SC_THREAD(run); }
+  void run() {
+    unsigned char buf[4];
+    tlm::tlm_generic_payload gp;
+    sc_time delay = SC_ZERO_TIME;
+    gp.set_command(tlm::TLM_READ_COMMAND);
+    gp.set_address(0x20);
+    gp.set_data_ptr(buf);
+    gp.set_data_length(4);
+    socket->b_transport(gp, delay);
+    cout << "status=" << gp.get_response_string() << endl;
+  }
+};
+int sc_main(int, char**) {
+  Init i("i");
+  Target t("t");
+  i.socket.bind(t.socket);
+  sc_start();
+  return 0;
+}
+```
+
+輸出是？
+
+- A. `id=0 addr=0x20`、`status=TLM_OK_RESPONSE`
+- B. `id=7 addr=0x20`、`status=TLM_OK_RESPONSE`
+- C. `id=1 addr=0x20`、`status=TLM_OK_RESPONSE`
+- D. 編譯錯誤：tagged socket 不能註冊 `b_transport`
+
+<details>
+<summary>答案</summary>
+
+**B。** tagged socket 的 `id` 是你在 `register_b_transport(..., id)` 時給的值，這裡是 7。multi socket（MC16）的 `id` 則是綁定順序，兩者不要混為一談。
+
+```
+id=7 addr=0x20
+status=TLM_OK_RESPONSE
+```
+
+</details>
+
+---
+
+#### MC51：覆寫 `compute_local_quantum`〔L2〕
+
+```cpp
+struct MyKeeper : tlm_utils::tlm_quantumkeeper {
+  sc_time compute_local_quantum() { return sc_time(30, SC_NS); }
+};
+SC_MODULE(M) {
+  MyKeeper qk;
+  SC_CTOR(M) { SC_THREAD(run); }
+  void run() {
+    qk.reset();
+    qk.inc(sc_time(20, SC_NS));
+    cout << "after 20 ns need_sync=" << qk.need_sync() << endl;
+    qk.inc(sc_time(10, SC_NS));
+    cout << "after 30 ns need_sync=" << qk.need_sync() << endl;
+  }
+};
+int sc_main(int, char**) {
+  tlm_utils::tlm_quantumkeeper::set_global_quantum(sc_time(100, SC_NS));
+  M m("m");
+  sc_start();
+  return 0;
+}
+```
+
+（全域 quantum 設為 100 ns。）兩行輸出是？
+
+- A. `after 20 ns need_sync=0`、`after 30 ns need_sync=0`
+- B. `after 20 ns need_sync=0`、`after 30 ns need_sync=1`
+- C. `after 20 ns need_sync=1`、`after 30 ns need_sync=1`
+- D. 編譯錯誤：`compute_local_quantum` 不是 virtual，無法覆寫
+
+<details>
+<summary>答案</summary>
+
+**B。** `compute_local_quantum()` 是 virtual（`tlm_quantumkeeper.h:160`），`reset()` 呼叫它來算下一個同步點。這個子類覆寫之後，quantum 是 30 ns，不是全域的 100 ns。這就是 Q3 第 3 題說的「每個 initiator 用不同的 quantum」的寫法。
+
+```
+after 20 ns need_sync=0
+after 30 ns need_sync=1
+```
+
+</details>
+
+---
+
+#### MC52：同步點是絕對時間〔L3〕
+
+```cpp
+SC_MODULE(M) {
+  tlm_utils::tlm_quantumkeeper qk;
+  SC_CTOR(M) { SC_THREAD(run); }
+  void run() {
+    qk.reset();
+    wait(90, SC_NS);
+    qk.inc(sc_time(9, SC_NS));
+    cout << "now=" << sc_time_stamp() << " local=" << qk.get_local_time() << " need_sync=" << qk.need_sync() << endl;
+    qk.inc(sc_time(1, SC_NS));
+    cout << "now=" << sc_time_stamp() << " local=" << qk.get_local_time() << " need_sync=" << qk.need_sync() << endl;
+  }
+};
+int sc_main(int, char**) {
+  tlm_utils::tlm_quantumkeeper::set_global_quantum(sc_time(100, SC_NS));
+  M m("m");
+  sc_start();
+  return 0;
+}
+```
+
+（全域 quantum 設為 100 ns，`reset()` 在 0 ns 呼叫。）兩行輸出是？
+
+- A. `now=90 ns local=9 ns need_sync=0`、`now=90 ns local=10 ns need_sync=0`
+- B. `now=90 ns local=9 ns need_sync=0`、`now=90 ns local=10 ns need_sync=1`
+- C. `now=90 ns local=9 ns need_sync=1`、`now=90 ns local=10 ns need_sync=1`
+- D. `now=90 ns local=9 ns need_sync=0`、`now=90 ns local=10 ns need_sync=0`（因為 `reset` 之後下一個同步點是 190 ns）
+
+<details>
+<summary>答案</summary>
+
+**B。** 同步點是 `reset()` 那時算好的**絕對時間**：100 ns。中途 `wait` 不會把它往後推。所以在 90 ns 時 local 加到 10 ns，`90 + 10 >= 100`，就需要 sync。常見的誤解是以為 `wait` 之後要重新 `reset()` 才會往後推，或以為同步點是「現在 + quantum」。
+
+```
+now=90 ns local=9 ns need_sync=0
+now=90 ns local=10 ns need_sync=1
+```
+
+</details>
+
+---
+
+#### MC53：payload 解構時，掛著的堆疊 extension〔L3〕
+
+```cpp
+struct Tag : tlm::tlm_extension<Tag> {
+  int value = 0;
+  tlm::tlm_extension_base* clone() const { return new Tag(*this); }
+  void copy_from(const tlm::tlm_extension_base& e) { value = static_cast<const Tag&>(e).value; }
+};
+void f() {
+  Tag tag; tag.value = 5;
+  tlm::tlm_generic_payload gp;
+  gp.set_extension(&tag);
+  cout << "leaving f() with extension still attached" << endl;
+}
+int sc_main(int, char**) {
+  f();
+  cout << "main continues" << endl;
+  return 0;
+}
+```
+
+輸出是？
+
+- A. `leaving f() with extension still attached`，然後 `main continues`，正常結束
+- B. `leaving f() with extension still attached`，之後程式異常終止（SIGSEGV 或 SIGABRT，依執行而異），`main continues` 不會出現
+- C. 編譯錯誤：`tlm_extension` 不能放在堆疊上
+- D. 只有警告，`main continues` 會出現
+
+<details>
+<summary>答案</summary>
+
+**B。** `gp` 先於 `tag` 被解構（反向宣告順序），`~tlm_generic_payload` 會對每個非空的 extension 呼叫 `free()`；預設的 `tlm_extension_base::free()` 是 `delete this`（`tlm_gp.h:60`）。於是堆疊上的 `tag` 被 `delete`，這是未定義行為。本機重複執行的結果不固定：有時 SIGSEGV（exit 139），有時 SIGABRT（exit 134，glibc 印出 `double free or corruption` 或 `free(): invalid size` 之類的訊息）。所以不要把某一種結果當成固定輸出，重點是「這樣寫就是錯的」。
+
+```
+leaving f() with extension still attached
+```
+
+（之後程式異常終止；stdout 只到這一行，`main continues` 不會出現。）
+
+修法：離開 scope 前呼叫 `clear_extension<Tag>()`（MC14 的寫法），或改用 heap 上的 extension 並搭配 memory manager（`set_auto_extension`）。
+
+</details>
+
+---
+
 ### 選擇題驗證紀錄（2026-10-21）
 
 - 環境：本機 SystemC 2.3.3，`g++ -std=c++11`（見上方指令）。
@@ -2801,13 +4045,442 @@ initiator 一定要檢查 `trans.is_response_error()`。注意它的實作是 `r
 - payload 物件的生命週期問題：誰配置、誰釋放、什麼時候可以重用。
 - 有設 memory manager 時，用 `acquire()` 和 `release()` 做 reference counting，計數歸零時呼叫 memory manager 的 `free()`，通常是放回 pool 重用。
 - 沒有設 memory manager 就呼叫 `acquire()` 會觸發 assert（原始碼是 `sc_assert(m_mm != 0)`）。
-- 放回 pool 前通常呼叫 `reset()`，它會清掉 extension，但不會重設 address、command 這些欄位，下一次使用前要自己重新設定。
+- 放回 pool 前通常呼叫 `reset()`。它只釋放由 `set_auto_extension` 掛上、交給 mm 管理的 extension；用 `set_extension` 手動掛的指標不會被清掉（要自己 `clear_extension`）。command、address、data length、response status 也都保留，下一次使用前要自己重新設定（MC39、事實修正 5）。
 - 只用 `b_transport` 時，transaction 在函式 return 時就結束，initiator 可以把 payload 放在 stack 或成員變數上重複使用，所以常常不需要 memory manager。
 - AT 的 payload 在 `nb_transport_fw` return 之後還會繼續在其他元件間傳遞，可能同時有好幾筆在進行中，所以需要用 reference counting 確定沒有人在用了才能釋放。
 
 </details>
 
 **上次的弱點：** 尚未考過。
+
+---
+
+## Q9：Payload 所有權與 AT pool〔L2〕
+
+1. AT 的 initiator 把 payload 放在哪裡？為什麼不能像 LT 那樣直接放在函式的堆疊上？
+2. 用 memory manager 時，`free()` 通常做哪兩件事？`reset()` 清掉什麼、沒清掉什麼？
+3. 具體 bug：target 把 payload 指標存下來，等下一個 phase 才用，但 initiator 已經 `release()` 把它還進 pool。會怎樣？怎麼防？
+
+<details>
+<summary>參考答案</summary>
+
+**1.** AT 的 payload 在 `nb_transport_fw` 返回後還會在元件之間傳遞，而且同時可能有好幾筆在進行中，不能綁在某個函式的堆疊上。通常放在 heap，由 memory manager（`tlm_mm_interface`）管理，用 `acquire()` / `release()` 做 reference counting（T1、MC15、MC17）。
+
+**2.** `free()` 通常呼叫 `reset()` 再放回 pool（`ver_pool` 的寫法，見教學導讀 T1）。`reset()` 的實際範圍（事實修正 5、MC39）：
+
+- 會做的：釋放由 `set_auto_extension` 掛上、交給 mm 管理的 extension；把 `m_gp_option` 設回預設。
+- 不會做的：command、address、data length、response status 都保留；用 `set_extension` 手動掛的 extension 指標也保留。
+
+所以 pool 的 `free()` 只呼叫 `reset()` 還不夠：下一次使用前要把欄位全部重新設定，手動掛的 extension 要自己清。
+
+**3.** 這是懸空指標（dangling pointer），結果是未定義行為：讀到別人的資料、寫壞別人的 payload，或直接 crash。防法有兩種：
+
+- 存指標的一方在存的時候 `acquire()`，用完再 `release()`，計數歸零才會被回收。
+- 或讓 pool 的規則保證：payload 只在 `END_RESP` 之後才能回收（這是協定層的約定，不是 SystemC 自動保證的）。
+
+連結：MC17 的第一版 initiator 太早離開，就是同類的問題（只是堆疊版本，會 segfault）。
+
+</details>
+
+**上次的弱點：** 尚未考過。
+
+---
+
+## Q10：Socket 選擇與 bus 接線〔L2〕
+
+1. 一個 CPU（initiator）透過 bus 接兩個 memory。bus 的上游與下游各用哪種 socket？`passthrough` 和 `simple` 的差別是什麼？
+2. 一個 IP 有兩條 DMA 通道，各自是一個 initiator socket，都要接到同一個 module 的 target 側。要區分來源，你會用 tagged 還是 multi？為什麼？`id` 是誰決定的？
+3. `passthrough` 在 bus 裡為什麼不做 b / nb 轉換？如果 bus 上游只註冊了 nb，LT initiator 呼叫時會怎樣？
+
+<details>
+<summary>參考答案</summary>
+
+**1.** 2.3.3 的範例 bus `examples/tlm/common/include/models/SimpleBusLT.h` 用的是 `simple_target_socket_tagged` 陣列（每個 initiator 一個 socket，`register_b_transport(this, ..., i)` 的 `i` 是索引，見第 36–51 行），下游是 `simple_initiator_socket_tagged` 陣列。`passthrough_target_socket` 是另一種選擇。兩者的差別在轉換行為：simple 會自動做 b / nb 轉換（MC13、MC28）；passthrough 不做轉換，缺少的 callback 會直接報 `SC_REPORT_ERROR`（事實修正 1）。
+
+**2.** 用 **tagged**，而且要讓每個來源有自己的 target socket：tagged socket 只能 bind 一次（第二次 bind 報 E109，本機實跑），所以兩條 DMA 通道各自接一個 socket，註冊時給不同的 id（MC50）。如果你想要的是「同一個 socket 接兩條通道」，那是 **multi**：它可以多次 bind，callback 的 `id` 是綁定順序（MC16），不要依賴它對應到特定的 initiator 名字。
+
+**3.** passthrough 只轉送、不翻譯：bus 註冊哪一種 callback，就只會收到那一種呼叫。上游 LT 呼叫 bus 的 `b_transport`，bus 也用 `b_transport` 往下送；下游 target 如果只實作 nb，轉換由**下游 target 的 simple socket** 負責（MC13 的寫法），bus 不用管。反過來，如果 bus 上游只註冊了 nb，LT initiator 呼叫 `b_transport` 時會報 `SC_REPORT_ERROR`（事實修正 1），不會被悄悄轉換。
+
+</details>
+
+**上次的弱點：** 尚未考過。
+
+---
+
+## Q11：Quantum keeper 的迴圈與 `need_sync`〔L3〕
+
+1. 寫出 LT initiator 的存取迴圈（5–10 行偽碼或 C++）：每次存取怎麼把 delay 交給 target、什麼時候 sync、sync 後做什麼。
+2. `need_sync()` 的判斷式是什麼？為什麼 `next_sync_point` 是絕對時間？
+3. 全域 quantum 改成 10 ns 之後，既有的 keeper 什麼時候才會用新值？
+
+<details>
+<summary>參考答案</summary>
+
+**1.** 參考教學導讀 T3 的程式（已實跑，輸出 `syncs=2 now=100 ns local=0 s`）。骨架是：
+
+```
+qk.reset()                                  // thread 開頭
+loop:
+  d = qk.get_local_time()                   // 把目前領先的時間傳進去
+  socket->b_transport(gp, d)                // target 會把自己的延遲加進 d
+  qk.set(d)                                 // 把加完的時間寫回 keeper
+  if qk.need_sync(): qk.sync(); (sync 內部會 reset)
+```
+
+重點：`d` 是副本，忘了 `qk.set(d)` 的話 target 加的延遲會丟掉。
+
+**2.** `sc_time_stamp() + local >= next_sync_point`（`tlm_quantumkeeper.h`，`need_sync()`），是 `>=`（MC43）。`next_sync_point` 在 `reset()` 時算成絕對時間（現在 + quantum），中間 `wait` 不會更新它（MC52）。這樣才能讓同步點對齊到全域時間的整數倍（MC10）。
+
+**3.** 要等下一次 `reset()` 或 `sync()`，因為 `compute_local_quantum()` 只在那時被呼叫（MC44）。在那之前 `need_sync` 還是用舊的同步點判斷。
+
+</details>
+
+**上次的弱點：** 尚未考過。
+
+---
+
+## Q12：DMI 的權限、範圍與失敗〔L3〕
+
+1. target 只給 READ 權限的 DMI，initiator 想寫入怎麼辦？
+2. `get_direct_mem_ptr` 回傳 false 時，`dmi` 物件裡的範圍與權限是什麼？initiator 該看哪個值？
+3. 作廢只涵蓋一小段範圍，但 initiator 手上有一個跨越那段範圍的 DMI 區塊。依規範要怎麼處理？
+
+<details>
+<summary>參考答案</summary>
+
+**1.** 只能用 `b_transport` 寫。`dmi.is_write_allowed()` 是 false 時，initiator 不能直接寫入指標（MC37 的權限位元）。granted access 的意思是「target 允許的存取種類」，不是「你可以忽略 transport」。
+
+**2.** 回傳 false 時，`dmi` 的內容由 target 或 socket 的 fallback 決定。預設的 simple socket 會把範圍設成整個位址空間、權限設成 READ_WRITE（MC47 的 `access=3`），但回傳值是 false。所以**只看回傳的 bool**，不要看 access 位元。
+
+**3.** 規範（`tlm_fw_bw_ifs.h`）的要求是：initiator 必須丟掉指向被作廢區域的 DMI 指標。建議（不是強制）是把所有與作廢範圍有重疊的 DMI 區域都丟掉，所以只保留沒有重疊的部分也可以。interconnect 還要把位址範圍轉成 initiator 的全域位址，並廣播給所有可能拿著指標的 initiator。
+
+</details>
+
+**上次的弱點：** 尚未考過。
+
+---
+
+## Q13：Router 與 address map〔L2〕
+
+1. 一個 router 接一個 CPU、兩個 target：ROM 在 0x0000–0x0FFF，RAM 在 0x1000–0x1FFF。decode 有哪三種結果？各自怎麼處理 payload 與 delay？
+2. 一筆 4-byte 讀取從 0x0FFE 開始，跨進 ROM 和 RAM 的邊界。你的 router 怎麼辦？標準規定什麼？
+3. 每一層的 delay 怎麼累加？router 自己的 decode 成本要不要加？
+
+<details>
+<summary>參考答案</summary>
+
+**1.** 三種結果：
+
+- 轉送到 ROM（ROM 的 base 是 0，本地位址就是全域位址）。
+- 轉送到 RAM：位址先扣掉 0x1000，回來時改回原值（MC49）。
+- 沒有對應的 target：直接回 `TLM_ADDRESS_ERROR_RESPONSE`，不轉送，也不加 target 的延遲（MC49 第三行）。
+
+**2.** 標準沒有規定跨邊界的交易要怎麼處理，這是實作選擇（Q6 第 4 題）。常見做法有兩種：直接對整筆交易回 `TLM_ADDRESS_ERROR_RESPONSE`；或把它拆成兩筆交易，分別送到兩個 target（拆開時要自己處理第二段的位址與 payload）。`b_transport` 沒有「回傳部分長度」的規範；只有 `transport_dbg` 的回傳值才有部分搬移的語意（MC45）。要在 router 的文件裡寫清楚。
+
+**3.** 每層都把自己的延遲加進同一個 `delay`，只有最後的 initiator 決定何時 `wait`（MC7）。router 的 decode 成本也要加，這是模型的一部分；E1 的規格就是每筆交易先加 2 ns。
+
+</details>
+
+**上次的弱點：** 尚未考過。
+
+---
+
+## Q14：AT 的提前完成與回傳路徑〔L3〕（對應下一輪清單第 1、2 條）
+
+1. 不看筆記，畫出一筆 AT READ 的四個 phase 時序：每一步是 fw 還是 bw、回傳哪個 `tlm_sync_enum`、payload 的 response status 在哪一步變成 OK。
+2. 什麼樣的 target 會直接回 `TLM_COMPLETED`？它的理由是什麼？
+3. target 回了 `TLM_ACCEPTED`，initiator 之後的責任是什麼？
+
+<details>
+<summary>參考答案</summary>
+
+**1.** 以 MC26 的實跑結果為準（時間是 SystemC 的模擬時間）：
+
+```
+fw BEGIN_REQ  @0 ns   -> TLM_ACCEPTED     initiator 送出請求
+bw END_REQ    @5 ns   -> TLM_ACCEPTED     target 說「請求已接受」
+bw BEGIN_RESP @15 ns  -> TLM_ACCEPTED     target 說「回應開始」，status 在這之前已設好（MC26 的寫法）
+fw END_RESP   @17 ns  -> TLM_COMPLETED    initiator 確認收完，交易結束
+```
+
+規則：BEGIN_REQ 與 END_RESP 走 fw；END_REQ 與 BEGIN_RESP 走 bw（MC26）。response status 在 BEGIN_RESP 之前就要設好（MC26 的 target 在 `BEGIN_RESP` 前設 OK）。
+
+**2.** 沒有 timing 需求、可以在第一次呼叫裡就把結果寫好的 target，例如暫存器、單純的 memory，會直接回 `TLM_COMPLETED`（MC18）。理由是省掉整個四 phase 握手，只剩一次函式呼叫。代價是 target 不能在這之後才回應，所以延遲要用 `delay` 參數加進來，而不是等。另一種提前完成是 MC17 與 MC34 的寫法：target 在 BEGIN_REQ 的回程就用 `TLM_UPDATED` + `END_REQ`，之後 initiator 對 BEGIN_RESP 回 `TLM_COMPLETED`。
+
+**3.** `TLM_ACCEPTED` 的意思是「我還在處理」。對 `BEGIN_RESP` 回 `TLM_ACCEPTED`，就必須之後送出 `END_RESP`；否則下一筆回應永遠送不出，模擬也不會報錯（MC36）。initiator 對 `END_REQ` 回 `TLM_ACCEPTED`，意思是「收到了、phase 不改」（MC26 第二行），不代表回應已經到了。
+
+</details>
+
+**上次的弱點：** 尚未考過。
+
+---
+
+## Q15：Payload event queue（PEQ）的取出規則〔L3〕（對應下一輪清單第 1 條的 AT 部分）
+
+1. `peq_with_get` 和 `peq_with_cb_and_phase` 差在哪裡？各適合哪一種 model？
+2. 為什麼 `peq_with_get` 的 consumer 要用 `while (get_next_transaction())` 把到期的全部取完？
+3. 兩個項目到期時間相同，取出順序由什麼決定？
+
+<details>
+<summary>參考答案</summary>
+
+**1.** `peq_with_get` 是 pull：consumer 在自己的 thread 裡 `wait(get_event())`，再用 `get_next_transaction()` 取。適合 consumer 本來就是 thread、想自己控制節奏的 model。`peq_with_cb_and_phase` 是 push：到期時會呼叫你登記的 callback（以 `SC_METHOD` 執行），並同時帶著 phase。適合 target 用 callback 方式寫的 AT model。
+
+**2.** `get_event()` 只通知「有東西到期了」，不會每個項目都通知一次。如果只取一次，同時到期的其他項目會一直留在佇列裡，直到下一次通知（MC31 的 `c` 與 `a` 永遠沒被送出，模擬也不會報錯）。所以要用 `while` 取到回傳 0 為止。
+
+**3.** 時間早的先出。時間相同的，依通知（插入）順序出：`peq_with_get` 用 `multimap`（MC29），`peq_with_cb_and_phase` 的插入規則是新項目放在所有「時間 `<=` 它」的項目後面（MC30）。兩者在同一個時間點內都維持通知順序（MC29、MC30）。
+
+</details>
+
+**上次的弱點：** 尚未考過。
+
+---
+
+## 手寫練習（只給規格與骨架，解答不附在這裡）
+
+這一段是給 Alan 自己寫的。骨架可以直接編譯（未實作時會印出 INCOMPLETE 或 0，代表還沒寫完）。寫完先自己跑，再把程式貼過來做 review。**不要直接複製提示裡的程式碼以外的東西**，先看規格。
+
+### E1：Router + 兩個 memory target〔L2〕
+
+**規格**
+
+- Router 有 1 個上游 target socket（`up`）與 2 個下游 initiator socket（`rom`、`ram`）。
+- ROM 負責 0x0000–0x0FFF，本地位址等於全域位址。
+- RAM 負責 0x1000–0x1FFF，本地位址是全域位址減 0x1000。
+- 其他位址回 `TLM_ADDRESS_ERROR_RESPONSE`，不轉送。
+- Router 每筆交易先加 2 ns（decode 成本），不論是否轉送。
+- 送到 RAM 時位址要改成本地 offset，回來時要改回原值。
+- Memory 的規則：超出 4096 byte 的範圍回 `TLM_ADDRESS_ERROR_RESPONSE`；ROM 是唯讀，寫入回 `TLM_COMMAND_ERROR_RESPONSE`。正常的讀寫把自己的延遲加進 `delay`（讀 10 ns、寫 5 ns）。**錯誤回應（超出範圍或唯讀寫入）不加 memory 的延遲**，只有 router 的 2 ns。
+
+**骨架**（harness 與 Memory 已給，Router 的 `b_transport` 與 Memory 的 `b_transport` 內容請自己寫）
+
+```cpp
+#include <systemc>
+#include <tlm>
+#include <tlm_utils/simple_initiator_socket.h>
+#include <tlm_utils/simple_target_socket.h>
+#include <cstring>
+using namespace sc_core;
+using std::cout;
+using std::endl;
+
+struct Memory : sc_module {                      // 已給建構子，b_transport 你來寫
+  tlm_utils::simple_target_socket<Memory> socket;
+  unsigned char store[4096];
+  bool read_only;
+  sc_time read_lat, write_lat;
+  Memory(sc_module_name n, bool ro, sc_time rl, sc_time wl)
+    : sc_module(n), socket("socket"), read_only(ro), read_lat(rl), write_lat(wl) {
+    memset(store, 0, sizeof store);
+    socket.register_b_transport(this, &Memory::b_transport);
+  }
+  void b_transport(tlm::tlm_generic_payload& gp, sc_time& delay) {
+    // TODO：依規格檢查範圍、唯讀、做讀寫、累加延遲、設定 response status
+  }
+};
+
+struct Router : sc_module {                      // 你來寫
+  tlm_utils::simple_target_socket<Router> up;
+  tlm_utils::simple_initiator_socket<Router> ram, rom;
+  SC_CTOR(Router) : up("up"), ram("ram"), rom("rom") {
+    up.register_b_transport(this, &Router::b_transport);
+  }
+  void b_transport(tlm::tlm_generic_payload& gp, sc_time& delay) {
+    // TODO：加 decode 延遲；依全域位址選 rom / ram / 錯誤；RAM 的位址要扣掉 base 再還原
+  }
+};
+
+struct Init : sc_module {                        // 已給，不要改
+  tlm_utils::simple_initiator_socket<Init> socket;
+  SC_CTOR(Init) : socket("socket") { SC_THREAD(run); }
+  void go(const char* label, tlm::tlm_command c, sc_dt::uint64 a, unsigned char* buf) {
+    tlm::tlm_generic_payload gp;
+    sc_time d = SC_ZERO_TIME;
+    gp.set_command(c); gp.set_address(a); gp.set_data_ptr(buf); gp.set_data_length(4);
+    socket->b_transport(gp, d);
+    cout << label << ": " << gp.get_response_string() << " delay=" << d
+         << " addr=0x" << std::hex << gp.get_address() << std::dec
+         << " data=" << (int)buf[0] << (int)buf[3] << endl;
+  }
+  void run() {
+    unsigned char b[4] = {1, 2, 3, 4}, r[4] = {0, 0, 0, 0};
+    go("W ram 0x1010", tlm::TLM_WRITE_COMMAND, 0x1010, b);
+    go("R ram 0x1010", tlm::TLM_READ_COMMAND, 0x1010, r);
+    go("W rom 0x0010", tlm::TLM_WRITE_COMMAND, 0x0010, b);
+    go("R rom 0x0010", tlm::TLM_READ_COMMAND, 0x0010, r);
+    go("R 0x2000", tlm::TLM_READ_COMMAND, 0x2000, r);
+  }
+};
+
+int sc_main(int, char**) {                       // 已給，不要改
+  Init i("i");
+  Router rt("rt");
+  Memory ram("ram", false, sc_time(10, SC_NS), sc_time(5, SC_NS));
+  Memory rom("rom", true, sc_time(10, SC_NS), sc_time(5, SC_NS));
+  i.socket.bind(rt.up);
+  rt.ram.bind(ram.socket);
+  rt.rom.bind(rom.socket);
+  sc_start();
+  return 0;
+}
+```
+
+**期望輸出**（五行，全部符合才算通過）
+
+```
+W ram 0x1010: TLM_OK_RESPONSE delay=7 ns addr=0x1010 data=14
+R ram 0x1010: TLM_OK_RESPONSE delay=12 ns addr=0x1010 data=14
+W rom 0x0010: TLM_COMMAND_ERROR_RESPONSE delay=2 ns addr=0x10 data=14
+R rom 0x0010: TLM_OK_RESPONSE delay=12 ns addr=0x10 data=00
+R 0x2000: TLM_ADDRESS_ERROR_RESPONSE delay=2 ns addr=0x2000 data=00
+```
+
+（以上期望輸出是用一份自己寫的參考實作跑出來的，該實作**不附在這裡**。）
+
+**提示**（一次只開一個）
+
+<details>
+<summary>提示 1：Router 的位址判斷</summary>
+
+先用 `gp.get_address()` 讀全域位址，判斷落在哪個範圍。只有需要轉送時才改位址。回來時的還原要在 `b_transport` 返回前做。
+
+</details>
+
+<details>
+<summary>提示 2：Memory 的範圍檢查</summary>
+
+檢查的是「位址 + 長度」是否超過 4096，不只是位址。注意 `gp.get_data_length()` 的型別是 unsigned。
+
+</details>
+
+<details>
+<summary>提示 3：delay 與 status 的順序</summary>
+
+每一層都是把自己的延遲加進同一個 `delay`。注意錯誤路徑的檢查要放在加延遲之前，否則 `W rom` 那行會多出 5 ns。
+
+</details>
+
+<details>
+<summary>提示 4：偵錯方法</summary>
+
+如果某行印出 `TLM_INCOMPLETE_RESPONSE`，代表那條路徑沒有設定 status（MC3）。如果 RAM 的資料不對，先看寫入時位址有沒有扣 base（MC7、T8）。
+
+</details>
+
+**驗收後的延伸**：把 Memory 改成回傳 `TLM_BURST_ERROR_RESPONSE`，當 `gp.get_streaming_width()` 不等於 data length（T6）。
+
+### E2：三種存取方式的模擬時間〔L3〕（對應下一輪清單第 3 條）
+
+**規格**
+
+- Initiator 做 1000 次 4-byte READ，第 i 次（從 0 開始）的位址是 `4 × (i mod 1000)`，都在 4 KB 之內。
+- Target 的 `b_transport` 加 10 ns；`get_direct_mem_ptr` 給整塊 4 KB 的指標，READ 權限，讀延遲 5 ns，回傳 true。
+- 全域 quantum 設為 100 ns。
+- 程式用命令列參數選模式：
+  - `0`：每次 `b_transport` 之後都 `wait(delay)`，delay 每次從 `SC_ZERO_TIME` 開始。
+  - `1`：用 `tlm_quantumkeeper`。每次 `b_transport` 的 delay 都從 `qk.get_local_time()` 開始，回來後 `qk.set(delay)`，超過 quantum 才 sync。
+  - `2`：第一次 `b_transport` 的做法同模式 1（也經過 quantum keeper）；之後用 DMI 直接讀 memory，讀延遲用 `qk.inc()` 加進 quantum keeper。
+- 結束時印出 `mode=… end=… waits=… transports=… dmi_reads=…`。`end` 是 `qk.get_current_time()`（模式 0 時和 `sc_time_stamp()` 相同）。`waits` 是每次 `wait` 或 `sync()` 的次數（`sync()` 內含一次 `wait`，算一次）。
+
+**骨架**（Target 與 Cpu 的 TODO 你來寫，sc_main 已給）
+
+```cpp
+#include <systemc>
+#include <tlm>
+#include <tlm_utils/simple_initiator_socket.h>
+#include <tlm_utils/simple_target_socket.h>
+#include <tlm_utils/tlm_quantumkeeper.h>
+#include <cstring>
+#include <cstdlib>
+using namespace sc_core;
+using std::cout;
+using std::endl;
+const int N = 1000;
+
+struct Target : sc_module {
+  tlm_utils::simple_target_socket<Target> socket;
+  unsigned char mem[4096];
+  SC_CTOR(Target) : socket("socket") {
+    memset(mem, 0x5a, sizeof mem);
+    socket.register_b_transport(this, &Target::b_transport);
+    socket.register_get_direct_mem_ptr(this, &Target::get_dmi);
+  }
+  void b_transport(tlm::tlm_generic_payload& gp, sc_time& delay) {
+    // TODO：搬資料、加 10 ns、設 OK、DMI 提示設 true
+  }
+  bool get_dmi(tlm::tlm_generic_payload&, tlm::tlm_dmi& d) {
+    // TODO：指標、範圍、READ 權限、讀延遲 5 ns；回傳 true
+    return false;
+  }
+};
+
+struct Cpu : sc_module {
+  tlm_utils::simple_initiator_socket<Cpu> socket;
+  tlm_utils::tlm_quantumkeeper qk;
+  int mode = 0;
+  int waits = 0, transports = 0, dmi_reads = 0;
+  SC_CTOR(Cpu) : socket("socket") { SC_THREAD(run); }
+  void run() {
+    // TODO：依 mode 實作三種存取；注意 quantum keeper 要先 reset()
+    cout << "mode=" << mode << " end=" << qk.get_current_time()
+         << " waits=" << waits << " transports=" << transports
+         << " dmi_reads=" << dmi_reads << endl;
+  }
+};
+
+int sc_main(int argc, char** argv) {             // 已給，不要改
+  int m = argc > 1 ? atoi(argv[1]) : 0;
+  tlm_utils::tlm_quantumkeeper::set_global_quantum(sc_time(100, SC_NS));
+  Cpu c("c");
+  Target t("t");
+  c.mode = m;
+  c.socket.bind(t.socket);
+  sc_start();
+  return 0;
+}
+```
+
+**期望輸出**（分別執行 `./e2 0`、`./e2 1`、`./e2 2`）
+
+```
+mode=0 end=10 us waits=1000 transports=1000 dmi_reads=0
+mode=1 end=10 us waits=100 transports=1000 dmi_reads=0
+mode=2 end=5005 ns waits=50 transports=1 dmi_reads=999
+```
+
+（同樣是參考實作的輸出，實作不附。）
+
+**提示**（一次只開一個）
+
+<details>
+<summary>提示 1：模式 0</summary>
+
+每次 `b_transport` 前把 `delay` 設為 `SC_ZERO_TIME`，之後 `wait(delay)`，並把 `waits` 加 1。注意 `delay` 是 in/out，要用同一個變數接住 target 加的延遲。
+
+</details>
+
+<details>
+<summary>提示 2：模式 1 的寫法</summary>
+
+參考教學導讀 T3 的迴圈：`d = qk.get_local_time()`、`b_transport(gp, d)`、`qk.set(d)`、`need_sync` 時 `sync()`。`sync()` 會 `wait`，記得把它算進 `waits`。
+
+</details>
+
+<details>
+<summary>提示 3：模式 2 的 DMI</summary>
+
+第一次 `b_transport` 之後用 `get_direct_mem_ptr` 拿 DMI，**檢查回傳的 bool**（MC47）。之後每次讀取做 `memcpy`，然後 `qk.inc(讀延遲)`，檢查 `need_sync`。注意 DMI 讀取沒有經過 `b_transport`，所以 target 的 10 ns 不會再加進來。
+
+</details>
+
+<details>
+<summary>提示 4：數字對不上時</summary>
+
+- 模式 1 的 `end` 應該是 10 us（1000 × 10 ns），因為 `end` 用 `get_current_time()`，會把剩餘的 local time 算進去；如果不是，先看有沒有忘了 `reset()`（MC9）。
+- 模式 2 的 `end` 應該比 1000 × 10 ns 小很多，因為 DMI 讀只加 5 ns。
+- 印出時一定要用 `get_current_time()`，不要用 `sc_time_stamp()`（MC11）。
+
+</details>
 
 ---
 
@@ -2859,6 +4532,35 @@ initiator 一定要檢查 `trans.is_response_error()`。注意它的實作是 `r
    - 實測：`grep -rni checker src include examples` 只有 `examples/tlm/common/src/lt_dmi_initiator.cpp:39` 一則註解 `TLM2.0 checker.`，沒有 checker 元件。
    - 改了什麼：改為「2.3.3 未附 protocol checker」，並附搜尋範圍與那則註解。
 
+5. **`reset()` 的範圍（Q8 第 5 題）**
+   - 原敘述：「放回 pool 前通常呼叫 `reset()`，它會清掉 extension，但不會重設 address、command 這些欄位」。
+   - 實測（2026-11-05，MC39）：用 `set_extension` 手動掛上的 extension，`reset()` 之後仍然取得到（`ext_kept=1`）；command、address、data length、response status 都保留（`status=TLM_OK_RESPONSE`）。
+   - 原始碼：`src/tlm_core/tlm_2/tlm_generic_payload/tlm_gp.cpp:128-132`（`reset()` 只設 `m_gp_option`，並呼叫 `m_extensions.free_entire_cache()`）；`include/tlm_core/tlm_2/tlm_generic_payload/tlm_array.h:102-111`（`free_entire_cache()` 只走訪 `m_entries`，而 `m_entries` 只由 `set_auto_extension` 的 `insert_in_cache` 填入）。
+   - 改了什麼：Q8 第 5 題改為「只釋放 auto extension」，並補上 response status 等欄位保留的說明。MC39 與教學導讀 T1 是這個結論的題目與範例。
+
+
+### 補充驗證紀錄（2026-11-05）
+
+- 測試程式放在 scratchpad 的 `tlm` 子目錄（不在 repo 裡）。編譯指令同上方，`-I` 指向 `~/cpp_practice/side_project/uArch/systemc-2.3.3/include`。
+- 方式：從這份檔案抽出 MC37–MC53 與教學導讀的程式碼，補上開頭，編譯、執行，與答案（或該段的 `text` 輸出區塊）逐行比對。MC38 的四個選項各自單獨編譯；E1、E2 的骨架單獨編譯，參考實作的輸出只用來當作期望輸出，實作本身不附在 repo。
+- 原始碼核對（SystemC 2.3.3）：
+  - MC39、MC40、MC41、事實修正 5：`tlm_gp.cpp`（`reset`、`deep_copy_from`、`set_extension`、`~tlm_generic_payload`）、`tlm_array.h`（`free_entire_cache`）、`tlm_gp.h`（`tlm_extension_base::free()` 預設是 `delete this`，第 60 行）。
+  - MC42–MC44、MC51、MC52：`tlm_utils/tlm_quantumkeeper.h`（`need_sync` 是 `>=`、`set_and_sync` 是絕對值、`compute_local_quantum` 是 virtual，第 160 行）。
+  - MC37：`tlm_2_interfaces/tlm_dmi.h` 的 `dmi_access_e`。
+  - MC45、MC48：`tlm_2_interfaces/tlm_fw_bw_ifs.h`（transport_dbg 的回傳值規則與「不能 wait／notify」的註解）。
+  - MC47：`tlm_utils/simple_target_socket.h:363-366`（沒有 callback 時的 fallback：`allow_read_write()`，回傳 false）。
+  - MC38：`tlm_phase.h:46`（`tlm_phase(unsigned int)` 建構子，註解 "should be dropped"）。
+  - T6：`tlm_gp.h:113`（`TLM_BYTE_ENABLED 0xff`）、`tlm_gp.cpp:241`（`m_byte_enable[i % m_byte_enable_length]`）、`examples/tlm/common/src/memory.cpp:104-108`（byte enable 與 streaming width 的檢查）。
+  - T9：`tlm_endian_conv.h` 的 `tlm_to_hostendian_word`／`tlm_from_hostendian_word`，以及檔頭註解（to_ 在交易建立時呼叫、from_ 在完成時呼叫、template 與 bus 寬度要一致）；呼叫點 `examples/tlm/lt_mixed_endian/src/me_traffic_generator.cpp`。
+  - T10：`examples/tlm/lt_extension_mandatory/src/lt_target_extension_mandatory.cpp`（`not present - ERROR`）；TLM 相關的 `include/tlm*`、`src/tlm*` 裡沒有 "ignorable" 或 "mandatory" 這兩個字（`include/sysc/datatypes/bit/sc_bit.h` 的 MANDATORY 與 TLM 無關）。
+  - Q10、T2：`tlm_utils/` 裡沒有 `passthrough_initiator_socket.h`，bus 下游用的是 simple 或 `multi_passthrough_initiator_socket.h`；`simple_target_socket_tagged` 第二次 bind 報 `E109: 2 binds exceeds maximum of 1`（本機實跑）；`examples/tlm/common/include/models/SimpleBusLT.h:36-51` 用 tagged 陣列。
+- 沒有核對或沒有實跑的部分（照實標示）：
+  - IEEE 1666 的條文：本機沒有標準原文。在 `~` 與 Documents 下（深度 6 以內）找不到 IEEE 1666 PDF；`GitHub/systemc-3.0.2` 是另一個版本，這次沒有拿來當依據。所以 ignorable／mandatory extension、phase 方向規則、`TLM_UPDATED` 合法組合等，都只依範例與實跑寫，沒有寫條號。
+  - `tlm_to_hostendian_word` 與 `tlm_from_hostendian_word` 的 round trip：只依標頭註解，沒有實跑。
+  - `TLM_UPDATED` 但 phase 沒有推進（不合法組合）的行為：沒有實跑，沒有加題。
+  - MC48 的 `SC_METHOD` 呼叫情況：沒有實跑，答案裡已註明。
+
+
 ---
 
 ## 下一輪可以加考的題目
@@ -2866,3 +4568,17 @@ initiator 一定要檢查 `trans.is_response_error()`。注意它的實作是 `r
 - AT 細節（選擇題 MC23–MC36 已涵蓋 phase 方向、`tlm_sync_enum`、return path、PEQ）：口述版還沒考，要能不看筆記畫出一筆 AT READ 的四個 phase 時序，標出每一步是 fw 還是 bw、回傳哪個 `tlm_sync_enum`。
 - `TLM_COMPLETED` 提前結束的情境：什麼樣的 target 會直接回 `TLM_COMPLETED`？（MC18、MC34 已有實跑例子，口述時要能講出理由。）
 - 實作驗證：用 C++ 練習第 4 步寫一個 initiator/target，分別量「每筆 `wait`」、「加 quantumkeeper」、「加 DMI」三種的模擬時間。
+
+**2026-11-05 狀態更新**：以下三條原題保留，處理方式如下。
+
+- 上面第 1 條（AT 細節）→ 已由 Q14 第 1 題處理，口述還沒考。
+- 上面第 2 條（`TLM_COMPLETED` 提前結束）→ 已由 Q14 第 2 題處理，口述還沒考。
+- 上面第 3 條（實作驗證三種時間）→ 已由手寫練習 E2 處理（參考輸出已核對），還沒寫。
+
+新的待辦：
+
+- 口述 Q9–Q15 還沒考。
+- 手寫練習 E1（router + 兩個 memory target）：Alan 寫完後貼上來 review。
+- endian helper（`tlm_to_hostendian_word` / `tlm_from_hostendian_word`）的 round trip 還沒實跑（見上方「補充驗證紀錄」）。
+- `TLM_UPDATED` 但 phase 沒有推進（不合法組合）的行為：還沒實跑，還沒加題。
+- IEEE 1666 條文（ignorable／mandatory extension、phase 方向規則）：找到標準原文後再補條號與題目。
