@@ -42,6 +42,7 @@ C++14 要會的差異：`std::make_unique`（以及為什麼不直接 `new`）�
 - 教材：*Effective Modern C++* 第 4 章（smart pointers）、第 5 章（move）、第 6 章（lambda）；細節查 cppreference 的 C++14 頁面。
 - SystemC 3.0 要求 C++17。面試時若得知對方用 3.0，再花約半天看 `std::optional`、structured bindings、`if constexpr`。
 - 若向 HR 確認技術面有手寫 coding，練習量要增加，並與第 10 項一起練。
+- 2026-11-09 起的題型比例（Alan 自己選的）：約 80% 選擇題（每題附一句理由），約 20% 是口述加手寫。手寫只排三個約 10 分鐘的短題，依序是 `study/cpp11-14-quiz.md` 的 L2-4（Rule of Zero，對應上表步驟 2）、C1 `Buffer` 10 分鐘版（步驟 1 的核心）、Q20 `my_make_unique`。上表步驟 3、4 和各題庫的 E1／E2／EX-1／EX-2 先列為選做。風險已經告訴他了：手寫練得少，白板題可能會卡住。HR 若確認有手寫，就照上一條加量。
 
 ## 缺口統計（對應上表）
 

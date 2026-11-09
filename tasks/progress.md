@@ -1,6 +1,33 @@
 # Progress
 
 ## Done
+- 2026-11-10：派三個唯讀 subagent 審查 2026-11-09 改好的選擇題，各負責一份檔案，用原始碼核對並實跑。發現的問題都已修正，紀錄寫在各檔尾「Agent 審查修正（2026-11-10）」：
+  - **SystemC**：抓到一個舊錯誤「`SC_CTHREAD` 在初始化時執行」。實際上 `m_dont_init = true`，0 s 那次是被 clock 的 0 s posedge 叫醒的。T4、MC27、L2-5-a、EX-2 已一起改正。
+  - **C++**：
+    - L1-3-d 的 SSO 門檻改成 15／16 個字元。
+    - Q7-c 答案改成 C、D。
+    - L1-2 題幹的「都能編譯」改正。
+    - Q16-c 補上 `main`。
+    - Q20 統一用 `my_make_unique` 這個名稱。
+    - L2-4、E1、E2 的提示改成折疊；E2 不再直接給出 `allows` 的寫法。
+  - **TLM**：
+    - 驗證紀錄裡有三處選項字母，在打亂選項後過時了，已更正。
+    - `ver_pool` 的引用改正。
+    - 四處措辭太強，已放寬。
+- 2026-11-09: 三份題庫依 Alan 選的比例改題型：約 80% 選擇題加一句理由，約 20% 口述加手寫。
+  - **改成選擇題的題目**：L1–L2 題，以及大部分 L3–L4 問答題，拆成子題（`Q11-a`、`L2-1-a`），每題都有〔單選〕或〔複選〕標記、一行「理由」、一個「答案＋理由要點」。原本的參考答案保留成「完整解說」。
+    - TLM：Q3、Q4、Q6–Q15，共 41 個子題。
+    - SystemC：L1-1～L2-6、L3-2～L3-4，共 34 個子題。
+    - C++：L1-1～L2-3、Q1–Q16、Q18、Q19、Q21，共 77 個子題。另外新增兩個複習弱點的子題：L1-1-d（`auto` 與頂層／底層 const）、L1-3-d（SSO）。
+  - **保留〔口述〕**：C++ Q17、Q22、C2；SystemC L3-1、L4-1、L4-2；TLM Q1、Q2、Q5、Q7-d。
+  - **〔手寫〕輪替**：L2-4 → C1 `Buffer` 10 分鐘版（新骨架和測試）→ Q20 改成手寫 `my_make_unique`（新骨架和測試）。
+  - **〔選做〕**：C++ E1／E2、SystemC EX-1／EX-2、TLM E1／E2。
+  - **作答規則**：每份 MC 段開頭都加了「作答規則」。
+  - **驗證**：新加的行為說法都在本機用 g++ 11、SystemC 2.3.3 實測，C1 和 Q20 的骨架用 scratchpad 裡的參考解驗證過（參考解不進 repo）。紀錄在各檔最後的「選擇題化驗證紀錄（2026-11-09）」。
+  - **選項平衡**：用 session scratchpad 裡的一次性腳本平衡正確選項的位置。腳本已經跟著 session 消失，以後要用就重寫：交換兩個選項的內容，同時把答案區裡的字母引用一起換掉。
+  - **刪掉的原子題**：C++ L1-3 第 1 題（用一句話說明左值與右值，Q4-a 部分涵蓋）、Q15 第 2 題（寫一個 mask 範例）。
+  - **原題號引用**：舊的「第 n 小題」引用已改成子題編號（例如 Q3-c、Q6-d、Q14-a）。
+  - **其他同步**：`CLAUDE.md` Study mode 第 2、4 條與 Layout 的 `study/` 一行、`tasks/learning-plan.md` 第 1 項練習方式也一起更新。
 - 2026-11-09: 第二次 study mode session 的複習輪（C++，三題，用 g++ 驗證）。`auto` 與 const：`auto b = cr` 答成 `const int`（應為 `int`）、`const int* const p; auto q = p;` 答成 `const int* const`（應為 `const int*`），連續兩輪沒穩。`std::string` move 後答成 `nullptr`（應為有效但未指定，libstdc++ 為空字串）、短字串位址答「相同」但理由是「複製」（自相矛盾，實測不同）。`unique_ptr` move 後 `p.get()` 答對 `nullptr`，null vs dangling 補了差別，算修好。結果記在 `study/cpp11-14-quiz.md`「第二次複習輪（2026-11-09）」。L2-4 仍未交稿。
 - 2026-11-05: `CLAUDE.md` Study mode 新增第 7 條：貼來的 LeetCode 等題目連結用 hint ladder 漸進帶領（先讓使用者試、review C++、之後才給參考解）。
 - 2026-11-05: 第一次 study mode session 的複習輪（C++，三題）：`auto` 與頂層/底層 const、`std::move` 與 SSO、`unique_ptr` move 後。三塊都還沒穩：`auto& b = ci` 漏 `&`、`auto c = cr` 答成 `int&`、`const int*` 的 `auto` 答成 `int*`；仍答「move address」、短字串 move 位址答成相同；`p.get()` 答成 UB、把 null 說成 dangling。結果記在 `study/cpp11-14-quiz.md`「口頭練習紀錄」的「複習輪（2026-11-05）」。同 session 後續已教並考 G1（lambda `[=]`/`this`）、G2（`shared_ptr` 循環與 `weak_ptr`）：觀念大致過，小錯在 `this` 捕獲的 const 語意、抄範例變數名、`weak_ptr::lock()` 的設計理由；結果記在同一個「複習輪」段。再教並考 G3（Rule of Zero）：move 沒生成的因果鏈、`= default` 修法都過（修法二經兩層提示才寫出 `D(D&&) = default;`）。L2-4（RegBank 改 Rule of Zero）已出題，使用者尚未交稿，是下次起點。另：使用者問輸入框灰色建議文字怎麼關（`/config` 的 Prompt suggestions，設定名稱未查證）。
@@ -35,7 +62,7 @@
   - 使用者要依序做新題：C++ 第零模組 L1→L2（L2-4 要自己寫並貼來 review），SystemC 核心 L1→L4；L3-1、L4-1 第 3 點要用自己的案例回答，不要替使用者編。
   - C++11/14 考題已整理完畢（`study/cpp11-14-quiz.md`），進行題目演練並搭配 `tasks/learning-plan.md`「第 1 項：C++11/14 最小練習」的 4 步動手練習。
   - TLM-2.0 複習中：LT (`b_transport`)、Quantum (temporal decoupling)、DMI。2026-10-20 口試已過一輪（見 Done），剩下補每個概念的具體情境，並用 C++ 練習第 4 步實作驗證。
-- 向 HR 確認技術面形式：是否有手寫 coding、題型（C/C++ 基礎、演算法、bit 操作）、是否以英文進行。結果決定 `tasks/learning-plan.md` 第 10 項與 C++11/14 最小練習的練習量。投遞後才能確認。
+- 向 HR 確認技術面形式：是否有手寫 coding、題型（C/C++ 基礎、演算法、bit 操作）、是否以英文進行。結果決定 `tasks/learning-plan.md` 第 10 項與 C++11/14 最小練習的練習量。投遞後才能確認。**若確認有手寫**：題型比例要從 80/20 調高手寫比例，E1／E2／EX-1／EX-2 排回輪替，並明確告訴 Alan（2026-11-09 他選 80/20 時已知道這個風險）。
 ## Blocked / open questions
 - simulation speed 案例：加速倍數忘記了，只確定有變快。可從舊 profiling 報告、commit 紀錄或同事回憶找數字；找不到就不寫數字。
 - 文件：只寫過 msg IP 的文件，平台層沒寫過（與先前「三種都寫過」對照，以此為準）。

@@ -2,7 +2,7 @@
 
 對應 `tasks/learning-plan.md` 的 TLM-2.0 項目，完成標準：能畫出 read/write 流程並解釋加速原理。
 
-用法：先讀「教學導讀」，再做選擇題（MC1–MC53，由淺到深，程式碼都能在本機跑；MC23 起是 AT 專題，MC37 起是 2026-11-05 補的題目），再做後面的口述題（Q1–Q15）與手寫練習（E1、E2）。口述題先只看題目，用講的方式回答（像在面試現場），講完再展開參考答案對照。每題最後的「上次的弱點」是 2026-10-20 第一次口試的紀錄；Q6–Q8 是之後補的，Q9–Q15 是 2026-11-05 補的，都還沒考過。
+用法：先讀「教學導讀」，再做選擇題（MC1–MC53，由淺到深，程式碼都能在本機跑；MC23 起是 AT 專題，MC37 起是 2026-11-05 補的題目），再做後面的深入題（Q1–Q15）。2026-11-09 起題型比例約 **80% 選擇題 + 20% 口述／手寫**：Q3、Q4、Q6–Q15 已改成選擇題（子題編號如 `Q4-b`，每題都要寫一句理由）；Q1、Q2、Q5 標〔口述〕，用講的回答（像在面試現場），講完再展開參考答案對照；手寫練習 E1、E2 是〔選做〕，不在預設輪替。每題最後的「上次的弱點」是 2026-10-20 第一次口試的紀錄；Q6–Q8 是之後補的，Q9–Q15 是 2026-11-05 補的，都還沒考過。
 
 情境題請用三段式回答：**元件 + 事件 + 軟體看到的現象**。
 
@@ -280,7 +280,7 @@ with byte enable, sw=4: TLM_BYTE_ENABLE_ERROR_RESPONSE
 
 ### T7　Response status 與錯誤處理
 
-這一塊的完整表格在 Q8 第 3 題；每個狀態的 `is_response_error()` 判斷見 MC2；忘了設 status 會變成 INCOMPLETE，也算錯誤（MC3）。只要記一條：**target 的每條路徑都要設 status，initiator 的每次呼叫都要檢查**。
+這一塊的完整表格在 Q8 的完整解說第 3 點（選擇題見 Q8-c）；每個狀態的 `is_response_error()` 判斷見 MC2；忘了設 status 會變成 INCOMPLETE，也算錯誤（MC3）。只要記一條：**target 的每條路徑都要設 status，initiator 的每次呼叫都要檢查**。
 
 ### T8　Address map 與 router
 
@@ -298,7 +298,7 @@ init addr=0x3000 status=TLM_ADDRESS_ERROR_RESPONSE delay=0 s
 
 1. 忘了改回位址：initiator 看到的位址就變了（MC7 第二段對照）。
 2. 每一層都要把自己的延遲加進同一個 `delay`；只有最後的 initiator 決定何時 `wait`（MC7）。
-3. 跨 target 邊界的交易怎麼處理，標準沒有規定，是實作選擇（Q6 第 4 題、Q13）。
+3. 跨 target 邊界的交易怎麼處理，標準沒有規定，是實作選擇（Q6-d、Q13-b）。
 4. 手寫練習 E1 就是這一題的完整版。
 
 ### T9　Endianness 與 host 順序
@@ -415,6 +415,13 @@ unknown Other only: TLM_COMMAND_ERROR_RESPONSE
 ## 選擇題：先建立直覺（MC1–MC53）
 
 單選題，由淺到深（L1 → L3）。做法跟其他兩份題庫一樣：先在紙上選，再展開看每個選項為什麼對或錯，最後挑幾題自己打進編譯器跑（編譯指令見下面，記得 `-std=c++11`）。
+
+**作答規則（2026-11-09 起，整份檔案的選擇題都適用，含後面 Q 系列改成的選擇題）：**
+
+1. 先選。標〔複選〕的題目可能有一個以上正確選項，要全部選出才算對。
+2. 寫**一句理由**，說出讓你選這個答案的那個事實或規則。
+3. 交出前自己檢查一次：**我的理由真的推得出我的選擇嗎？** 理由和結論對不上時，先改其中一個再交。
+4. 展開答案後，對照「理由要點」：選對但理由沒講到要點，算半對。
 
 本機 SystemC 2.3.3 的 library 是用 C++11 編的，編譯指令：
 
@@ -2882,7 +2889,7 @@ cmd=1 addr=0x10 len=4 status=TLM_OK_RESPONSE
 ptr_kept=1 ext_kept=1
 ```
 
-這題直接修正了 Q8 第 5 題的說法（見下方「事實修正 5」）：`reset()` 不會清掉手動掛的 extension。要清要自己 `clear_extension`。
+這題直接修正了 Q8 第 5 題（現為 Q8-e）的說法（見下方「事實修正 5」）：`reset()` 不會清掉手動掛的 extension。要清要自己 `clear_extension`。
 
 </details>
 
@@ -3644,13 +3651,17 @@ leaving f() with extension still attached
 
 ---
 
-## 問答題（從這裡開始）
+## 深入題：選擇題（約 80%）與口述題（約 20%）（從這裡開始）
 
-下面是 Q1–Q8 的口述與情境題，要用講的回答。選擇題熟了再做這一段。
+選擇題熟了再做這一段。題號與原本相同，方便對照練習紀錄與教學導讀的「見 Qn」。
+
+- **選擇題**（Q3、Q4、Q6–Q15）：每個子題（如 `Q4-b`）依上方「作答規則」作答：選、寫一句理由、自己檢查理由推不推得出選擇。子題的「答案」給正確選項、每個錯誤選項的原因與理由要點；整題的「完整解說」放在最後，選完再看。
+- **〔口述〕**（Q1、Q2、Q5，以及 Q7-d）：面試常見的開放題，用講的回答，情境題用三段式（元件 + 事件 + 軟體看到的現象）。
+- **〔選做〕手寫練習**（E1、E2）：不在預設輪替；若確認技術面試有手寫題，再排進來。
 
 ---
 
-## Q1：一筆 READ 的完整路徑
+## Q1：一筆 READ 的完整路徑〔口述〕
 
 在 LT 模式下，CPU（initiator）透過 bus（interconnect）讀 memory（target）的某個位址。
 
@@ -3697,7 +3708,7 @@ initiator。兩種做法：
 - (a) 立刻 `wait(delay)`：簡單，但每筆 transaction 都 context switch 一次。
 - (b) 累加到 local time，超過 quantum 才 `sync()`：temporal decoupling（見 Q3）。
 
-target 在 `b_transport` 裡 `wait` 是規範允許的。一般 LT target 不這樣做，因為會打斷 initiator 的時間累加、拖慢速度；但也正因為它會讓 initiator 在這裡同步，有時被刻意用來強制 sync（見 Q3 第 3 小題）。
+target 在 `b_transport` 裡 `wait` 是規範允許的。一般 LT target 不這樣做，因為會打斷 initiator 的時間累加、拖慢速度；但也正因為它會讓 initiator 在這裡同步，有時被刻意用來強制 sync（見 Q3-c）。
 
 **30 秒版本（背到能直接講）：**
 「initiator 建 payload（command、address、data ptr、length、response 設 INCOMPLETE）→ 呼叫 `b_transport(trans, delay)` → bus decode 並改 address、加 bus delay → target memcpy、加存取延遲、設 OK → 一路 return → initiator 檢查 response，然後 `wait(delay)` 或累加進 quantum。」
@@ -3708,7 +3719,7 @@ target 在 `b_transport` 裡 `wait` 是規範允許的。一般 LT target 不這
 
 ---
 
-## Q2：LT vs AT
+## Q2：LT vs AT〔口述〕
 
 1. AT 跟 LT 在介面上差在哪？用的是哪個函式、有哪幾個 phase？
 2. 什麼樣的建模需求一定要用 AT，LT 做不到？請舉一個具體例子。
@@ -3747,12 +3758,80 @@ target 在 `b_transport` 裡 `wait` 是規範允許的。一般 LT target 不這
 
 ## Q3：quantum 的代價
 
-1. quantum 設太大會出什麼錯？請舉一個具體情境：哪兩個元件、發生了什麼事、軟體看到什麼現象。
-2. quantum 設太小又會怎樣？
-3. 平台上有個元件必須很準時回應（例如 timer interrupt），但整體又想保持大 quantum，有什麼做法？
+#### Q3-a〔單選〕
+
+global quantum 是 1 µs。kernel 時間停在 t。DMA 應該在全域 t+300 ns 把資料寫進 buffer 並發 interrupt；CPU 的 local time 已經領先到 t+800 ns，此時讀這塊 buffer。CPU 最可能看到什麼？
+
+- A. 新資料，因為 DMA 的寫入時間 t+300 ns 早於 t+800 ns
+- B. 模擬器報錯，因為 CPU 的 local time 超過了 DMA
+- C. 舊資料；interrupt 要等 CPU 下次 `sync()` 才看得到，最多晚一整個 quantum
+- D. interrupt 準時進來，只有資料是舊的
+
+**理由（一句）：** ____
 
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**C。** CPU 只有在 `sync()` 時才把控制權交回 kernel。kernel 還停在 t，DMA 的 process 根本還沒跑，所以資料是舊的，interrupt 也要等到下次 sync 才看得到。
+
+- A 錯：「時間比較早」只在全域時間上成立，DMA 的 process 還沒被排程執行。
+- B 錯：temporal decoupling 本來就允許 initiator 領先，不會報錯。
+- D 錯：interrupt 一樣卡在 CPU 的 quantum 裡，不會準時。
+
+**理由要點：** CPU 在 quantum 內不回 kernel，所以 DMA 還沒執行，interrupt 最多延遲一個 quantum。
+
+</details>
+
+#### Q3-b〔單選〕
+
+把 quantum 縮到接近 0，會怎樣？
+
+- A. 時序更準，速度幾乎不變
+- B. DMI 指標會失效
+- C. 模擬會 deadlock
+- D. 幾乎每筆存取都要 sync，`wait` 與 context switch 變多，等於沒有 temporal decoupling
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**D。** quantum 是速度和時序準確度之間的取捨參數。縮到 0 就等於每筆都 sync。
+
+- A 錯：速度會掉回接近沒用 quantum 的水準。
+- B、C 錯：quantum 大小跟 deadlock、DMI 作廢都沒有關係。
+
+**理由要點：** quantum 越小 sync 越頻繁；趨近 0 就等於每筆都 `wait`。
+
+</details>
+
+#### Q3-c〔複選〕
+
+平台上的 timer interrupt 必須準時，但整體想保持大 quantum。哪些做法可行？
+
+- A. 每一筆一般 memory 存取之後都 sync
+- B. target 在自己的 `b_transport` 裡 `wait(delay)`
+- C. CPU 執行 WFI（wait for interrupt）時立即 sync
+- D. 覆寫 `compute_local_quantum()`，讓這個 initiator 用較小的 quantum
+- E. 存取 timer、interrupt controller 這類有副作用的 register 之前，先 `qk.sync()`
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**B、C、D、E。**
+
+- B 可行的原因：`b_transport` 跑在 initiator 的 thread 上，target 在裡面 `wait` 等於強迫 initiator 在這裡同步。
+- D：quantumkeeper 預設用全域 quantum，覆寫 `compute_local_quantum()` 可以讓個別 initiator 用較小的值（MC51）。
+- A 錯：這等於 quantum 設成 0，大 quantum 的速度優勢就沒了。只有存取有副作用的 peripheral 時才需要 sync。
+
+**理由要點：** 只在「需要準時的那個點」強迫同步，其他存取照樣累加 local time。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 **1. 太大**
 
@@ -3774,23 +3853,114 @@ target 在 `b_transport` 裡 `wait` 是規範允許的。一般 LT target 不這
 - CPU 執行 WFI（wait for interrupt）時立即 sync。
 - per-initiator quantum：quantumkeeper 預設用全域的 `tlm_global_quantum`，可以覆寫 `compute_local_quantum()` 讓個別 initiator 用較小的值。
 
-**接自己的案例：** 第 2 小題講完可以接「我在 msg IP 上做過類似取捨：原本每個 clock cycle 都 `wait`，改成較粗的 `wait(time, SC_MS)`，減少 scheduler 喚醒次數。」
+**接自己的案例：** Q3-b 講完可以接「我在 msg IP 上做過類似取捨：原本每個 clock cycle 都 `wait`，改成較粗的 `wait(time, SC_MS)`，減少 scheduler 喚醒次數。」
 
 </details>
 
-**上次的弱點：** 這題答得最好。可以補「最壞延遲 = 一個 quantum」這句量化說法，以及第 3 小題的具體實作方式。
+**上次的弱點：** 這題答得最好。可以補「最壞延遲 = 一個 quantum」這句量化說法，以及 Q3-c 的具體實作方式。
 
 ---
 
 ## Q4：DMI 的生命週期
 
-1. initiator 怎麼取得 DMI 指標？呼叫哪個函式、拿到哪些資訊？target 怎麼提示 initiator 可以申請 DMI？
-2. DMI 指標什麼時候必須作廢？請舉兩個具體情境。
-3. 作廢由誰發起？走哪條路徑、呼叫哪個函式？中間有 bus 時，bus 要做什麼？
-4. 用了 DMI 之後，時間（latency）要怎麼算？
+#### Q4-a〔複選〕
+
+關於「取得 DMI 指標」，哪些敘述正確？
+
+- A. initiator 呼叫 `get_direct_mem_ptr(trans, dmi_data)`，回傳 `bool` 表示 target 是否同意
+- B. target 給的範圍一定剛好等於 initiator 要求的範圍
+- C. target 在 `b_transport` 回應裡 `set_dmi_allowed(true)` 之後，initiator 必須立刻申請 DMI
+- D. `dmi_data` 帶回指標、位址範圍、讀寫權限、read/write latency
+
+**理由（一句）：** ____
 
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**A、D。**
+
+- C 錯：`set_dmi_allowed(true)` 只是提示，initiator 可以忽略。target 的義務是：同一位址、同一 command 的 DMI 請求會成功時，就**必須**把它設成 true。
+- B 錯：target 給的範圍可能比要求的大或小，權限也要用 `is_read_allowed()` 和 `is_write_allowed()` 檢查。
+
+**理由要點：** 一次呼叫拿回四樣東西（指標、範圍、權限、latency）；`dmi_allowed` 是提示，不是命令。
+
+</details>
+
+#### Q4-b〔複選〕
+
+哪些是**必須**作廢 DMI 指標的具體情境？
+
+- A. initiator 對同一個位址連續讀了 1000 次
+- B. debugger 在這段 memory 設了 watchpoint，target 要看到之後的每一次存取
+- C. Boot remap：bootloader 寫 remap register 之後，位址 0 從 boot ROM 改成 DRAM
+- D. TrustZone 或 MPU 的權限切換
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**B、C、D。**
+
+- C：CPU 手上的舊指標還指向 ROM，不作廢就會繼續從 ROM 抓指令。
+- B：DMI 存取繞過 `b_transport`，target 看不到存取，watchpoint 永遠不會觸發。
+- D：權限變了，舊指標的權限也跟著失效。
+- A 錯：存取次數多正是 DMI 的用途，不需要作廢。
+
+**理由要點：** 作廢的條件是「指標背後的對應關係或權限變了」，或「target 必須看到每一次存取」。上次只答到類別，這題練的是具體情境。
+
+</details>
+
+#### Q4-c〔單選〕
+
+作廢走哪條路？
+
+- A. target 呼叫 `invalidate_direct_mem_ptr(start, end)`，走 backward path；bus 把範圍轉成全域位址，並**廣播給所有 initiator**
+- B. initiator 呼叫 `invalidate_direct_mem_ptr`，走 forward path
+- C. target 呼叫，bus 只轉給上次拿過指標的那個 initiator
+- D. bus 在 invalidate 的 callback 裡立刻呼叫 `get_direct_mem_ptr` 重新申請
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**A。**
+
+- B 錯：發起者是 target，方向是 backward。
+- C 錯：bus 不知道哪些 initiator 拿著指標，安全的做法是廣播。
+- D 錯：在 `invalidate_direct_mem_ptr` 裡不可以直接或間接呼叫 `get_direct_mem_ptr`。
+
+**理由要點：** target 發起、backward path；bus 不記得誰拿了指標，所以只能廣播。
+
+</details>
+
+#### Q4-d〔單選〕
+
+initiator 用 DMI 讀了 1000 次，模擬時間怎麼算？
+
+- A. 不用算，DMI 存取不花時間
+- B. 每次存取把 DMI 的 read latency 加到 local time，照常 `qk.inc()` 並檢查 `need_sync()`
+- C. target 會在 `b_transport` 裡 `wait`，initiator 不用管
+- D. 每次存取後都 `wait(read latency)`
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**B。**
+
+- A 錯：latency 是 DMI 資料的一部分，要加。不加的話，純 DMI 的迴圈可能長時間不交出控制權。
+- C 錯：DMI 存取不經過 `b_transport`，target 沒有機會 `wait`。
+- D 錯：時間是對的，但每次都 `wait` 就失去 temporal decoupling 的速度。
+
+**理由要點：** DMI 不經過 target，所以時間由 initiator 自己加進 local time，並照常 sync。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 ```
 第一次：
@@ -3833,11 +4003,11 @@ target 呼叫 `invalidate_direct_mem_ptr(start, end)`，走 backward path。bus 
 
 </details>
 
-**上次的弱點：** 第 2 小題只答「memory map 改變、權限改變」，是類別不是情境；第 3 小題漏了「廣播給所有 initiator」。
+**上次的弱點：** 第 2 小題（現為 Q4-b）只答「memory map 改變、權限改變」，是類別不是情境；第 3 小題（現為 Q4-c）漏了「廣播給所有 initiator」。
 
 ---
 
-## Q5：總結題（面試收尾常見）
+## Q5：總結題（面試收尾常見）〔口述〕
 
 「用一分鐘跟我講，LT、quantum、DMI 各自省掉了什麼成本？三個都開了，平台上還有哪些東西是準的、哪些不準？」
 
@@ -3875,13 +4045,101 @@ target 呼叫 `invalidate_direct_mem_ptr(start, end)`，走 backward path。bus 
 
 VDK 的 debugger 要顯示 memory 內容、修改某個 register。
 
-1. 這類存取應該走 `b_transport`、DMI 還是 `transport_dbg`？為什麼？
-2. `transport_dbg` 的函式簽名跟 `b_transport` 差在哪？回傳值代表什麼？
-3. target 實作 `transport_dbg` 時有哪些不能做的事？請用一個 peripheral register 舉具體情境。
-4. 中間有 bus 時，bus 要怎麼處理 `transport_dbg`？
+#### Q6-a〔單選〕
+
+debugger 要顯示 memory 內容、修改某個 register，應該走哪條路？
+
+- A. `b_transport`，因為它是一般功能存取
+- B. DMI，因為最快
+- C. `transport_dbg`
+- D. debugger 直接讀 target 的成員變數
+
+**理由（一句）：** ____
 
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**C。** debugger 的存取不能讓模擬時間前進、不能觸發硬體副作用，也不該被 bus 統計。
+
+- A 錯：`b_transport` 會累加 delay，也可能觸發 target 的行為。
+- B 錯：peripheral register 通常不給 DMI，而且 debugger 不一定在 initiator 的 process 裡執行。
+- D 錯：繞過 bus decode，debugger 就得自己知道每個 target 的內部結構。
+
+**理由要點：** `transport_dbg` 不計時間、不產生副作用，就是為 debugger 設計的。
+
+</details>
+
+#### Q6-b〔複選〕
+
+關於 `transport_dbg` 的簽名與回傳值，哪些正確？
+
+- A. 簽名是 `unsigned int transport_dbg(tlm_generic_payload&)`，沒有 `delay` 參數
+- B. 回傳值是實際讀寫的 byte 數
+- C. 回傳 0 代表成功
+- D. 要求 16 byte，但第 8 byte 就超出 target 的範圍，回傳 8
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**A、B、D。**
+
+- C 錯：回傳 0 代表 target 不支援，或位址無效。
+
+**理由要點：** 回傳的是「搬了幾個 byte」，所以 0 就是「一個都沒搬」。
+
+</details>
+
+#### Q6-c〔複選〕
+
+target 實作 `transport_dbg` 時，哪些事**不能**做？
+
+- A. 呼叫 `wait`
+- B. notify 一個 event 去觸發其他 process
+- C. 讀 UART RX FIFO 的 data register 時順便 pop 一筆資料
+- D. debug 寫入時修改 register 的內容
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**A、B、C。** 原始碼註解明訂：`transport_dbg` 不能有副作用、不能 `wait`、不能 notify event。
+
+- C：debugger 的畫面一刷新，就會把 FIFO 的資料吃掉，軟體接著會漏收資料。read-to-clear 的 interrupt status register 也是同一個道理。
+- D 可以做：debugger 改值本來就是要改內容。但改值不應觸發寫入的副作用，例如不應因此啟動 DMA。
+
+**理由要點：** 能改「值」，不能有「副作用」（時間、event、pop、clear）。
+
+</details>
+
+#### Q6-d〔單選〕
+
+中間有 bus 時，bus 怎麼處理 `transport_dbg`？
+
+- A. 不做 decode，廣播給所有 target
+- B. bus 不能轉送 `transport_dbg`，只有 initiator 直接接 target 時才能用
+- C. 跟 `b_transport` 一樣加 bus delay
+- D. 照樣 decode、把全域位址轉成 target 的本地 offset 再轉送；不加 delay、不做 arbitration、不算進統計
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**D。**
+
+- A 錯：廣播的話，多個 target 會同時回應。
+- C 錯：`transport_dbg` 沒有 `delay` 參數可加。
+- B 錯：bus 要轉送，位址轉換也照做。跨兩個 target 時，常見的做法是只送第一段，回傳值小於要求的長度（實作選擇）。
+
+**理由要點：** 位址轉換照做，時間與統計都不碰。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 **1. 走 `transport_dbg`**
 
@@ -3935,13 +4193,83 @@ debug **寫**可以改 memory 或 register 的內容（這是 debugger 改值的
 
 ## Q7：Socket 與 binding
 
-1. `simple_initiator_socket`、`simple_target_socket` 和最底層的 `tlm_initiator_socket`、`tlm_target_socket` 差在哪？為什麼大部分 model 用 simple socket？
-2. 一個 bus 要接 2 個 initiator（CPU、DMA）和 3 個 target，bus 上要用什麼 socket？callback 怎麼知道 transaction 是從哪一個 socket 進來的？
-3. 寫出 CPU → bus → memory 的 binding 程式碼。如果 target 沒有註冊 `get_direct_mem_ptr` 或 `transport_dbg`，被呼叫時會怎樣？
-4. 結合你自己的經驗：你把 fast model IP 接到 bus 時，IP 用的是哪種 socket？接在 bus 的哪裡？
+#### Q7-a〔複選〕
+
+simple socket 跟最底層的 `tlm_*_socket` 比，哪些敘述正確？
+
+- A. `passthrough_target_socket` 也會在 blocking 與 non-blocking 之間自動轉換
+- B. `simple_target_socket` 只要註冊需要的 callback，其他函式由 socket 提供預設行為
+- C. `simple_target_socket` 只註冊 `b_transport`，也能接受 AT initiator 的 `nb_transport_fw`
+- D. 底層的 `tlm_target_socket` 要求 module 自己實作 fw 介面的全部四個函式，用不到的也要寫空的
+
+**理由（一句）：** ____
 
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**B、C、D。**
+
+- C：socket 內部會 spawn 一個 thread 去呼叫 `b_transport`（MC28）。
+- A 錯：passthrough 不做轉換，缺少的 callback 會報 `SC_REPORT_ERROR`（事實修正 1）。
+
+**理由要點：** simple = 只註冊需要的 callback + 自動做 b/nb 轉換；passthrough 只轉送、不轉換。
+
+</details>
+
+#### Q7-b〔單選〕
+
+bus 要接 2 個 initiator（CPU、DMA）和 3 個 target。下面哪個做法能讓 callback 知道交易是從哪個 initiator 進來的？
+
+- A. 一個 `simple_target_socket`，在 callback 裡用 `trans.get_address()` 判斷來源
+- B. 一個 `simple_target_socket` bind 兩次
+- C. 用 `multi_passthrough_target_socket` 接所有 initiator、`multi_passthrough_initiator_socket` 接所有 target；callback 多一個 `int id` 參數
+- D. initiator 在 payload 的 address 高位元塞自己的編號
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**C。** multi socket 可以 bind 多次，`id` 是第幾個 bind 上來的 socket（MC16）。另一種可行的做法是 tagged socket 陣列，每個 initiator 一個（Q10、MC50）。
+
+- A 錯：address 說的是要去哪個 **target**，不是從哪個 initiator 來。
+- B 錯：simple socket 只能 bind 一次，第二次 bind 會在 elaboration 報錯（E109）。
+- D 錯：這樣會改到真正的位址。要帶這類資訊應該用 extension（Q8-d）。
+
+**理由要點：** 來源要靠「從哪個 socket 進來」分辨（multi 的 `id`，或 tagged 的 tag），不能靠 payload 內容。
+
+</details>
+
+#### Q7-c〔複選〕
+
+關於 binding，以及 target 沒註冊某些 callback 時的行為，哪些正確？
+
+- A. `cpu.socket.bind(bus.targ_socket); bus.init_socket.bind(mem.socket);`：一律由 initiator socket 去 bind target socket
+- B. passthrough target socket 只註冊了 `nb_transport_fw`，被 `b_transport` 呼叫時會自動轉換
+- C. simple target socket 沒註冊 `get_direct_mem_ptr` 時會回傳 `false`；沒註冊 `transport_dbg` 時會回傳 `0`
+- D. 沒有 bind 的 socket 在 elaboration 時就會報錯
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**A、C、D。**
+
+- D：socket 底層是 `sc_port`，預設 policy 是 `SC_ONE_OR_MORE_BOUND`。
+- C：simple、passthrough、multi_passthrough 三種都一樣。
+- B 錯：passthrough 不轉換，會報 `SC_REPORT_ERROR`（預設 action 是 throw）。只有 simple 會做 nb→b 轉換。
+
+**理由要點：** 沒註冊 DMI 或 dbg 時有安全的預設值（`false` 或 `0`）；沒註冊 transport 時，只有 simple 會幫你轉換。
+
+</details>
+
+#### Q7-d〔口述〕
+
+結合你自己的經驗：你把 fast model IP 接到 bus 時，IP 用的是哪種 socket？接在 bus 的哪裡？（沒有選項，用講的；記不清楚就照實說「透過 VDK 工具接到 bus」，不要猜細節。）
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 **1. simple socket vs 底層 socket**
 
@@ -3998,14 +4326,124 @@ bus.init_socket.bind(mem.socket);    // bus 的 initiator socket 綁到 memory
 
 ## Q8：Generic payload 進階
 
-1. byte enable 是什麼？initiator 要設定哪些欄位？什麼情境會用到？
-2. streaming width 是什麼？跟 data length 是什麼關係？什麼情境會用到？
-3. target 遇到不支援或錯誤的 transaction，應該回哪些 response status？請舉三個情境。initiator 收到錯誤時該怎麼辦？
-4. 想在 payload 帶 AXI 的 transaction ID 或 secure 位元這類 protocol 專屬資訊，要怎麼做？
-5. memory manager（`tlm_mm_interface`）是做什麼的？為什麼只用 `b_transport` 時常常可以不用，用 AT 時通常一定要？
+#### Q8-a〔複選〕
+
+關於 byte enable，哪些敘述正確？
+
+- A. 用 `set_byte_enable_ptr` 和 `set_byte_enable_length` 設定；`0xff` 表示這個 byte 要存取，`0x00` 表示不存取
+- B. byte enable 的長度必須等於 data length，否則報錯
+- C. byte enable 的長度比 data length 短時，pattern 會重複套用
+- D. 不使用時把指標設成 `0`
+
+**理由（一句）：** ____
 
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**A、C、D。**
+
+- C：原始碼用 `m_byte_enable[i % m_byte_enable_length]` 取值。
+- B 錯：同上，長度短是允許的。
+- 典型情境：CPU 對 32-bit register 只寫其中 1 個 byte（`strb`），其他 byte 不能被改到。
+
+**理由要點：** 每個 byte 對應一個 enable 值，取值時用取餘數的方式重複套用。
+
+</details>
+
+#### Q8-b〔單選〕
+
+initiator 新建一個 payload，設了 command、address、data ptr、data length = 8，但**沒設 streaming width**，送到 SystemC 2.3.3 範例的 memory target。這個 target 會檢查 `streaming_width != data_length`。結果是什麼？
+
+- A. `TLM_OK_RESPONSE`，因為 streaming width 預設等於 data length
+- B. `TLM_BURST_ERROR_RESPONSE`，因為 streaming width 預設是 0
+- C. `TLM_ADDRESS_ERROR_RESPONSE`
+- D. 編譯錯誤
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**B。** `tlm_generic_payload` 建構時 streaming width 是 **0**，不會自動等於 data length。
+
+- 一般的連續存取要把 streaming width 設成等於 data length。
+- 寫 FIFO 型 register 才會用比較小的值，例如 data length 64、streaming width 4。
+
+**理由要點：** 預設值是 0，跟 data length 不相等，所以範例 target 判定成 burst error。
+
+</details>
+
+#### Q8-c〔複選〕
+
+哪些「情境 → response status」配對正確？
+
+- A. target 不支援 byte enable，payload 卻帶了 byte enable → `TLM_BURST_ERROR_RESPONSE`
+- B. 寫入唯讀 register → `TLM_COMMAND_ERROR_RESPONSE`
+- C. 位址落在沒有 register 的空洞 → `TLM_ADDRESS_ERROR_RESPONSE`
+- D. target 忘了設 status，initiator 的 `is_response_error()` 回傳 `false`
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**B、C。**
+
+- A 錯：應該回 `TLM_BYTE_ENABLE_ERROR_RESPONSE`。burst error 是給 streaming width 用的。
+- D 錯：`is_response_error()` 的實作是 `status <= 0`，`TLM_INCOMPLETE_RESPONSE`（值為 0）也算錯誤。
+
+**理由要點：** 每種錯誤各有對應的 status；INCOMPLETE 也算錯誤，所以 target 一定要設 OK。
+
+</details>
+
+#### Q8-d〔單選〕
+
+想在 payload 帶 AXI transaction ID 或 secure 位元，應該怎麼做？
+
+- A. 繼承 `tlm_extension<T>`，實作 `clone()` 和 `copy_from()`，用 `set_extension` 附上、用 `get_extension` 取出
+- B. 修改 `tlm_generic_payload`，加一個欄位
+- C. 編碼進 address 的高位元
+- D. 借用 byte enable 陣列來帶
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**A。** 不認得這個 extension 的元件可以直接忽略它，所以不影響和其他 generic payload model 的互通。
+
+- B 錯：改了 generic payload 就跟別人的 model 不相容。
+- C、D 錯：都會改變原本欄位的語意。
+
+**理由要點：** extension 是附加在 payload 上的，不改動標準欄位，別人可以忽略。
+
+</details>
+
+#### Q8-e〔複選〕
+
+關於 memory manager（`tlm_mm_interface`），哪些敘述正確？
+
+- A. 只用 `b_transport` 時，payload 可以放在 stack 或成員變數上重複使用，常常不需要 memory manager
+- B. `reset()` 會把 command、address 等欄位清回預設
+- C. 沒設 memory manager 就呼叫 `acquire()` 也沒關係，只是不會計數
+- D. AT 的 payload 在 `nb_transport_fw` return 之後還在元件間傳遞，需要用 `acquire()`／`release()` 計數
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**A、D。**
+
+- C 錯：會觸發 assert（原始碼是 `sc_assert(m_mm != 0)`）。
+- B 錯：`reset()` 只釋放用 `set_auto_extension` 掛上的 extension；command、address、data length、response status 都會保留（MC39、事實修正 5）。
+
+**理由要點：** 交易在 return 時就結束 → 不需要計數；交易跨越 return → 要用計數決定何時回收。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 **1. byte enable**
 
@@ -4057,16 +4495,82 @@ initiator 一定要檢查 `trans.is_response_error()`。注意它的實作是 `r
 
 ## Q9：Payload 所有權與 AT pool〔L2〕
 
-1. AT 的 initiator 把 payload 放在哪裡？為什麼不能像 LT 那樣直接放在函式的堆疊上？
-2. 用 memory manager 時，`free()` 通常做哪兩件事？`reset()` 清掉什麼、沒清掉什麼？
-3. 具體 bug：target 把 payload 指標存下來，等下一個 phase 才用，但 initiator 已經 `release()` 把它還進 pool。會怎樣？怎麼防？
+#### Q9-a〔單選〕
+
+AT 的 initiator 通常把 payload 放在哪裡？
+
+- A. 發起交易那個函式的 stack 上，跟 LT 一樣
+- B. 每個 phase 都複製一份新的 payload 傳下去
+- C. 一個 static 全域 payload，所有交易共用
+- D. heap，交給 memory manager 管，用 `acquire()`／`release()` 計數
+
+**理由（一句）：** ____
 
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**D。**
+
+- A 錯：`nb_transport_fw` return 之後，payload 還在元件之間傳遞，函式的 stack 已經不在了（MC17 第一版會 segfault）。
+- C 錯：可能同時有好幾筆交易在進行中，共用一個 payload 會互相蓋掉。
+- B 錯：TLM 傳的是同一個 payload 的參考，各元件靠同一個物件溝通。
+
+**理由要點：** 交易的生命週期比發起它的函式長，所以 payload 不能放在那個函式的 stack 上。
+
+</details>
+
+#### Q9-b〔複選〕
+
+payload 放回 pool 前呼叫 `reset()`。`reset()` 實際做了什麼？
+
+- A. 把 command、address、data length 清回預設
+- B. 釋放用 `set_auto_extension` 掛上、交給 mm 管理的 extension
+- C. 用 `set_extension` 手動掛的 extension 指標保留不動
+- D. 把 response status 設回 `TLM_INCOMPLETE_RESPONSE`
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**B、C。**（另外會把 `m_gp_option` 設回預設。）
+
+- A、D 錯：這些欄位都保留。所以 pool 的 `free()` 只呼叫 `reset()` 不夠，下次使用前要把欄位全部重新設定，手動掛的 extension 也要自己清（事實修正 5、MC39）。
+
+**理由要點：** `reset()` 只處理 auto extension，其他欄位都不動。
+
+</details>
+
+#### Q9-c〔單選〕
+
+target 把 payload 指標存下來，打算等下一個 phase 再用；但 initiator 已經 `release()`，把它還進 pool。會怎樣？
+
+- A. 沒事，pool 會等 target 用完才回收
+- B. SystemC 會偵測到，並報 `SC_REPORT_ERROR`
+- C. 這是懸空指標（dangling pointer），屬於未定義行為：可能讀到別筆交易的資料、寫壞別人的 payload，或 crash
+- D. 指標會變成 `nullptr`，target 一用就 segfault，很容易發現
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**C。** 防法有兩種：target 存指標時就 `acquire()`、用完再 `release()`；或用協定約定只在 `END_RESP` 之後才回收（這是約定，SystemC 不會自動保證）。
+
+- A 錯：pool 只看計數。target 沒有 `acquire()`，計數就不會算到它。
+- B 錯：SystemC 不追蹤指標的生命週期。
+- D 錯：這是 null 跟 dangling 的混淆。存下來的指標值不會變，它指向的物件已經被回收或重用了，所以通常**不會**馬上 crash，反而更難發現。
+
+**理由要點：** 指標還指著原來的位址，但那塊記憶體已經被別人用了。這是 dangling，不是 null。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 **1.** AT 的 payload 在 `nb_transport_fw` 返回後還會在元件之間傳遞，而且同時可能有好幾筆在進行中，不能綁在某個函式的堆疊上。通常放在 heap，由 memory manager（`tlm_mm_interface`）管理，用 `acquire()` / `release()` 做 reference counting（T1、MC15、MC17）。
 
-**2.** `free()` 通常呼叫 `reset()` 再放回 pool（`ver_pool` 的寫法，見教學導讀 T1）。`reset()` 的實際範圍（事實修正 5、MC39）：
+**2.** `free()` 通常呼叫 `reset()` 再放回 pool（見教學導讀 T1 的 `Pool` 範例）。`reset()` 的實際範圍（事實修正 5、MC39）：
 
 - 會做的：釋放由 `set_auto_extension` 掛上、交給 mm 管理的 extension；把 `m_gp_option` 設回預設。
 - 不會做的：command、address、data length、response status 都保留；用 `set_extension` 手動掛的 extension 指標也保留。
@@ -4088,12 +4592,78 @@ initiator 一定要檢查 `trans.is_response_error()`。注意它的實作是 `r
 
 ## Q10：Socket 選擇與 bus 接線〔L2〕
 
-1. 一個 CPU（initiator）透過 bus 接兩個 memory。bus 的上游與下游各用哪種 socket？`passthrough` 和 `simple` 的差別是什麼？
-2. 一個 IP 有兩條 DMA 通道，各自是一個 initiator socket，都要接到同一個 module 的 target 側。要區分來源，你會用 tagged 還是 multi？為什麼？`id` 是誰決定的？
-3. `passthrough` 在 bus 裡為什麼不做 b / nb 轉換？如果 bus 上游只註冊了 nb，LT initiator 呼叫時會怎樣？
+#### Q10-a〔複選〕
+
+一個 CPU 透過 bus 接兩個 memory。哪些敘述正確？
+
+- A. 2.3.3 的範例 `SimpleBusLT.h`：上游用 `simple_target_socket_tagged` 陣列，下游用 `simple_initiator_socket_tagged` 陣列
+- B. bus 上游也可以改用 `passthrough_target_socket`
+- C. simple 和 passthrough 都會自動做 b／nb 轉換
+- D. passthrough 遇到缺少的 callback，會報 `SC_REPORT_ERROR`
+
+**理由（一句）：** ____
 
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**A、B、D。**
+
+- C 錯：只有 simple 會轉換（MC13、MC28），passthrough 只轉送。
+
+**理由要點：** simple 和 passthrough 的差別就在「轉不轉換」。
+
+</details>
+
+#### Q10-b〔單選〕
+
+一個 IP 有兩條 DMA 通道，各自是一個 initiator socket，要接到同一個 module 的 target 側，而且要能分辨來源。怎麼接？
+
+- A. tagged：兩個 target socket 各接一條通道，註冊時給不同的 id
+- B. tagged：一個 tagged socket bind 兩次，用 tag 分辨
+- C. multi：callback 的 `id` 固定對應到 initiator 的名字
+- D. simple：在 callback 裡用 `trans.get_address()` 分辨
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**A。**
+
+- B 錯：tagged socket 只能 bind 一次，第二次 bind 會報 E109（本機實跑）。
+- C 錯：multi 可以多次 bind，但 `id` 是**綁定順序**（MC16），不要依賴它對應到特定的名字。
+- D 錯：address 不代表來源。
+
+**理由要點：** tagged 的 id 是你註冊時自己指定的；multi 的 id 是 bind 的順序。
+
+</details>
+
+#### Q10-c〔單選〕
+
+bus 上游用 passthrough target socket，而且只註冊了 `nb_transport_fw`。LT initiator 呼叫 `b_transport` 時會怎樣？
+
+- A. passthrough 自動轉成 nb 呼叫
+- B. 編譯錯誤
+- C. 悄悄忽略，response 停在 INCOMPLETE
+- D. 報 `SC_REPORT_ERROR`
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**D。**（事實修正 1）passthrough 只轉送、不翻譯：bus 註冊了哪一種 callback，就只收得到那一種呼叫。下游 target 若只實作 nb，轉換由下游 target 自己的 simple socket 負責。
+
+- A 錯：那是 simple 的行為。
+- C 錯：不會悄悄忽略，會報錯。
+- B 錯：callback 是執行期才註冊的，所以這不是編譯錯誤。
+
+**理由要點：** passthrough 不轉換，缺 callback 就是執行期錯誤。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 **1.** 2.3.3 的範例 bus `examples/tlm/common/include/models/SimpleBusLT.h` 用的是 `simple_target_socket_tagged` 陣列（每個 initiator 一個 socket，`register_b_transport(this, ..., i)` 的 `i` 是索引，見第 36–51 行），下游是 `simple_initiator_socket_tagged` 陣列。`passthrough_target_socket` 是另一種選擇。兩者的差別在轉換行為：simple 會自動做 b / nb 轉換（MC13、MC28）；passthrough 不做轉換，缺少的 callback 會直接報 `SC_REPORT_ERROR`（事實修正 1）。
 
@@ -4109,12 +4679,76 @@ initiator 一定要檢查 `trans.is_response_error()`。注意它的實作是 `r
 
 ## Q11：Quantum keeper 的迴圈與 `need_sync`〔L3〕
 
-1. 寫出 LT initiator 的存取迴圈（5–10 行偽碼或 C++）：每次存取怎麼把 delay 交給 target、什麼時候 sync、sync 後做什麼。
-2. `need_sync()` 的判斷式是什麼？為什麼 `next_sync_point` 是絕對時間？
-3. 全域 quantum 改成 10 ns 之後，既有的 keeper 什麼時候才會用新值？
+#### Q11-a〔單選〕
+
+下面哪一段最符合 quantum keeper 的用法？（`qk.reset()` 已在 thread 開頭呼叫過）
+
+- A. `d = qk.get_local_time(); socket->b_transport(gp, d); if (qk.need_sync()) qk.sync();`
+- B. `d = SC_ZERO_TIME; socket->b_transport(gp, d); wait(d);`
+- C. `d = qk.get_local_time(); socket->b_transport(gp, d); qk.set(d); if (qk.need_sync()) qk.sync();`
+- D. 每次迴圈開頭都 `qk.reset()`，再 `b_transport`
+
+**理由（一句）：** ____
 
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**C。**
+
+- B 錯：時間是對的，但每筆都 `wait`，等於沒有 temporal decoupling。
+- A 錯：`d` 是副本，沒有 `qk.set(d)`，target 加進去的延遲就丟了。
+- D 錯：每次 `reset()` 都會把 local time 歸零、重算同步點，時間就累加不起來。
+
+**理由要點：** 把 local time 交給 target，target 加完後寫回 keeper，超過同步點才 sync。
+
+</details>
+
+#### Q11-b〔單選〕
+
+`need_sync()` 的判斷式是哪一個？
+
+- A. `sc_time_stamp() + local > next_sync_point`
+- B. `sc_time_stamp() + local >= next_sync_point`
+- C. `local >= quantum`
+- D. `sc_time_stamp() >= next_sync_point`
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**B。** 判斷是 `>=`（MC43）。`next_sync_point` 是 `reset()` 時算出的**絕對時間**（現在 + quantum），中間的 `wait` 不會更新它（MC52），所以同步點能對齊到全域時間的整數倍（MC10）。
+
+- A 錯：邊界是 `>=`，不是 `>`。
+- C 錯：比的不是 local 和 quantum，而是加總後的絕對時間和同步點。
+- D 錯：沒有把 local time 加進去。
+
+**理由要點：** 比的是「全域時間 + 領先量」和「絕對的同步點」，邊界含等號。
+
+</details>
+
+#### Q11-c〔單選〕
+
+模擬中途把全域 quantum 改成 10 ns。既有的 keeper 什麼時候開始用新值？
+
+- A. 下一次 `reset()` 或 `sync()` 時
+- B. 下一次 `need_sync()` 就會用
+- C. 要重新呼叫 `sc_start()` 才會用
+- D. 永遠不會，quantum 在 elaboration 時就固定了
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**A。** `compute_local_quantum()` 只在 `reset()`（`sync()` 內部也會呼叫 `reset()`）時被呼叫（MC44）。在那之前，`need_sync` 還是用舊的同步點判斷。
+
+**理由要點：** 同步點只在 `reset()` 時重算。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 **1.** 參考教學導讀 T3 的程式（已實跑，輸出 `syncs=2 now=100 ns local=0 s`）。骨架是：
 
@@ -4141,12 +4775,74 @@ loop:
 
 ## Q12：DMI 的權限、範圍與失敗〔L3〕
 
-1. target 只給 READ 權限的 DMI，initiator 想寫入怎麼辦？
-2. `get_direct_mem_ptr` 回傳 false 時，`dmi` 物件裡的範圍與權限是什麼？initiator 該看哪個值？
-3. 作廢只涵蓋一小段範圍，但 initiator 手上有一個跨越那段範圍的 DMI 區塊。依規範要怎麼處理？
+#### Q12-a〔單選〕
+
+target 只給了 READ 權限的 DMI，initiator 想寫入。怎麼辦？
+
+- A. 直接寫進 DMI 指標，權限只是建議
+- B. 改用 `transport_dbg` 寫
+- C. 用 WRITE command 再申請一次，一定會拿到 READ_WRITE
+- D. 這筆寫入改走 `b_transport`
+
+**理由（一句）：** ____
 
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**D。** `is_write_allowed()` 是 false 時，initiator 不能透過指標寫入（MC37）。
+
+- A 錯：granted access 就是 target 允許的存取種類，不是建議。
+- C 錯：target 不一定會給寫入權限。
+- B 錯：`transport_dbg` 是給 debugger 用的，不計時間、沒有副作用，不能拿來當功能性寫入。
+
+**理由要點：** 沒有寫入權限，就回到一般的 transport 路徑。
+
+</details>
+
+#### Q12-b〔單選〕
+
+`get_direct_mem_ptr` 回傳 `false`，但 `dmi` 物件裡寫的是「整個位址空間、READ_WRITE」（simple socket 沒註冊 DMI callback 時的 fallback）。initiator 該相信哪個？
+
+- A. `dmi` 的權限位元
+- B. 回傳的 `bool`
+- C. 兩個都要成立才算
+- D. 只看範圍
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**B。** 回傳 `false` 時，`dmi` 的內容是 fallback 填的，不代表 target 同意（MC47 實跑 `access=3`）。
+
+**理由要點：** 回傳 `false` 就代表沒有 DMI，`dmi` 物件裡的內容都不能用。
+
+</details>
+
+#### Q12-c〔複選〕
+
+target 作廢的範圍只是一小段，但 initiator 手上有一個跨越那段範圍的大 DMI 區塊。依 `tlm_fw_bw_ifs.h` 的規範，哪些正確？
+
+- A. initiator **必須**丟掉指向被作廢區域的指標
+- B. 作廢範圍沒有蓋滿整個區塊時，可以整塊保留
+- C. **建議**（不是強制）把整個有重疊的 DMI 區塊都丟掉
+- D. interconnect 要把範圍轉成全域位址，並廣播給所有可能拿著指標的 initiator
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**A、C、D。**
+
+- B 錯：被作廢的那一段一定要丟。只保留沒有重疊的部分是允許的。
+
+**理由要點：** 被作廢的範圍是必須丟的；整塊丟掉比較簡單，但只是建議。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 **1.** 只能用 `b_transport` 寫。`dmi.is_write_allowed()` 是 false 時，initiator 不能直接寫入指標（MC37 的權限位元）。granted access 的意思是「target 允許的存取種類」，不是「你可以忽略 transport」。
 
@@ -4162,12 +4858,78 @@ loop:
 
 ## Q13：Router 與 address map〔L2〕
 
-1. 一個 router 接一個 CPU、兩個 target：ROM 在 0x0000–0x0FFF，RAM 在 0x1000–0x1FFF。decode 有哪三種結果？各自怎麼處理 payload 與 delay？
-2. 一筆 4-byte 讀取從 0x0FFE 開始，跨進 ROM 和 RAM 的邊界。你的 router 怎麼辦？標準規定什麼？
-3. 每一層的 delay 怎麼累加？router 自己的 decode 成本要不要加？
+一個 router 接一個 CPU 和兩個 target：ROM 在 0x0000–0x0FFF，RAM 在 0x1000–0x1FFF。
+
+#### Q13-a〔複選〕
+
+關於 decode 的三種結果，哪些敘述正確？
+
+- A. 存取 0x2004（沒有對應的 target）：轉給最近的 RAM
+- B. 存取 RAM 的 0x1004：位址先改成 0x0004 再轉送（本例 router 回來後再改回 0x1004；改回是範例 bus 的慣例，標準沒有要求）
+- C. 存取 0x2004：直接回 `TLM_ADDRESS_ERROR_RESPONSE`，不轉送，也不加 target 的延遲
+- D. ROM 的 base 是 0，本地位址就等於全域位址
+
+**理由（一句）：** ____
 
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**B、C、D。**（MC49）
+
+- A 錯：沒有對應的 target 就是位址錯誤。router 不能自己猜一個 target 送過去。
+
+**理由要點：** 轉送前減掉 base、回來後加回去；查不到 target 就由 router 自己回錯誤。
+
+</details>
+
+#### Q13-b〔單選〕
+
+一筆 4-byte 讀取從 0x0FFE 開始，跨過了 ROM 和 RAM 的邊界。哪個說法正確？
+
+- A. 標準規定 router 必須拆成兩筆
+- B. `b_transport` 會回傳實際搬了 2 個 byte
+- C. 標準沒有規定，這是實作選擇；常見的做法是整筆回 `TLM_ADDRESS_ERROR_RESPONSE`，或自己拆成兩筆。選了哪一種要寫進文件
+- D. 標準規定要回 `TLM_BURST_ERROR_RESPONSE`
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**C。**
+
+- B 錯：`b_transport` 是 `void`，沒有「部分長度」的語意。只有 `transport_dbg` 的回傳值有（MC45）。
+- A、D 錯：標準對跨邊界的交易沒有規定。
+
+**理由要點：** 標準沒有規定，是實作選擇；`b_transport` 也沒有回傳長度可用。
+
+</details>
+
+#### Q13-c〔單選〕
+
+每一層的 delay 怎麼累加？
+
+- A. 每一層都把延遲加進同一個 `delay`，router 自己的 decode 成本也要加；最後由 initiator 決定何時 `wait`
+- B. 每一層各自 `wait` 自己的延遲
+- C. router 只負責轉送，不該加延遲
+- D. 只有 target 可以加 delay
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**A。**（MC7）E1 的規格就是每筆交易先加 2 ns 的 decode 成本。
+
+- B 錯：中間層 `wait` 會打斷 initiator 的時間累加。
+- C、D 錯：interconnect 的延遲也是模型的一部分。
+
+**理由要點：** 大家都累加到同一個 `sc_time&`，`wait` 只由 initiator 做。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 **1.** 三種結果：
 
@@ -4175,7 +4937,7 @@ loop:
 - 轉送到 RAM：位址先扣掉 0x1000，回來時改回原值（MC49）。
 - 沒有對應的 target：直接回 `TLM_ADDRESS_ERROR_RESPONSE`，不轉送，也不加 target 的延遲（MC49 第三行）。
 
-**2.** 標準沒有規定跨邊界的交易要怎麼處理，這是實作選擇（Q6 第 4 題）。常見做法有兩種：直接對整筆交易回 `TLM_ADDRESS_ERROR_RESPONSE`；或把它拆成兩筆交易，分別送到兩個 target（拆開時要自己處理第二段的位址與 payload）。`b_transport` 沒有「回傳部分長度」的規範；只有 `transport_dbg` 的回傳值才有部分搬移的語意（MC45）。要在 router 的文件裡寫清楚。
+**2.** 標準沒有規定跨邊界的交易要怎麼處理，這是實作選擇（Q6-d）。常見做法有兩種：直接對整筆交易回 `TLM_ADDRESS_ERROR_RESPONSE`；或把它拆成兩筆交易，分別送到兩個 target（拆開時要自己處理第二段的位址與 payload）。`b_transport` 沒有「回傳部分長度」的規範；只有 `transport_dbg` 的回傳值才有部分搬移的語意（MC45）。要在 router 的文件裡寫清楚。
 
 **3.** 每層都把自己的延遲加進同一個 `delay`，只有最後的 initiator 決定何時 `wait`（MC7）。router 的 decode 成本也要加，這是模型的一部分；E1 的規格就是每筆交易先加 2 ns。
 
@@ -4187,12 +4949,97 @@ loop:
 
 ## Q14：AT 的提前完成與回傳路徑〔L3〕（對應下一輪清單第 1、2 條）
 
-1. 不看筆記，畫出一筆 AT READ 的四個 phase 時序：每一步是 fw 還是 bw、回傳哪個 `tlm_sync_enum`、payload 的 response status 在哪一步變成 OK。
-2. 什麼樣的 target 會直接回 `TLM_COMPLETED`？它的理由是什麼？
-3. target 回了 `TLM_ACCEPTED`，initiator 之後的責任是什麼？
+#### Q14-a〔單選〕
+
+一筆完整的四 phase AT READ（以 MC26 的實跑結果為準），哪一個序列正確？
+
+- A. 四個 phase 都走 fw，回傳值都是 `TLM_ACCEPTED`
+- B. fw BEGIN_REQ；fw END_REQ；bw BEGIN_RESP；bw END_RESP
+- C. fw BEGIN_REQ；bw END_REQ；fw BEGIN_RESP；bw END_RESP
+- D. fw BEGIN_REQ → `TLM_ACCEPTED`；bw END_REQ → `TLM_ACCEPTED`；bw BEGIN_RESP → `TLM_ACCEPTED`；fw END_RESP → `TLM_COMPLETED`
+
+**理由（一句）：** ____
 
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**D。** BEGIN_REQ、END_RESP 走 fw（由 initiator 發）；END_REQ、BEGIN_RESP 走 bw（由 target 發）。
+
+**理由要點：** BEGIN_REQ 和 END_RESP 由 initiator 發，END_REQ 和 BEGIN_RESP 由 target 發；誰發就走誰的方向。
+
+</details>
+
+#### Q14-b〔單選〕
+
+payload 的 response status 最晚要在哪一步之前設成 OK？
+
+- A. initiator 送出 END_RESP 時
+- B. target 送出 BEGIN_RESP 之前
+- C. target 送出 END_REQ 時
+- D. 由 initiator 在收到 BEGIN_RESP 後自己設
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**B。** initiator 收到 BEGIN_RESP 就會開始讀結果，所以 status 要在送出 BEGIN_RESP 之前設好（MC26 的 target 就是這樣寫）。
+
+- D 錯：status 由 target 設，initiator 只負責檢查。
+
+**理由要點：** 回應一開始，結果就要能讀，所以 status 必須在 BEGIN_RESP 之前設好。
+
+</details>
+
+#### Q14-c〔複選〕
+
+關於 target 直接回 `TLM_COMPLETED`，哪些正確？
+
+- A. 適合沒有 timing 需求、在第一次呼叫裡就能把結果寫好的 target，例如 register、單純的 memory
+- B. 省掉整個四 phase 的握手，只剩一次函式呼叫
+- C. 回了 `TLM_COMPLETED` 之後，target 還可以再送一次 BEGIN_RESP
+- D. 有延遲的話，要透過 `delay` 參數加進去
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**A、B、D。**（MC18）
+
+- C 錯：`TLM_COMPLETED` 代表整筆交易已經結束，之後不能再送任何 phase。
+- 另一種提前完成的寫法：在 BEGIN_REQ 的回程回 `TLM_UPDATED` + `END_REQ`，之後 initiator 對 BEGIN_RESP 回 `TLM_COMPLETED`（MC17、MC34）。
+
+**理由要點：** COMPLETED 表示交易已經結束，所以時間只能靠 `delay` 表達。
+
+</details>
+
+#### Q14-d〔單選〕
+
+initiator 收到 bw BEGIN_RESP 時回了 `TLM_ACCEPTED`。之後它的責任是什麼？
+
+- A. 沒有責任了，交易已經結束
+- B. 忘了送 END_RESP 的話，模擬會報 protocol error
+- C. 之後一定要從 fw 送出 END_RESP；忘了送的話，下一筆回應永遠送不出來，而且模擬不會報錯
+- D. socket 會自動補送 END_RESP
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**C。**（MC36）`TLM_ACCEPTED` 的意思是「收到了，我稍後會回覆」。
+
+- B 錯：2.3.3 沒有附 protocol checker（MC35），所以不會報錯，只會卡住。
+- D 錯：socket 不會替你推進 phase。
+- 對照：initiator 對 END_REQ 回 `TLM_ACCEPTED`，意思是「收到了、phase 不改」，不代表回應已經到了。
+
+**理由要點：** ACCEPTED 就是承諾之後要從另一個方向回覆；沒有 checker，所以忘了送也不會有人報錯。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 **1.** 以 MC26 的實跑結果為準（時間是 SystemC 的模擬時間）：
 
@@ -4217,16 +5064,76 @@ fw END_RESP   @17 ns  -> TLM_COMPLETED    initiator 確認收完，交易結束
 
 ## Q15：Payload event queue（PEQ）的取出規則〔L3〕（對應下一輪清單第 1 條的 AT 部分）
 
-1. `peq_with_get` 和 `peq_with_cb_and_phase` 差在哪裡？各適合哪一種 model？
-2. 為什麼 `peq_with_get` 的 consumer 要用 `while (get_next_transaction())` 把到期的全部取完？
-3. 兩個項目到期時間相同，取出順序由什麼決定？
+#### Q15-a〔複選〕
+
+關於兩種 PEQ，哪些正確？
+
+- A. `peq_with_get` 是 pull：consumer 在自己的 thread 裡 `wait(get_event())`，再用 `get_next_transaction()` 取出
+- B. `peq_with_get` 到期時會自動呼叫 callback
+- C. `peq_with_cb_and_phase` 是 push：項目到期時呼叫你登記的 callback，並帶著 phase
+- D. `peq_with_cb_and_phase` 需要 consumer thread 自己去取
+
+**理由（一句）：** ____
 
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**A、C。** B 和 D 把兩者的行為對調了。consumer 本來就是 thread、想自己控制節奏的 model，用 get；target 用 callback 寫的 AT model，用 cb_and_phase。
+
+**理由要點：** get 是 pull（自己取），cb 是 push（到期時呼叫你）。
+
+</details>
+
+#### Q15-b〔單選〕
+
+為什麼 `peq_with_get` 的 consumer 要用 `while (get_next_transaction())` 取到回傳 0 為止？
+
+- A. 每個項目都會通知一次 event，用 `while` 只是比較快
+- B. `get_event()` 只通知「有東西到期了」；只取一次的話，同時到期的其他項目會留在佇列裡，而且不會報錯
+- C. `get_next_transaction()` 會 block，要用 while 包起來
+- D. 不取完會造成 memory leak，SystemC 會報警告
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**B。**（MC31：沒有後續通知，所以 `c` 和 `a` 一直留在佇列裡沒被送出，模擬也沒有報錯。）
+
+- A 錯：event 不是每個項目各通知一次。
+- C 錯：沒東西時回傳 0，不會 block。
+- D 錯：不會報任何東西。
+
+**理由要點：** 同時到期的多個項目只對應一次通知。
+
+</details>
+
+#### Q15-c〔單選〕
+
+兩個項目的到期時間相同，取出順序由什麼決定？
+
+- A. 隨機
+- B. 通知（插入）的順序
+- C. 插入順序的相反
+- D. payload 的 address 由小到大
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**B。** `peq_with_get` 用 `multimap`（MC29）。`peq_with_cb_and_phase` 會把新項目放在所有「時間 `<=` 它」的項目後面（MC30）。兩者在同一個時間點內都維持通知順序。
+
+**理由要點：** 先比時間；時間相同，先通知的先出。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 **1.** `peq_with_get` 是 pull：consumer 在自己的 thread 裡 `wait(get_event())`，再用 `get_next_transaction()` 取。適合 consumer 本來就是 thread、想自己控制節奏的 model。`peq_with_cb_and_phase` 是 push：到期時會呼叫你登記的 callback（以 `SC_METHOD` 執行），並同時帶著 phase。適合 target 用 callback 方式寫的 AT model。
 
-**2.** `get_event()` 只通知「有東西到期了」，不會每個項目都通知一次。如果只取一次，同時到期的其他項目會一直留在佇列裡，直到下一次通知（MC31 的 `c` 與 `a` 永遠沒被送出，模擬也不會報錯）。所以要用 `while` 取到回傳 0 為止。
+**2.** `get_event()` 只通知「有東西到期了」，不會每個項目都通知一次。如果只取一次，同時到期的其他項目會一直留在佇列裡，直到下一次通知（MC31 沒有後續通知，所以 `c` 與 `a` 始終沒被送出，模擬也不會報錯）。所以要用 `while` 取到回傳 0 為止。
 
 **3.** 時間早的先出。時間相同的，依通知（插入）順序出：`peq_with_get` 用 `multimap`（MC29），`peq_with_cb_and_phase` 的插入規則是新項目放在所有「時間 `<=` 它」的項目後面（MC30）。兩者在同一個時間點內都維持通知順序（MC29、MC30）。
 
@@ -4236,7 +5143,9 @@ fw END_RESP   @17 ns  -> TLM_COMPLETED    initiator 確認收完，交易結束
 
 ---
 
-## 手寫練習（只給規格與骨架，解答不附在這裡）
+## 手寫練習〔選做，不在預設輪替〕（只給規格與骨架，解答不附在這裡）
+
+2026-11-09 起手寫題只排短題（見 `study/cpp11-14-quiz.md` 的手寫輪替）。這兩題保留原樣；若 HR 確認技術面試有手寫，再排回輪替。
 
 這一段是給 Alan 自己寫的。骨架可以直接編譯（未實作時會印出 INCOMPLETE 或 0，代表還沒寫完）。寫完先自己跑，再把程式貼過來做 review。**不要直接複製提示裡的程式碼以外的東西**，先看規格。
 
@@ -4532,7 +5441,7 @@ mode=2 end=5005 ns waits=50 transports=1 dmi_reads=999
    - 實測：`grep -rni checker src include examples` 只有 `examples/tlm/common/src/lt_dmi_initiator.cpp:39` 一則註解 `TLM2.0 checker.`，沒有 checker 元件。
    - 改了什麼：改為「2.3.3 未附 protocol checker」，並附搜尋範圍與那則註解。
 
-5. **`reset()` 的範圍（Q8 第 5 題）**
+5. **`reset()` 的範圍（Q8 第 5 題，現為 Q8-e）**
    - 原敘述：「放回 pool 前通常呼叫 `reset()`，它會清掉 extension，但不會重設 address、command 這些欄位」。
    - 實測（2026-11-05，MC39）：用 `set_extension` 手動掛上的 extension，`reset()` 之後仍然取得到（`ext_kept=1`）；command、address、data length、response status 都保留（`status=TLM_OK_RESPONSE`）。
    - 原始碼：`src/tlm_core/tlm_2/tlm_generic_payload/tlm_gp.cpp:128-132`（`reset()` 只設 `m_gp_option`，並呼叫 `m_extensions.free_entire_cache()`）；`include/tlm_core/tlm_2/tlm_generic_payload/tlm_array.h:102-111`（`free_entire_cache()` 只走訪 `m_entries`，而 `m_entries` 只由 `set_auto_extension` 的 `insert_in_cache` 填入）。
@@ -4560,6 +5469,15 @@ mode=2 end=5005 ns waits=50 transports=1 dmi_reads=999
   - `TLM_UPDATED` 但 phase 沒有推進（不合法組合）的行為：沒有實跑，沒有加題。
   - MC48 的 `SC_METHOD` 呼叫情況：沒有實跑，答案裡已註明。
 
+### 選擇題化驗證紀錄（2026-11-09）
+
+- 範圍：Q3、Q4、Q6–Q15 改成選擇題（子題 `Qn-a` 起）。選項的對錯都取自同題原本已核對過的參考答案（保留在各題的「完整解說」裡，內容沒改），以及上方核對紀錄、事實修正。
+- 這次新寫進選項、原答案沒有直接寫到的說法，另外核對：
+  - Q7-b 選項 B「`simple_target_socket` bind 兩次會報錯」（2026-11-10 更正：選項打亂後原本寫成 C）：本機實跑，輸出 `Error: (E109) complete binding failed: 2 binds exceeds maximum of 1 allowed`（測試程式在 scratchpad 的 `mc/bind2.cpp`）。
+  - Q11-a 選項 D、Q11-c「`sync()` 內部會 `reset()`，`reset()` 會把 local time 歸零、重算同步點」：`tlm_utils/tlm_quantumkeeper.h:101-105`（`sync()` = `wait(m_local_time); reset();`）、`:123-126`（`reset()`）。
+  - Q15-b 答案裡「C 錯」的說明「沒東西時回傳 0，不會 block」：`tlm_utils/peq_with_get.h:58-62`。
+- 沒有核對標準原文的：Q14-c 選項 C（錯誤選項）與其說明「回 `TLM_COMPLETED` 後不能再送任何 phase」是 base protocol 的規則，本機沒有 IEEE 1666 原文，依範例行為寫。
+- Q1、Q2、Q5、Q7-d 保留為〔口述〕；E1、E2 標為〔選做〕，內容都沒改。
 
 ---
 
@@ -4571,14 +5489,37 @@ mode=2 end=5005 ns waits=50 transports=1 dmi_reads=999
 
 **2026-11-05 狀態更新**：以下三條原題保留，處理方式如下。
 
-- 上面第 1 條（AT 細節）→ 已由 Q14 第 1 題處理，口述還沒考。
-- 上面第 2 條（`TLM_COMPLETED` 提前結束）→ 已由 Q14 第 2 題處理，口述還沒考。
+- 上面第 1 條（AT 細節）→ 已由 Q14-a 處理（2026-11-09 改成選擇題），還沒考。
+- 上面第 2 條（`TLM_COMPLETED` 提前結束）→ 已由 Q14-c 處理（2026-11-09 改成選擇題），還沒考。
 - 上面第 3 條（實作驗證三種時間）→ 已由手寫練習 E2 處理（參考輸出已核對），還沒寫。
 
 新的待辦：
 
-- 口述 Q9–Q15 還沒考。
+- Q9–Q15 還沒考（2026-11-09 已改成選擇題，作答時每題寫一句理由）。口述只剩 Q1、Q2、Q5、Q7-d。
 - 手寫練習 E1（router + 兩個 memory target）：Alan 寫完後貼上來 review。
 - endian helper（`tlm_to_hostendian_word` / `tlm_from_hostendian_word`）的 round trip 還沒實跑（見上方「補充驗證紀錄」）。
 - `TLM_UPDATED` 但 phase 沒有推進（不合法組合）的行為：還沒實跑，還沒加題。
 - IEEE 1666 條文（ignorable／mandatory extension、phase 方向規則）：找到標準原文後再補條號與題目。
+
+### Agent 審查修正（2026-11-10）
+
+唯讀 subagent 審查後，修正了以下幾處。
+
+**驗證紀錄裡的選項字母**：選項打亂之後，紀錄沒有跟著改。
+- Q7-b：C 改成 B。
+- Q15-b：原本寫成「選項 C」，實際上是答案裡的說明。
+- Q14-c：D 改成 C。
+
+**錯誤的引用**：
+- Q9 的 `ver_pool` 改成 T1 的 `Pool` 範例。
+- T7 原本引用 Q8-c，改成「Q8 完整解說第 3 點」。
+
+**說得太強的措辭**：
+- Q15-b 的「永遠沒送出」改成「沒有後續通知，所以一直留著」。
+- Q13-a 的 B：補註位址改回原值只是慣例。
+- Q4-b 的 B：補上「target 要看到每次存取」的前提。
+- Q14-c 的 D：改成「有延遲的話」。
+
+**其他**：
+- 開頭說明改正：答案區塊也會說明每個錯誤選項錯在哪裡。
+- agent 對照原始碼並實跑後，確認所有子題的字母都對得上選項。

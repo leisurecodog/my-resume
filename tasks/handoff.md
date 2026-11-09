@@ -6,7 +6,21 @@
 - 使用者已回答缺口問題，結論在 `progress.md`，並已寫進 `mediatek/prep-notes.md` 第三部分（缺口表）與第四部分（學習方向與建議）。
 - 已完成：四份履歷的 AMBA 措辭改為整合與 spec 閱讀層級（見 `progress.md`）；`prep-notes.md` 第三部分 CI/CD 說法已改為「個人專案自己架過 CI，工作上沒用過」。
 
+- **2026-11-09 起的題型**（Alan 自己選的，記在記憶 `quiz-multiple-choice.md`）：
+  - 約 80% 是選擇題，可以複選，每題附一句理由，並由他自己檢查「理由推不推得出選擇」。
+  - 約 20% 是口述和手寫。
+  - 三份題庫已經照這個比例改好，題號沿用原本的，子題寫成 `Q11-a` 這種格式。
+
 ## Files touched
+- 2026-11-09（題型改成 80% 選擇題）：
+  - `study/tlm-quiz.md`、`study/systemc-core-quiz.md`、`study/cpp11-14-quiz.md`：深入題改成選擇題子題，加了「作答規則」，標上〔口述〕／〔手寫〕／〔選做〕，C1 加 10 分鐘版骨架與測試，Q20 改成手寫 `my_make_unique`，每份檔尾加「選擇題化驗證紀錄（2026-11-09）」。
+  - `CLAUDE.md`：Study mode 第 2、4 條，Layout 的 `study/` 一行。
+  - `tasks/progress.md`、`tasks/handoff.md`、`tasks/learning-plan.md`、`tasks/lesson.md`。
+  - 還沒 commit。
+- **下次 session 的流程**：
+  1. 先做複習輪，複習題直接用新的選擇題子題：C++ L1-1-d（`auto` 與 const）、L1-3-d（SSO）、L1-4-b（null vs dangling）。請他每題寫一句理由，自己先對一次。
+  2. 接著做手寫輪替第 1 題 L2-4：請他貼稿，review 時問頂部四個 `static_assert` 為什麼不用寫就會過。
+  3. 再做 MC35、MC37、MC39、Q16（現在是選擇題 Q16-a～c）、Q17（口述）。
 - 2026-11-09（第二次複習輪）：`study/cpp11-14-quiz.md`（新增「第二次複習輪（2026-11-09）」）、`tasks/progress.md`、`tasks/handoff.md`。**下次仍從 L2-4 開始**：先抽問兩題（`const int* const p; auto q = p;`、`auto b = cr`；短字串 SSO move 位址不同），再請他貼 L2-4 稿，review 時問頂部四個 `static_assert` 為什麼不用寫就會過；之後考 MC35、MC37、MC39、Q16、Q17。他的結論與理由常互相矛盾，請他寫完理由後自己對一次。
 - 2026-11-05（複習輪）：`study/cpp11-14-quiz.md`（「口頭練習紀錄」新增「複習輪（2026-11-05）」）、`tasks/progress.md`、`tasks/handoff.md`。下一個 session 開頭再抽問：頂層 vs 底層 const、`auto` 剝 `&`、SSO move 位址、null vs dangling；G1、G2、G3 已教並口頭考過一輪（細節在題庫「複習輪」段）。**下次從 L2-4 開始**（`study/cpp11-14-quiz.md` 約第 1814 行）：先複習 G1–G3 弱點（`this` 捕獲的 const 語意、`weak_ptr::lock()` 設計理由、宣告 move ctor 後 move assignment 不再生成），再問他 L2-4 做到哪、有沒有卡住；他貼稿後 review，不先給解，並問頂部四個 `static_assert` 為什麼不用寫就會通過。之後考 MC35、MC37、MC39、Q16、Q17。每題請他多寫一句理由。
 - 2026-11-05（題庫擴充 + 教學導讀）：`study/cpp11-14-quiz.md`、`study/systemc-core-quiz.md`、`study/tlm-quiz.md`（細節見 `progress.md` Done 2026-11-05）、`CLAUDE.md`（study/ 一行）、`tasks/progress.md`、`tasks/handoff.md`、`tasks/lesson.md`。未 commit。
@@ -35,6 +49,10 @@
 - `mediatek/resume-mediatek-vdk.tex`（加一條 bullet）與重新編譯的 `mediatek/resume-mediatek-vdk.pdf`
 
 ## Next steps
+- 題型照 80/20 執行。這個比例指的是**練習時間**，不是題數：選擇題約 290 題，口述加手寫只有 13 題，但每題要 5 到 10 分鐘，所以每次 session 要排一段口述或手寫，不要整節都做選擇題。
+- 口述／手寫連續被跳過時，提醒他一次白板題會卡住的風險，不要默默把它拿掉。
+- 若 HR 確認技術面試有手寫題，就提高手寫比例，把 E1／E2／EX-1／EX-2 排回輪替，並告訴他。
+- 之後新增題目時，L1–L3 預設寫成選擇題，用同一套子題格式（〔單選〕／〔複選〕、理由行、理由要點）。面試情境題寫成〔口述〕。
 - 2026-11-05 新增內容尚未被使用者做過。依 study mode 先複習上次弱點，再從各檔「教學導讀」教起：C++ G1–G12、SystemC T1–T11、TLM T1–T11。手寫題（cpp E1/E2、SystemC EX-1/EX-2、TLM E1/E2）使用者自己寫完貼來 review 才給參考解；參考解在 scratchpad（可能已消失，需要時重寫）。各檔「下一輪可以加考」已更新。
 - 題庫擴充清單（2026-11-03 四份缺口審查，尚未動手，等使用者決定順序與格式：折疊答案或只給題目骨架）。建議順序：新增 `study/c-bitops-quiz.md`（struct padding / endianness / mask 操作 / 手寫，約 30 題，g++ 可全驗證）→ SystemC 核心補 `sc_port`/`sc_export`、自訂 primitive channel、elaboration 回呼、`sc_clock`/`SC_CTHREAD`、process control、`sc_fifo` nb 介面、`sc_report`，並補 L3 找 bug 與 L4 設計取捨 → TLM 補 interrupt+register 整合、byte enable / streaming width、memory manager、`b_transport` 內 `wait`、AT 口述、L4 MC，Q1–Q8 補層級標籤 → C++ 補 variadic/SFINAE/CRTP、vtable/slicing、容器迭代器失效、並行（C++11）、placement new、手寫題對應學習計畫第 1 項步驟 3、4。之後依序：`vdk-debug-scenario`（本機沒裝 gdb / valgrind）、`bus-perf-quiz`、`arch-memory-quiz`、`cosim-fixedpoint-quiz`、`ai-npu-workload-quiz`、`rtl-verilog-quiz`（要先裝 iverilog）。CI、效能 sign-off、simulation speed 案例、CModel vs RTL 經驗只能口述，不做題庫。
 - 2026-11-03 接續：C++ 口頭演練停在 lambda 之後。下一輪從 lambda `[=]`/`this`、`shared_ptr` 循環參考（L2-3）、L2-4 Rule of Zero 開始；弱點見 `study/cpp11-14-quiz.md`「口頭練習紀錄」。使用者答題傾向只給結果，請他一句話寫理由。

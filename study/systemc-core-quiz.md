@@ -4,7 +4,7 @@
 
 用法跟其他題庫一樣：先自己想或寫在紙上，再展開 `<details>` 對照。
 
-**難度分級**：L1 學習（看懂概念，附提示）→ L2 應用（預測輸出）→ L3 面試（口述）→ L4 深入（連結你的案例，對照原始碼）。建議順序：不熟的主題先讀下方「教學導讀」，再做選擇題（MC1–MC38，由淺到深），再做問答題（L1 → L4）。
+**難度分級**：L1 學習（看懂概念，附提示）→ L2 應用（預測輸出）→ L3 面試（口述）→ L4 深入（連結你的案例，對照原始碼）。建議順序：不熟的主題先讀下方「教學導讀」，再做選擇題（MC1–MC38，由淺到深），再做深入題（L1 → L4）。2026-11-09 起，題型比例約 **80% 選擇題 + 20% 口述／手寫**：L1、L2、L3-2～L3-4 已改成選擇題（子題編號如 `L2-1-a`），每題都要寫一句理由；L3-1、L4-1、L4-2 標〔口述〕；手寫練習 EX-1、EX-2 是〔選做〕。
 
 **環境與驗證方式**：本機 SystemC 2.3.3，原始碼在 `~/cpp_practice/side_project/uArch/systemc-2.3.3`。本檔所有程式碼都實際編譯、執行過，輸出貼的是實測結果（2026-10-21；2026-11-05 新增的部分見「核對紀錄（2026-11-05 第二輪）」）。編譯指令：
 
@@ -155,9 +155,9 @@ count=0 @40 ns
 count=1 @50 ns
 ```
 
-輸出的解讀：CTHREAD 在初始化時就開始執行，所以 `0 s` 先進入 reset 分支。之後第一個 `wait()` 等的是下一個 edge（10 ns），不是 time 0 的那次。`rst` 在 25 ns 拉高，30 ns 的 edge 讓 thread 從頭執行（reset 分支），counter 歸零。
+輸出的解讀：CTHREAD **不會**在 initialization phase 執行（2.3.3 的 `sc_cthread_process` 建構子設定 `m_dont_init = true`，`sc_cthread_process.cpp:56`），它的第一次執行是被 clock edge 叫醒的。`sc_clock` 預設 `posedge_first = true`、start time 0，所以第一個 posedge 就在 `0 s`，`0 s` 印出的 reset 分支是這個 edge 造成的。之後第一個 `wait()` 等的是下一個 edge（10 ns）。（實測：把 clock 的 start time 改成 5 ns，第一次執行就變成 `5 ns`。）`rst` 在 25 ns 拉高，30 ns 的 edge 讓 thread 從頭執行（reset 分支），counter 歸零。
 
-常見陷阱：以為 CTHREAD 第一個 `wait()` 會在 time 0 就返回。另外，`reset_signal_is` 只是讓 reset 生效時 thread 從頭執行，計數器的值要自己在 reset 分支裡歸零。
+常見陷阱：以為 CTHREAD 跟 `SC_THREAD` 一樣在初始化時先跑一次（其實不會，它只被 edge 叫醒），或以為第一個 `wait()` 會在 time 0 就返回。另外，`reset_signal_is` 只是讓 reset 生效時 thread 從頭執行，計數器的值要自己在 reset 分支裡歸零。
 
 ### T5 `wait` 的各種寫法
 
@@ -328,12 +328,12 @@ method fn @2 ns
 
 ## 目錄
 - [教學導讀](#教學導讀)
-- [選擇題：先建立直覺（MC1–MC38）](#選擇題先建立直覺mc1mc38)（先做這一段，再做下面的問答題）
-- [L1：入門 (L1-1–L1-3)](#l1入門)
-- [L2：預測輸出 (L2-1–L2-6)](#l2預測輸出)
-- [L3：scheduler 口述 (L3-1–L3-4)](#l3scheduler-口述)
-- [L4：simulation speed 案例 (L4-1–L4-2)](#l4simulation-speed-案例)
-- [手寫練習](#手寫練習)
+- [選擇題：先建立直覺（MC1–MC38）](#選擇題先建立直覺mc1mc38)（先做這一段，再做下面的深入題）
+- [L1：入門 (L1-1–L1-3，選擇題)](#l1入門)
+- [L2：預測輸出 (L2-1–L2-6，選擇題)](#l2預測輸出)
+- [L3：scheduler 與 elaboration (L3-1 口述，L3-2–L3-4 選擇題)](#l3scheduler-與-elaborationl3-1-口述l3-2l3-4-選擇題)
+- [L4：simulation speed 案例 (L4-1–L4-2，口述)](#l4simulation-speed-案例)
+- [手寫練習（選做）](#手寫練習選做不在預設輪替只給規格與骨架請自己寫)
 - [下一輪可以加考](#下一輪可以加考)
 - [核對紀錄](#核對紀錄2026-10-21)
 
@@ -342,6 +342,13 @@ method fn @2 ns
 ## 選擇題：先建立直覺（MC1–MC38）
 
 單選題，由淺到深（L1 → L3）。做法跟 C++ 題庫一樣：先在紙上選，再展開看每個選項為什麼對或錯，最後挑幾題自己打進編譯器跑（編譯指令見檔案開頭，記得 `-std=c++11`）。
+
+**作答規則（2026-11-09 起適用於整份檔案的選擇題，包含後面由 L 系列改成的選擇題）：**
+
+1. 先選。標〔複選〕的題目可能不只一個正確選項，要全部選出才算對。
+2. 寫**一句理由**，說出讓你做這個選擇的那個事實或規則。
+3. 交卷前自己檢查一次：**我的理由真的推得出我的選擇嗎？**如果理由和結論對不上，先改掉其中一個再交。
+4. 展開答案後，對照「理由要點」。選對了，但理由沒講到要點，算半對。
 
 **程式碼省略的開頭**：這一段所有程式都省略下面四行，要自己跑時請補上：
 
@@ -1588,7 +1595,7 @@ int sc_main(int, char**) {
 <details>
 <summary>答案</summary>
 
-**B。** `SC_CTHREAD` 在初始化時就開始執行，所以第一次印出在 `0 s`。第一個 `wait()` 等的是下一個 posedge，也就是 10 ns，之後是 20 ns。`sc_clock` 預設 posedge 從 0 開始（實測 `clk` 的第一個 posedge 在 0 s）。
+**B。** `SC_CTHREAD` 不會在 initialization phase 執行（`m_dont_init = true`，`sc_cthread_process.cpp:56`），它是被 `0 s` 的 posedge 叫醒的：`sc_clock` 預設第一個 posedge 就在 0 s（實測）。第一個 `wait()` 等的是下一個 posedge，也就是 10 ns，之後是 20 ns。（2026-11-10 修正：原本的理由寫成「CTHREAD 在初始化時就開始執行」，這是錯的；輸出不變。）
 
 ```
 t @0 s
@@ -2069,19 +2076,19 @@ r=0 v=2
 
 ---
 
-## 問答題（從這裡開始）
+## 深入題：選擇題（約 80%）與口述題（約 20%）（從這裡開始）
 
-下面是 L1–L4 的問答、預測輸出與口述題。選擇題熟了再做這一段。
+選擇題熟了再做這一段。題號與原本相同，方便對照練習紀錄與教學導讀的「見 L2-1」等引用。
+
+- **選擇題**：L1-1～L1-3、L2-1～L2-6、L3-2～L3-4。每個子題（如 `L2-1-a`）依上方「作答規則」作答：先選，再寫一句理由，自己檢查理由推不推得出選擇。子題的「答案」只給選項與理由要點；整題的「完整解說」放在最後，選完再看。
+- **〔口述〕**：L3-1（一分鐘講完 scheduler）、L4-1、L4-2（msg IP 的 simulation speed 案例）。這些是面試常見的開放題，用講的回答，要用你實際做過的細節。
+- **〔選做〕手寫練習**（EX-1、EX-2）：不在預設輪替；若確認技術面試有手寫題，再排進來。
 
 ---
 
 ## L1：入門
 
 ### L1-1：`SC_MODULE`、`SC_THREAD`、`SC_METHOD` 差在哪？〔L1〕
-
-1. `SC_THREAD` 和 `SC_METHOD` 各自什麼時候會被執行？函式內的區域變數在多次執行之間能不能保留？
-2. 在 `SC_METHOD` 裡呼叫 `wait()` 會怎樣？想「過一段時間再被叫」要用什麼？
-3. `dont_initialize()` 是做什麼的？
 
 <details>
 <summary>提示</summary>
@@ -2091,8 +2098,76 @@ r=0 v=2
 
 </details>
 
+#### L1-1-a〔複選〕
+
+關於 `SC_THREAD` 與 `SC_METHOD`，哪些敘述正確？
+
+- A. `SC_THREAD` 每次被喚醒，都從函式開頭重新執行
+- B. `SC_METHOD` 的區域變數會保留到下一次觸發
+- C. `SC_METHOD` 每次被觸發都從頭跑到 return，區域變數每次重新初始化
+- D. `SC_THREAD` 的區域變數可以跨 `wait()` 保留
+
+**理由（一句）：** ____
+
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**C、D。**
+
+- A 錯：thread 從 `wait()` 的下一行繼續，不會回到開頭。
+- B 錯：method 是一般的函式呼叫，return 之後區域變數就沒了。要保留狀態，就放成員變數（L2-2 實跑）。
+
+**理由要點：** thread 有自己的 stack，暫停時 stack 還在；method 每次觸發都是一次新的函式呼叫。
+
+</details>
+
+#### L1-1-b〔單選〕
+
+在 `SC_METHOD` 裡呼叫 `wait()` 會怎樣？
+
+- A. 編譯錯誤
+- B. 執行期錯誤 E519，訊息要你改用 `next_trigger()`
+- C. 效果等同 `next_trigger()`，正常運作
+- D. 被忽略，method 繼續往下跑
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**B。** 實測訊息：`Error: (E519) wait() is only allowed in SC_THREADs and SC_CTHREADs: in SC_METHODs use next_trigger() instead`。
+
+- A 錯：`wait()` 本身編譯得過，這是執行期檢查。
+- C 錯：`next_trigger()` 只決定「下一次」何時觸發，不會暫停目前這次執行。`wait()` 則要暫停，method 沒有 stack 可以停。
+
+**理由要點：** method 沒有自己的 stack，沒辦法停在中間，所以 kernel 在執行期擋下 `wait()`。
+
+</details>
+
+#### L1-1-c〔單選〕
+
+`dont_initialize()` 的作用是什麼？
+
+- A. 不把這個 process 註冊進 kernel
+- B. 不初始化 module 的成員變數
+- C. 只對 `SC_THREAD` 有效
+- D. 讓 process 在 time 0 的 initialization phase 不先跑一次，只在敏感的事件發生時才執行
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**D。** 預設 `SC_METHOD`、`SC_THREAD` 都會在 initialization phase 先跑一次（MC4）。
+
+- C 錯：method 和 thread 都適用（MC24 就是 `SC_THREAD` 加 `dont_initialize()`）。
+
+**理由要點：** 預設會在 time 0 先跑一次；`dont_initialize()` 就是取消這一次。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 1. `SC_THREAD`：模擬開始時執行一次，之後由自己呼叫 `wait()` 暫停、等條件成立後從 `wait()` 的下一行繼續；函式通常包在 `for(;;)` 裡，**區域變數可以跨多次喚醒保留**，因為堆疊還在。`SC_METHOD`：每次靜態敏感度（`sensitive << ...`）或 `next_trigger()` 指定的事件發生時被呼叫一次，從頭跑到 return，**區域變數每次都重新初始化**，要保留的狀態要放成員變數。L2-2 會實跑確認。
 2. 執行期錯誤，實測訊息：
@@ -2123,10 +2198,6 @@ m1 @2 ns v=0
 
 ### L1-2：`wait(10, SC_NS)` 會讓程式睡 10 奈秒嗎？〔L1〕
 
-1. `wait(10, SC_NS)` 之後 `sc_time_stamp()` 會變成什麼？程式真的 sleep 了嗎？
-2. **simulation time** 和 **wall-clock time** 差別在哪？
-3. `wait(time)` 和 `wait(event)` 各自在什麼情境用？
-
 <details>
 <summary>提示</summary>
 
@@ -2135,8 +2206,78 @@ m1 @2 ns v=0
 
 </details>
 
+#### L1-2-a〔單選〕
+
+一個 `SC_THREAD` 呼叫 `wait(10, SC_NS)`。哪個描述正確？
+
+- A. process 被擱置；它被喚醒時，`sc_time_stamp()` 是呼叫時間 + 10 ns。過程中沒有任何真實時間的等待
+- B. 程式真的 sleep 10 ns 的真實時間，然後 `sc_time_stamp()` 加 10 ns
+- C. `sc_time_stamp()` 立刻加 10 ns，process 接著往下跑
+- D. 只在 `SC_METHOD` 裡才有效
+
+**理由（一句）：** ____
+
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**A。**
+
+- B 錯：simulation time 只是 kernel 裡的計數器，沒有 sleep。
+- C 錯：時間只有 scheduler 能推進，而且要等所有 process 都讓出之後才推進。
+- D 錯：method 不能 `wait`（L1-1-b）。
+
+**理由要點：** `wait(t)` 是「把自己排到 t 之後再叫醒」，時間由 scheduler 推進，跟真實時間無關。
+
+</details>
+
+#### L1-2-b〔複選〕
+
+關於 simulation time 與 wall-clock time，哪些正確？
+
+- A. 沒有 runnable process 時，scheduler 直接把 simulation time 跳到下一個 timed event
+- B. simulation time 從 0 到 100 ms 之間沒有事做，也要花上相當的 wall-clock
+- C. 同一個 simulation time 裡如果有很多 delta cycle，會花掉 wall-clock
+- D. simulation time 與 wall-clock 有固定比例
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**A、C。** wall-clock 花在「執行 process 和 delta」上，不是花在「simulation time 有多長」上。這是 L4-1 的核心。
+
+- B 錯：沒事做的時間會被直接跳過。
+- D 錯：兩者沒有固定比例，要看那段時間裡有多少事件。
+
+**理由要點：** 真實時間的成本來自事件與喚醒的次數，跟模擬時間跨度無關。
+
+</details>
+
+#### L1-2-c〔單選〕
+
+要寫「等事件 `e`，但最多等 5 ns」，哪一個寫法對？
+
+- A. `wait(e, 5, SC_NS);`
+- B. `wait(e); wait(5, SC_NS);`
+- C. `wait(5, SC_NS, e);`
+- D. `wait(5, SC_NS); wait(e);`
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**C。** 參數順序是**時間、單位、事件**（MC11）。
+
+- A 錯：沒有「事件在前」的 overload。
+- B、D 錯：兩個 `wait` 依序執行，前一個等完才開始等後一個，不是「哪個先到就醒」。
+
+**理由要點：** timeout 要寫成單一個 `wait`，時間在前、事件在後。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 1. 該 process 被擱置，`sc_time_stamp()` 在它被喚醒時等於呼叫時間加 10 ns，**不是真的 sleep**：沒有任何 wall-clock 的等待。
 2. simulation time 是模型裡的虛擬時間，只有 scheduler 在「沒有 runnable process」時，才把時間跳到下一個 timed event 的時間；wall-clock time 是你等結果的真實時間。一個 process 在 `0 s` 和 `100 ms` 之間若沒事做，simulation time 瞬間跳過，不花 wall-clock；相反地，同一個 simulation time 內，如果有很多 process 被喚醒、很多 delta cycle，wall-clock 就會被花掉。這是 L4-1 的核心。
@@ -2148,9 +2289,6 @@ m1 @2 ns v=0
 
 ### L1-3：`sc_event::notify()` 的三種形式〔L1〕
 
-1. `e.notify()`、`e.notify(SC_ZERO_TIME)`、`e.notify(10, SC_NS)` 各叫什麼？分別在什麼時候喚醒等待它的 process？
-2. 如果呼叫 `e.notify()` 的時候，沒有任何 process 在等 `e`，這個通知會被保留嗎？
-
 <details>
 <summary>提示</summary>
 
@@ -2159,8 +2297,67 @@ m1 @2 ns v=0
 
 </details>
 
+#### L1-3-a〔單選〕
+
+`e.notify()`、`e.notify(SC_ZERO_TIME)`、`e.notify(10, SC_NS)` 三種通知，哪一組描述正確？
+
+- A. `notify()` 是 delta；`notify(SC_ZERO_TIME)` 是 immediate；`notify(10, SC_NS)` 是 timed
+- B. 三種都在下一個 delta 喚醒等待者，差別只在時間
+- C. `notify()` 是 immediate，而且呼叫它的 process 會立刻被切走，讓等待者先跑
+- D. `notify()` 是 immediate：等待者在同一個 evaluate phase 變成 runnable。`notify(SC_ZERO_TIME)` 是 delta：等待者在下一個 delta 被喚醒。`notify(10, SC_NS)` 是 timed
+
+**理由（一句）：** ____
+
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**D。**
+
+- A 錯：immediate 和 delta 對調了。
+- C 錯：等待者變成 runnable，但目前的 process 會一直跑到自己下一次 `wait()` 才讓出（L2-1 實跑：`A2`、`A3` 先印出來）。
+
+**理由要點：** immediate 在同一個 evaluate phase，delta 在下一個 delta，timed 在之後的時間點；三種都不會搶走目前 process 的執行權。
+
+</details>
+
+#### L1-3-b〔單選〕
+
+預測 `B woke` 那一行：
+
+```cpp
+#include <systemc>
+using namespace sc_core; using std::cout; using std::endl;
+SC_MODULE(M) {
+  sc_event e;
+  SC_CTOR(M) { SC_THREAD(a); SC_THREAD(b); }
+  void a(){ wait(1, SC_NS); e.notify(); cout << "A notified @" << sc_time_stamp() << endl; }
+  void b(){ wait(2, SC_NS); cout << "B waits @" << sc_time_stamp() << endl; wait(5, SC_NS, e); cout << "B woke @" << sc_time_stamp() << " timed_out=" << (sc_time_stamp()==sc_time(7,SC_NS)) << endl; }
+};
+int sc_main(int, char**){ M m("m"); sc_start(); return 0; }
+```
+
+- A. `B woke @1 ns timed_out=0`
+- B. `B woke @2 ns timed_out=0`：通知被保留，B 一進入 `wait` 就醒
+- C. `B woke @7 ns timed_out=1`
+- D. B 永遠不會醒
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**C。**（實跑）`sc_event` 沒有記憶：1 ns 的 immediate notify 只會喚醒「當下已經在等」的 process。B 在 2 ns 才開始等，所以只能等到 7 ns timeout。
+
+- A 錯：B 在 1 ns 時還在 `wait(2, SC_NS)`，沒有在等 `e`。
+- B 錯：這是「事件有記憶」的誤解。
+- D 錯：有 5 ns 的 timeout。
+
+**理由要點：** 通知時沒有人在等，這個通知就消失了；所以事件不能拿來傳資料或計數。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 1. `notify()`：**immediate notification**，等待者在**同一個 evaluate phase** 內立刻變成 runnable，但目前這個 process 要跑到自己下一次 `wait()` 才換別人；`notify(SC_ZERO_TIME)`：**delta notification**，等待者在**下一個 delta cycle** 才被喚醒；`notify(10, SC_NS)`：**timed notification**，在 10 ns 之後才被喚醒。L2-1 會實跑兩種的順序。
 2. **不會。** `sc_event` 沒有記憶，immediate notify 只喚醒「此刻已經在等」的 process；沒人等就消失。實測：`A` 在 `1 ns` 呼叫 `e.notify()`，`B` 在 `2 ns` 才 `wait(5, SC_NS, e)`，結果 `B` 是因為 timeout 在 `7 ns` 醒來，沒有收到那次通知：
@@ -2211,10 +2408,6 @@ SC_MODULE(M) {
 int sc_main(int, char**){ M m("m"); sc_start(); return 0; }
 ```
 
-1. 預測五行輸出的順序，以及每行的 `delta=` 彼此差多少。
-2. `B` 和 `C` 為什麼在不同的 delta？
-3. `A` 在 `A3` 之後直接結束。如果在 `A3` 後面再加 `wait(SC_ZERO_TIME);`，`A` 會跟誰在同一個 delta 被喚醒？
-
 <details>
 <summary>提示</summary>
 
@@ -2224,8 +2417,76 @@ int sc_main(int, char**){ M m("m"); sc_start(); return 0; }
 
 </details>
 
+#### L2-1-a〔單選〕
+
+五行輸出的順序與 delta 值（括號裡是 `delta=`），哪一個正確？
+
+- A. A1(1) → B woke(1) → A2(1) → A3(1) → C woke(2)
+- B. A1(1) → A2(1) → A3(1) → B woke(1) → C woke(2)
+- C. A1(1) → A2(1) → A3(1) → B woke(2) → C woke(2)
+- D. A1(1) → A2(1) → A3(1) → B woke(2) → C woke(3)
+
+**理由（一句）：** ____
+
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**B。**（實跑）
+
+- A 錯：immediate notify 不會搶走 A 的執行權，A 要跑到結束（或下一次 `wait`）才讓出。
+- C、D 錯：immediate 的等待者在**同一個** evaluate phase 執行，所以 B 跟 A 同一個 delta。
+
+**理由要點：** A 沒有讓出執行權，所以 A1–A3 先印。B 是 immediate，同一個 delta；C 是 delta 通知，下一個 delta。
+
+</details>
+
+#### L2-1-b〔單選〕
+
+B 和 C 為什麼在不同的 delta？
+
+- A. B 在建構子裡先被宣告，所以先跑
+- B. C 的 `wait` 在原始碼裡寫在 B 後面
+- C. immediate 通知的等待者在同一個 evaluate phase 就變成 runnable；delta 通知要等到 delta notification phase 才變成 runnable，所以在下一個 delta
+- D. `e_delta` 要等 update phase 把某個 signal 寫入之後才會觸發
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**C。** 原始碼 `sc_simcontext::crunch`：evaluate 跑到沒有 runnable 為止 → update（`perform_update()`）→ notification phase 才觸發 `m_delta_events`。
+
+- A、B 錯：宣告順序或程式碼順序不決定 delta。
+- D 錯：這裡沒有 signal，update phase 跟 `e_delta` 無關。
+
+**理由要點：** 兩種通知在 scheduler 的不同階段生效：immediate 在 evaluate，delta 在 notification。
+
+</details>
+
+#### L2-1-c〔單選〕
+
+在 `A3` 後面加一行 `wait(SC_ZERO_TIME);`，A 會跟誰在同一個 delta 被喚醒？
+
+- A. 跟 B 同一個 delta（delta=1）
+- B. 跟 C 同一個 delta，而且 A 一定在 C 之前
+- C. 在 C 之後的下一個 delta（delta=3）
+- D. 跟 C 同一個 delta（delta=2），兩者誰先誰後，標準沒有規定
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**D。**（實跑：`A4` 和 `C woke` 都是 `delta=2`）
+
+- B 錯：同一個 delta 內的執行順序沒有保證，不要寫出依賴這個順序的程式。
+
+**理由要點：** `wait(SC_ZERO_TIME)` 也是 delta 層級的等待，所以跟 delta 通知在同一個 delta；同一個 delta 內的順序不保證。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 實測輸出：
 
@@ -2260,20 +2521,64 @@ SC_MODULE(M) {
 int sc_main(int, char**){ M m("m"); sc_start(6, SC_NS); cout << "end @" << sc_time_stamp() << endl; return 0; }
 ```
 
-1. 預測輸出，特別注意兩個變數 `x` 與 `y`。
-2. `sc_start(6, SC_NS)` 結束時，在 `6 ns` 的事件（`method` 的下一次執行）有沒有跑？
-
 <details>
 <summary>提示</summary>
 
 - `SC_METHOD` 每次被呼叫都是新的函式呼叫，區域變數 `x` 會怎樣？
 - `SC_THREAD` 的 `y` 在 `wait` 前後是同一個變數嗎？
-- 第 2 題想一想 `sc_start(duration)` 的終點是包含還是不包含。
+- L2-2-b 想一想 `sc_start(duration)` 的終點是包含還是不包含。
+
+</details>
+
+#### L2-2-a〔單選〕
+
+輸出是哪一個（每個時間點用逗號分開）？
+
+- A. `method x=1 @0 s`, `thread y=1 @1 ns`, `method x=1 @2 ns`, `thread y=2 @3 ns`, `method x=1 @4 ns`, `thread y=3 @5 ns`, `end @6 ns`
+- B. `method x=1 @0 s`, `thread y=1 @1 ns`, `method x=2 @2 ns`, `thread y=2 @3 ns`, `method x=3 @4 ns`, `thread y=3 @5 ns`, `end @6 ns`
+- C. `method x=1 @0 s`, `thread y=1 @1 ns`, `method x=1 @2 ns`, `thread y=1 @3 ns`, `method x=1 @4 ns`, `thread y=1 @5 ns`, `end @6 ns`
+- D. `method x=1 @0 s`, `thread y=1 @1 ns`, `thread y=2 @3 ns`, `thread y=3 @5 ns`, `end @6 ns`（method 只跑一次）
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**A。**（實跑）
+
+- B 錯：`x` 是 method 的區域變數，每次觸發都重新從 0 開始。
+- C 錯：`y` 在 thread 的 stack 上，跨 `wait` 保留。
+- D 錯：每一次執行都會再呼叫 `next_trigger(2, SC_NS)`，所以 method 每 2 ns 跑一次。
+
+**理由要點：** method 的區域變數每次重新初始化；thread 的區域變數跨 `wait` 保留。
+
+</details>
+
+#### L2-2-b〔單選〕
+
+method 排在 6 ns 的那次執行，有沒有跑？
+
+- A. 有，`sc_start(6, SC_NS)` 包含終點
+- B. 沒有，因為時間停在 5 ns
+- C. 沒有：時間推進到 6 ns（印出 `end @6 ns`），但終點那個時間點上的 process 不會執行
+- D. 不一定，要看 OS 的排程
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**C。** 原始碼 `sc_simcontext::simulate` 的註解：`hold off on the delta for the until_t time`（MC5、MC6）。
+
+- B 錯：`end @6 ns` 說明時間確實到了 6 ns。
+- D 錯：SystemC 的 scheduler 是確定性的，跟 OS 排程無關。
+
+**理由要點：** 時間會走到終點，但不執行終點那一刻的 delta。
 
 </details>
 
 <details>
-<summary>參考答案</summary>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 實測輸出：
 
@@ -2321,10 +2626,6 @@ SC_MODULE(M) {
 int sc_main(int, char**){ M m("m"); sc_start(5, SC_NS); return 0; }
 ```
 
-1. 預測 `W0`、`W1`、`W2`、`W3`、`R` 各行印出的 `sig` 值。
-2. `plain` 是普通 `int`，為什麼 `W1` 的 `plain=5` 立刻看得到，而 `sig` 還是 0？
-3. `1 ns` 的那次 `sig.write(7)`（跟目前值一樣）有沒有觸發 `R`？`R` 一共印幾次？
-
 <details>
 <summary>提示</summary>
 
@@ -2333,8 +2634,77 @@ int sc_main(int, char**){ M m("m"); sc_start(5, SC_NS); return 0; }
 
 </details>
 
+#### L2-3-a〔單選〕
+
+`W0`、`W1`、`W2`、`W3` 印出的 `sig` 值依序是？
+
+- A. 0、5、7、7
+- B. 0、0、0、5
+- C. 0、5、5、7
+- D. 0、0、0、7
+
+**理由（一句）：** ____
+
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**D。**（實跑）
+
+- A、C 錯：同一個 evaluate phase 內，`read()` 看到的永遠是舊值。
+- B 錯：同一個 evaluate phase 寫兩次，生效的是最後一次的 7。
+
+**理由要點：** `write()` 要等到 update phase 才生效，而且是最後一次寫入的值生效。
+
+</details>
+
+#### L2-3-b〔複選〕
+
+關於 `plain` 與 `sig`，哪些正確？
+
+- A. `plain` 是普通變數，寫了立刻看得到
+- B. 同一個 evaluate phase 寫兩次，最後生效的是第一次的 5
+- C. `sig.write()` 只把新值存進 `m_new_val`，並登記到 update 清單
+- D. 這樣設計是為了讓同一個 delta 裡所有 process 看到一致的 signal 值，不會因為誰先跑而改變結果
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**A、C、D。**
+
+- B 錯：`m_new_val` 會被第二次寫入覆蓋，最後生效的是 7，`R` 也只觸發一次。
+
+**理由要點：** signal 是 primitive channel，「寫入」與「生效」分在兩個階段，以模擬硬體的同步邏輯。
+
+</details>
+
+#### L2-3-c〔單選〕
+
+1 ns 那次 `sig.write(7)` 寫的是跟目前一樣的值。`R` 一共印幾次？
+
+- A. 2 次：`7`（0 s）與 `8`（2 ns）。同值寫入不會觸發 `value_changed_event`
+- B. 3 次：`7`、`7`、`8`
+- C. 4 次：`5`、`7`、`7`、`8`
+- D. 1 次：`8`
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**A。**（實跑）
+
+- B 錯：`value_changed_event` 只在值真的改變時觸發。
+- C 錯：5 從來沒有生效過。
+- D 錯：0 s 那次從 0 變成 7，算一次改變。
+
+**理由要點：** 值有改變才觸發，跟呼叫 `write()` 幾次無關。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 實測輸出：
 
@@ -2359,10 +2729,6 @@ R sig=8 @2 ns delta=4
 
 用 T10 的兩段程式回答：
 
-1. `trylock()` 回傳 `-1` 代表什麼？非持有者呼叫 `unlock()` 會怎樣？
-2. 「4 個 process 搶 2 個 DMA 通道」應該用 `sc_mutex` 還是 `sc_semaphore`？為什麼？
-3. 忘記 `unlock()`，會看到什麼症狀？kernel 會報錯嗎？
-
 <details>
 <summary>提示</summary>
 
@@ -2371,8 +2737,77 @@ R sig=8 @2 ns delta=4
 
 </details>
 
+#### L2-4-a〔複選〕
+
+關於 `sc_mutex` 的 `trylock()` 與 `unlock()`，哪些正確？
+
+- A. `trylock()` 回傳 `-1` 時，會阻塞到拿到鎖為止
+- B. `trylock()` 回傳 `-1`，表示鎖已經被別的 process 持有；它不阻塞，直接返回
+- C. 非持有者呼叫 `unlock()` 會強制解鎖
+- D. 非持有者呼叫 `unlock()` 會回傳 `-1`，鎖不會被解開
+
+**理由（一句）：** ____
+
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**B、D。**（`sc_mutex.cpp:93–96`，T10 實跑）
+
+- A 錯：會阻塞的是 `lock()`，`trylock()` 不阻塞。
+- C 錯：只有持有者能解鎖。
+
+**理由要點：** try 就是「試一次、不等」；mutex 會記住持有者，只有持有者能解。
+
+</details>
+
+#### L2-4-b〔單選〕
+
+4 個 process 搶 2 個 DMA 通道，用什麼？
+
+- A. 一個 `sc_mutex`
+- B. 一個 `sc_mutex`，持有者用完就立刻 unlock，這樣就夠了
+- C. `sc_semaphore`，初始值 2
+- D. 一個 `sc_event`
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**C。**
+
+- A、B 錯：mutex 只允許一個持有者，同時只能用一個通道，另一個通道會閒置。
+- D 錯：事件沒有計數，也沒有記憶（L1-3-b）。
+
+**理由要點：** mutex 記的是「誰持有」，semaphore 記的是「還剩幾個」；有 2 個資源就要能計數。
+
+</details>
+
+#### L2-4-c〔單選〕
+
+持有者忘了 `unlock()`，會看到什麼？
+
+- A. 其他 process 永遠阻塞，kernel 不報錯；沒有 pending 事件時，`sc_start()` 就返回
+- B. kernel 報 deadlock error
+- C. 持有者結束時，SystemC 自動 unlock
+- D. 等待者等一段時間後 timeout，自動拿到鎖
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**A。**（T10 的 `t_mutex_leak` 實跑）這種 bug 只能靠 log 或 end-of-sim 檢查來抓，所以測試時要檢查每個 process 是否都走完。
+
+- B 錯：kernel 不會偵測 deadlock，只是沒有事件可跑就停了。
+- C、D 錯：沒有自動 unlock，也沒有 timeout。
+
+**理由要點：** 只有 `unlock()` 會發出喚醒事件；沒有事件，等待者就永遠不會被叫醒，kernel 看到的只是「沒事做了」。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 1. `-1` 表示鎖已被別的 process 持有，`trylock()` 沒有阻塞就返回。非持有者呼叫 `unlock()` 回傳 `-1`，鎖不會被解開（`sc_mutex.cpp:93–96`，實測見 T10）。
 2. `sc_semaphore`，初始值 2。mutex 只允許一個持有者，表達不了「兩個資源」。
@@ -2384,11 +2819,7 @@ R sig=8 @2 ns delta=4
 
 ### L2-5：`SC_CTHREAD` 與 reset〔L2〕
 
-用 T4 的 `t_cthread_reset2` 程式回答：
-
-1. 為什麼 `reset-branch @0 s` 會在第一個 clock edge 之前印出？
-2. `rst` 在 25 ns 拉高，為什麼 counter 要到 30 ns 才歸零？它在 40 ns 的第一個值是多少？
-3. 如果把 `reset_signal_is(rst, true)` 拿掉，reset 還會生效嗎？你要怎麼驗證？
+用 T4 的 `SC_CTHREAD` reset 範例程式回答：
 
 <details>
 <summary>提示</summary>
@@ -2398,10 +2829,78 @@ R sig=8 @2 ns delta=4
 
 </details>
 
-<details>
-<summary>參考答案</summary>
+#### L2-5-a〔單選〕
 
-1. `SC_CTHREAD` 在初始化階段就開始執行，不是等 edge。所以 reset 分支在 `0 s` 先跑一次，之後的第一個 `wait()` 才等下一個 edge。
+為什麼 `reset-branch @0 s` 會先印出來？
+
+- A. `rst` 的初始值是 true，所以 0 s 時就在 reset 狀態
+- B. `sc_clock` 預設第一個 posedge 就在 0 s；`SC_CTHREAD` 被這個 edge 叫醒，第一次執行就跑 reset 分支，之後第一個 `wait()` 等下一個 edge
+- C. `reset_signal_is` 會在 0 s 強制 reset 一次
+- D. `SC_CTHREAD` 跟 `SC_METHOD` 一樣，每個 edge 都從頭呼叫，所以每次都會先印 reset 分支
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**B。**（T4、MC27）`SC_CTHREAD` 不會在 initialization phase 執行（`m_dont_init = true`，`sc_cthread_process.cpp:56`；`sc_simcontext.cpp:753` 的註解：cthread processes always have the dont_initialize flag set）。實測把 clock 的 start time 改成 5 ns，第一次 `reset-branch` 就印在 5 ns。
+
+- A 錯：`sc_signal<bool>` 的初始值是 false。
+- C 錯：`reset_signal_is` 只是讓 reset 生效時 thread 從頭執行，不會自己產生 reset。
+- D 錯：CTHREAD 是 thread，會從 `wait()` 的下一行繼續；輸出裡 10 ns、20 ns 印的也都是 `count`。
+
+**理由要點：** CTHREAD 只會被 clock edge 叫醒（不做初始化執行），而預設的 `sc_clock` 在 0 s 就有一個 posedge。
+
+</details>
+
+#### L2-5-b〔單選〕
+
+`rst` 在 25 ns 拉高。counter 在什麼時候歸零？40 ns 印的第一個值是多少？
+
+- A. 25 ns 立刻歸零；40 ns 印 `count=1`
+- B. 30 ns 歸零，而且 30 ns 就印出 `count=0`
+- C. 30 ns（`rst` 為 true 之後的第一個 posedge）重新執行 reset 分支；第一個 `wait()` 讓它到 40 ns 才印 `count=0`
+- D. 35 ns `rst` 拉低時才歸零；40 ns 印 `count=0`
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**C。**（實跑：`reset-branch @30 ns`、`count=0 @40 ns`）
+
+- A 錯：同步 reset 只在 edge 上檢查。
+- B 錯：30 ns 印的是 `reset-branch`，reset 分支之後還有一個 `wait()`。
+- D 錯：reset 在 `rst` 為 true 的 edge 就生效，不是等到放開。
+
+**理由要點：** 同步 reset 在 edge 上檢查；reset 分支之後的第一個 `wait()` 又多等一個 edge。
+
+</details>
+
+#### L2-5-c〔單選〕
+
+把 `reset_signal_is(rst, true)` 拿掉，其他都不變。會怎樣？
+
+- A. reset 不會生效：`count` 在 25–35 ns 照樣增加，依序是 `0 @10`、`1 @20`、`2 @30`、`3 @40`、`4 @50`
+- B. 仍然會生效，因為 `rst` 是 `sc_signal<bool>`
+- C. 編譯錯誤
+- D. 只在 0 s 生效一次
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**A。**（實跑）thread 根本不知道 `rst` 是 reset，`rst` 只是一個普通的 signal。驗證方法就是拿掉之後重跑，比較輸出。
+
+**理由要點：** reset 要靠 `reset_signal_is` 註冊，kernel 才知道哪個 signal 是 reset。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
+
+1. （2026-11-10 修正）`SC_CTHREAD` **不會**在初始化階段執行（`m_dont_init = true`），它是被 `sc_clock` 在 `0 s` 的第一個 posedge 叫醒的，所以 reset 分支在 `0 s` 先跑一次，之後的第一個 `wait()` 才等下一個 edge。
 2. 30 ns 是 `rst` 為 true 時的第一個 posedge（`rst` 在 25 ns 寫入、經 update 生效，下一個 edge 才看得到）。之後 thread 從頭跑 reset 分支，第一個 `wait()` 讓它在 40 ns 才印第一個值，所以是 `count=0 @40 ns`。
 3. 不會。實測把 `reset_signal_is` 拿掉（其他不變），`count` 在 25–35 ns 的 reset 期間照樣增加：`count=0 @10 ns`、`1 @20`、`2 @30`、`3 @40`、`4 @50`。
 
@@ -2411,10 +2910,6 @@ R sig=8 @2 ns delta=4
 
 ### L2-6：`sc_spawn` 的 process 型態與生命週期〔L2〕
 
-1. `sc_spawn(&worker)` 預設產生什麼型態的 process？它從哪個時間點開始跑？（參考 MC35）
-2. 如果要讓 spawn 出來的 process 只在某個 `sc_event` 觸發，且不要在初始化時執行，`sc_spawn_options` 要怎麼設？（參考 T11）
-3. `h.terminated()` 什麼時候是 `true`？它能不能代替同步（例如等 worker 結束再繼續）？
-
 <details>
 <summary>提示</summary>
 
@@ -2423,8 +2918,76 @@ R sig=8 @2 ns delta=4
 
 </details>
 
+#### L2-6-a〔單選〕
+
+`sc_spawn(&worker)` 預設產生哪種 process？從什麼時候開始跑？（參考 MC35）
+
+- A. `SC_METHOD`，在下一個 delta 開始
+- B. `SC_THREAD`，在呼叫 `sc_spawn()` 的那個時間點開始跑
+- C. `SC_THREAD`，從 time 0 開始跑
+- D. `SC_CTHREAD`
+
+**理由（一句）：** ____
+
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**B。**（MC35 實跑：在 2 ns 呼叫 spawn，`worker` 也在 2 ns 開始。）
+
+- C 錯：spawn 的時間點就是 process 誕生的時間，它不會回到 time 0 補跑。
+
+**理由要點：** 動態 process 從被 spawn 的那一刻開始存在，預設是 thread。
+
+</details>
+
+#### L2-6-b〔單選〕
+
+要讓 spawn 出來的 process 只在 `sc_event e` 觸發時執行，而且不要在建立時先跑一次。`sc_spawn_options o` 要怎麼設？（參考 T11）
+
+- A. 只要 `o.set_sensitivity(&e);`，預設就不會先跑
+- B. `o.spawn_method(); o.dont_initialize();`，敏感度寫在 module 建構子的 `sensitive << e`
+- C. `o.spawn_method(); o.set_sensitivity(&e);`
+- D. `o.spawn_method(); o.set_sensitivity(&e); o.dont_initialize();`
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**D。**（T11 的 `t_spawn_opts`）
+
+- A、C 錯：沒有 `dont_initialize()`，預設會先跑一次。
+- B 錯：`sensitive <<` 是給 module 建構子裡用 `SC_METHOD` 註冊的 process 用的。spawn 的 process 要用 options 設定敏感度。
+
+**理由要點：** spawn 的 process 的設定全部經由 `sc_spawn_options`：型態、敏感度、要不要先跑。
+
+</details>
+
+#### L2-6-c〔複選〕
+
+關於 `sc_process_handle h` 的 `h.terminated()`，哪些正確？
+
+- A. 呼叫 `h.terminated()` 會阻塞，直到 worker 結束
+- B. process 結束後，`h.terminated()` 是 `true`
+- C. 它只是查詢狀態；要等 worker 結束，得自己用 event、semaphore 或 `sc_join` 之類的機制同步
+- D. 用一次 `if (!h.terminated())` 檢查，就可以代替等待
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**B、C。**（`sc_join` 這一輪沒有驗證，見「下一輪可以加考」。）
+
+- A 錯：它不阻塞。
+- D 錯：檢查一次只知道「現在」的狀態，不會等。
+
+**理由要點：** 查詢不等於同步；要等待，就需要會讓自己暫停的機制。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 1. 預設是 `SC_THREAD`，在呼叫 `sc_spawn()` 的那個時間點開始跑（MC35 實測在 2 ns 呼叫，`worker` 也在 2 ns 開始）。
 2. 用 `o.spawn_method()`、`o.set_sensitivity(&e)`、`o.dont_initialize()`（`t_spawn_opts` 的寫法）。
@@ -2436,9 +2999,9 @@ R sig=8 @2 ns delta=4
 
 ---
 
-## L3：scheduler 口述
+## L3：scheduler 與 elaboration（L3-1 口述，L3-2～L3-4 選擇題）
 
-### L3-1：用一分鐘講完 SystemC scheduler 的 evaluate → update → delta notification 流程〔L3〕
+### L3-1：用一分鐘講完 SystemC scheduler 的 evaluate → update → delta notification 流程〔L3〕〔口述〕
 
 請自己口述（面試的標準開場題），要求提到：
 
@@ -2474,10 +3037,6 @@ SystemC 是 discrete-event simulation。一個 time step 內重複下面的 delt
 
 ### L3-2：elaboration 與 simulation callback〔L3〕
 
-1. 依序列出：建構子、`before_end_of_elaboration`、`end_of_elaboration`、`start_of_simulation`、`end_of_simulation`，各在什麼時候被呼叫？
-2. 為什麼不能在 `start_of_simulation()` 裡 `new` 一個 module？看到的錯誤是哪個代碼？
-3. 2.3.3 中，`sc_main` 正常返回而沒有呼叫 `sc_stop()` 時，`end_of_simulation()` 會不會被呼叫？你會怎麼驗證？標準條文你會去哪裡查？
-
 <details>
 <summary>提示</summary>
 
@@ -2486,8 +3045,70 @@ SystemC 是 discrete-event simulation。一個 time step 內重複下面的 delt
 
 </details>
 
+#### L3-2-a〔單選〕
+
+哪一個順序正確？
+
+- A. 建構子 → `start_of_simulation` → `before_end_of_elaboration` → `end_of_elaboration` → 模擬 → `end_of_simulation`
+- B. `before_end_of_elaboration` → 建構子 → `end_of_elaboration` → `start_of_simulation` → 模擬 → `end_of_simulation`
+- C. 建構子 → `before_end_of_elaboration` → `end_of_elaboration` → `start_of_simulation` → 模擬 → `end_of_simulation`（2.3.3 只在 `sc_stop()` 之後才呼叫）
+- D. 建構子 → `end_of_elaboration` → `before_end_of_elaboration` → `start_of_simulation` → 模擬 → `end_of_simulation`
+
+**理由（一句）：** ____
+
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**C。**（MC30、T8）
+
+**理由要點：** 名字就是時間點：elaboration「結束前」→「結束時」→ 模擬「開始」→ 模擬「結束」；建構子屬於 elaboration，最早。
+
+</details>
+
+#### L3-2-b〔單選〕
+
+在 `start_of_simulation()` 裡 `new` 一個 module，會怎樣？
+
+- A. 可以，只是這個 module 不會被模擬
+- B. E109
+- C. segfault
+- D. E529：elaboration 結束後，module registry 不接受新的 module
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**D。**（`sc_module_registry.cpp:54`，T8 實跑）
+
+- B 錯：E109 是 port 沒有綁定。
+
+**理由要點：** hierarchy 在 elaboration 結束時就固定了，之後不能再加 module。
+
+</details>
+
+#### L3-2-c〔單選〕
+
+2.3.3 中，`sc_main` 沒有呼叫 `sc_stop()` 就正常返回。`end_of_simulation()` 會被呼叫嗎？
+
+- A. 會，`sc_main` 返回時一定呼叫
+- B. 不會。2.3.3 的 `sc_simcontext::end()` 只在 `sc_stop()` 的路徑上呼叫（`sc_simcontext.cpp:963`）。驗證方法：寫一個不呼叫 `sc_stop()` 的 `sc_main`，在 `end_of_simulation` 裡印字，看有沒有輸出。標準條文要另外查
+- C. 會，但只在有 `SC_THREAD` 的時候
+- D. 不一定，要看 OS
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**B。** MC30 的 D 選項就是這個陷阱。IEEE 1666 本機沒有原文，這裡只是 2.3.3 的實作行為。
+
+**理由要點：** 只有 `sc_stop()` 會走到 `end()`；正常返回不會經過那條路。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 1. 建構子：`sc_module` 物件建立時（elaboration）。`before_end_of_elaboration()`、`end_of_elaboration()`：elaboration 結束前後（MC30）。`start_of_simulation()`：第一次 `sc_start()` 進入模擬前。`end_of_simulation()`：模擬結束的通知（在 2.3.3 中只在 `sc_stop()` 之後，見 T8）。
 2. elaboration 結束後，module registry 不接受新 module，錯誤是 E529（`sc_module_registry.cpp:54`，實測見 T8）。
@@ -2499,10 +3120,6 @@ SystemC 是 discrete-event simulation。一個 time step 內重複下面的 delt
 
 ### L3-3：port 與 export 的綁定〔L3〕
 
-1. 為什麼 `sc_port` 的綁定要留到 elaboration 才做？綁定檢查在哪個時間點發生？（參考 MC31）
-2. 寫 `exp(port)` 為什麼編譯失敗？`sc_export` 應該綁什麼？（參考 T9）
-3. 面試官問：「為什麼 channel 不直接用指標傳給子模組？」你會怎麼回答？
-
 <details>
 <summary>提示</summary>
 
@@ -2511,8 +3128,75 @@ SystemC 是 discrete-event simulation。一個 time step 內重複下面的 delt
 
 </details>
 
+#### L3-3-a〔複選〕
+
+關於 `sc_port` 的綁定，哪些正確？（參考 MC31）
+
+- A. port 在建構時還不知道誰會實作它，要等整個 hierarchy 建好才能確認
+- B. 沒有綁定的 port，在 module 的建構子裡就會報錯
+- C. 沒有綁定的 port，要到第一次呼叫 `read()` 才報錯
+- D. 綁定檢查在 `sc_start()` 的 elaboration 結束時做，沒有綁定會報 E109
+
+**理由（一句）：** ____
+
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**A、D。**
+
+- B 錯：建構子執行時，綁定還沒做，這時報錯太早了。
+- C 錯：elaboration 結束時就會檢查，不會拖到執行期。
+
+**理由要點：** 綁定在 elaboration 期間完成，所以檢查放在 elaboration 結束時。
+
+</details>
+
+#### L3-3-b〔單選〕
+
+寫 `exp(port)` 為什麼編譯失敗？（參考 T9）
+
+- A. export 只能綁另一個 export
+- B. `sc_export::operator()` 只接受 interface（`IF&`），port 不是 interface 的實作。export 要綁 channel 本身，子模組的 port 再綁到這個 export
+- C. export 只能在 `sc_main` 裡綁定，不能在 module 裡
+- D. 要用 `-std=c++14` 才編譯得過
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**B。**（T9 的 `t_export`）
+
+- D 錯：本機 library 只能用 `-std=c++11`（見檔頭說明），而且這跟語言版本無關。
+
+**理由要點：** export 要指向一個「實作了 interface 的東西」，而 port 只是「需要」interface，並不實作它。
+
+</details>
+
+#### L3-3-c〔複選〕
+
+面試官問：「為什麼 channel 不直接用指標傳給子模組？」下面哪些可以放進你的回答？
+
+- A. SystemC 不能用指標
+- B. module 只依賴 interface，不依賴具體的 channel
+- C. 綁定錯誤（沒有綁定、型別不符）在 elaboration 就能抓到
+- D. 換 channel 實作，或插入 TLM 中介層時，不用改子模組
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**B、C、D。**這是 TLM socket 的基礎概念。
+
+- A 錯：指標當然可以用，問題在於耦合，而且錯誤要到執行期才會發現。
+
+**理由要點：** 依賴 interface 而不是實作；錯誤提早到 elaboration 就被抓到。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 1. port 在建構時還不知道誰會實作它，等整個 hierarchy 建好才能確認。檢查在 `sc_start()` 的 elaboration 結束時做，未綁定就報 E109（MC31）。
 2. `sc_export::operator()` 只接受 interface（`IF&`），port 不是 interface 的實作。export 應該綁到 channel（例如 `sc_fifo`）本身，子模組的 port 再綁到這個 export（T9 的 `t_export`）。
@@ -2526,10 +3210,6 @@ SystemC 是 discrete-event simulation。一個 time step 內重複下面的 delt
 
 情境：你寫一個 testbench，要跑 300 ns，每 100 ns 檢查一次 DUT 狀態；某個條件（例如 `done` 事件）發生時，要讓 `sc_main` 停下來檢查，然後繼續跑；全部結束時要收尾。
 
-1. 這三種需求分別用 `sc_start(t)`、`sc_pause()` 還是 `sc_stop()`？各舉一個適合的情境。
-2. 在 `sc_main` 裡呼叫 `sc_stop()`，會不會觸發 `end_of_simulation()`？（參考 T8）
-3. 用 `SC_STOP_IMMEDIATE` 會有什麼代價？為什麼 testbench 通常不用它？
-
 <details>
 <summary>提示</summary>
 
@@ -2538,8 +3218,73 @@ SystemC 是 discrete-event simulation。一個 time step 內重複下面的 delt
 
 </details>
 
+#### L3-4-a〔單選〕
+
+三種需求（每 100 ns 檢查一次、`done` 時讓 `sc_main` 介入後繼續跑、全部結束時收尾）分別用什麼？
+
+- A. 每 100 ns：在 process 裡 `sc_pause()`；`done`：`sc_stop()`；收尾：`sc_start()`
+- B. 三種都用 `sc_stop()`，之後再 `sc_start()` 續跑
+- C. 每 100 ns：`sc_start(100, SC_NS)` 的迴圈；`done`：在 process 裡 `sc_pause()`，`sc_main` 在 `sc_start` 返回後檢查，再呼叫 `sc_start()` 續跑；收尾：`sc_stop()`
+- D. `done`：在 process 裡 `sc_stop()`，`sc_main` 檢查完再 `sc_start()` 續跑
+
+**理由（一句）：** ____
+
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**C。**（MC36）
+
+- B、D 錯：`sc_stop()` 之後不能再 `sc_start()` 續跑（MC19）。
+- A 錯：用途全部配錯了。
+
+**理由要點：** `sc_start(t)` = 跑一段固定時間；`sc_pause()` = 暫停、之後還能繼續；`sc_stop()` = 結束、不能再繼續。
+
+</details>
+
+#### L3-4-b〔單選〕
+
+在 `sc_main` 裡呼叫 `sc_stop()`，會觸發 `end_of_simulation()` 嗎？（參考 T8）
+
+- A. 會。實跑會印 `Simulation stopped by user.`，並觸發 `end_of_simulation()`
+- B. 不會，只有在 process 裡呼叫 `sc_stop()` 才會
+- C. 不會，要等 `sc_main` 返回才會
+- D. 只有用 `SC_STOP_IMMEDIATE` 時才會
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**A。**（MC30）跟 L3-2-c 對照：會觸發的是 `sc_stop()`，不是 `sc_main` 返回。
+
+**理由要點：** 在 2.3.3 裡，`end_of_simulation` 綁在 `sc_stop()` 上。
+
+</details>
+
+#### L3-4-c〔複選〕
+
+關於 `SC_STOP_IMMEDIATE`，哪些正確？
+
+- A. 目前 delta 裡還沒跑的 process 會直接被跳過
+- B. 預設的停止模式就是 `SC_STOP_IMMEDIATE`
+- C. 狀態可能不一致，檢查結果就不可靠
+- D. testbench 一般用預設的 `SC_STOP_FINISH_DELTA`，讓目前的 delta 跑完再停
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**A、C、D。**（MC37）
+
+- B 錯：預設是 `SC_STOP_FINISH_DELTA`。
+
+**理由要點：** IMMEDIATE 會切斷一個還沒跑完的 delta，所以狀態可能停在一半。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 1. 每 100 ns 檢查：用 `sc_start(100, SC_NS)` 的迴圈。`done` 事件要 main 介入：process 裡 `sc_pause()`，`sc_main` 在 `sc_start` 返回後檢查，再 `sc_start()` 續跑（MC36）。全部結束：`sc_stop()`。
 2. 會。實測 `sc_stop()` 從 `sc_main` 呼叫時會印 `Simulation stopped by user.` 並觸發 `end_of_simulation()`（MC30）。
@@ -2551,7 +3296,7 @@ SystemC 是 discrete-event simulation。一個 time step 內重複下面的 delt
 
 ## L4：simulation speed 案例
 
-### L4-1：每個 clock cycle 都 `wait` 為什麼慢？連結你的 msg IP 優化案例〔L4〕
+### L4-1：每個 clock cycle 都 `wait` 為什麼慢？連結你的 msg IP 優化案例〔L4〕〔口述〕
 
 背景（引用自 `tasks/progress.md`）：你在 msg IP 用 VDK top-down profiling、valgrind，找到每個 clock cycle 都 wait 的不必要喚醒，改成較粗的時間等待，simulation 變快（加速倍數不確定）。
 
@@ -2629,7 +3374,7 @@ coarse(10us): wakeups=9999 wall=0.001s
 
 ---
 
-### L4-2：你的 msg IP 中的 channel 選擇〔L4〕
+### L4-2：你的 msg IP 中的 channel 選擇〔L4〕〔口述〕
 
 1. 你的 msg IP 裡，哪些地方用 `sc_signal`、哪些用 `sc_fifo`、哪些用 `sc_event`？每一種各舉一個例子，說明你為什麼這樣選。
 2. 如果把其中一個 `sc_fifo` 換成 `sc_buffer` 或直接用 `sc_event` 通知，行為會改變哪些地方？用 MC9、MC15、MC38 的規則回答。
@@ -2654,7 +3399,9 @@ coarse(10us): wakeups=9999 wall=0.001s
 
 ---
 
-## 手寫練習（只給規格與骨架，請自己寫）
+## 手寫練習〔選做，不在預設輪替〕（只給規格與骨架，請自己寫）
+
+2026-11-09 起，手寫題只排短題（見 `study/cpp11-14-quiz.md` 的手寫輪替）。這兩題保留原樣；若 HR 確認技術面試有手寫，再排回輪替。
 
 這一段跟前面不一樣：**沒有參考解答**。先照規格寫、用骨架裡的 `check()` 自己檢查，寫完再請我看你的版本（會給 review 意見，不會直接貼完整解答）。
 
@@ -2760,7 +3507,7 @@ int sc_main(int, char**) {
 - 把 `rst` 的時間改成 45 ns 與 55 ns，預測輸出會怎麼變。
 
 **提示**
-1. `SC_CTHREAD` 在初始化時就開始執行，第一個 `wait()` 等的是下一個 edge（T4、MC27）。
+1. `SC_CTHREAD` 不做初始化執行，第一次執行是被 clock edge 叫醒的；預設 `sc_clock` 在 0 s 就有 posedge。第一個 `wait()` 等的是下一個 edge（T4、MC27）。
 2. reset 分支要放在主迴圈之前，reset 生效時 thread 會從頭執行（T4、L2-5）。
 3. `rst` 的寫入在 update phase 才生效，所以 25 ns 寫入的值要到下一個 posedge 才看得到（L2-3）。
 
@@ -2872,6 +3619,25 @@ int sc_main(int, char**) {
   - 既有的 `sc_simcontext.cpp:595`、`:867–870`、`:929`（"hold off on the delta"）也重新確認，與 L2-2、MC20 的敘述一致。`:796` 是 `initialize` 裡的 `no_crunch` 判斷，與 MC20 的敘述一致，未逐行追完整條件。
 - **重跑既有題目**：L1-3、L2-1、L2-2、L2-3 的輸出與原文逐行一致。既有 MC 題目未重跑，沿用 2026-10-21 的實測紀錄。
 - **未核對 / 只依實作**：
-  - IEEE 1666-2011 條文本身：本機沒有標準文件，以下都只是 2.3.3 的實作行為：`end_of_simulation` 只在 `sc_stop()` 後觸發、port 綁定檢查（E109）發生在 `end_of_elaboration` callback 之前（MC31 的程式沒有覆寫 callback，只看到 E109 與沒有 callback 輸出，這是觀察）、`SC_CTHREAD` 初始化時就執行、`sc_mutex` 的回傳值、`sc_fifo` 的 update 時序。
+  - IEEE 1666-2011 條文本身：本機沒有標準文件，以下都只是 2.3.3 的實作行為：`end_of_simulation` 只在 `sc_stop()` 後觸發、port 綁定檢查（E109）發生在 `end_of_elaboration` callback 之前（MC31 的程式沒有覆寫 callback，只看到 E109 與沒有 callback 輸出，這是觀察）、`SC_CTHREAD` 初始化時就執行（2026-11-10 更正：這條是錯的，CTHREAD 不做初始化執行，0 s 的執行來自 clock 在 0 s 的 posedge，見 T4）、`sc_mutex` 的回傳值、`sc_fifo` 的 update 時序。
   - `sc_join`、`async_reset_signal_is`、`sc_clock` 的進階參數：只在「下一輪可以加考」列出，尚未驗證。
 - **事實修正**：本輪沒有發現既有題目的錯誤，既有內容未改動。新增部分的修正見上面的「修正過程中自己發現的問題」。
+
+## 選擇題化驗證紀錄（2026-11-09）
+
+- 範圍：L1-1～L1-3、L2-1～L2-6、L3-2～L3-4 改成選擇題（子題 `L2-1-a` 起）。正確選項都取自同一題原有、已實跑或已對照原始碼的參考答案；原答案保留在每題的「完整解說」裡，內容沒有改動。預測輸出題的正確選項就是原本貼的實測輸出。
+- 這次新寫進選項、原答案沒有直接說到的部分，另外核對了下面三項。測試程式放在 scratchpad 的 `mc/` 目錄，編譯指令同檔頭：
+  - L1-2-c 選項 A「`wait(e, 5, SC_NS)` 沒有事件在前的 overload」：編譯失敗，訊息是 `no matching function for call to 'M::wait(sc_core::sc_event&, int, sc_core::sc_time_unit)'`（`waitorder.cpp`）。
+  - L2-6-b「spawn 出來的 method 沒加 `dont_initialize()` 就會先跑一次」：實跑輸出 `noDI ran @2 ns`（spawn 當下就跑了）、`DI ran @5 ns`、`noDI ran @5 ns`（`spawnopt.cpp`）。
+  - L2-5-a 選項 A「`sc_signal<bool>` 初始值是 false」：同一支程式印出 `bool init=0`。
+- L3-1、L4-1、L4-2 標〔口述〕，EX-1、EX-2 標〔選做〕，內容都沒改。
+
+### Agent 審查修正（2026-11-10）
+
+唯讀 subagent 審查時發現一個既有的錯誤：「`SC_CTHREAD` 在 initialization phase 就執行」。這個錯誤從 2026-10-21 起就在 T4、MC27、L2-5-a、EX-2 提示，以及核對紀錄裡。
+
+- 實際行為：`sc_cthread_process` 建構子設定 `m_dont_init = true`（`sc_cthread_process.cpp:56`；`sc_simcontext.cpp:753` 註解寫「cthread processes always have the dont_initialize flag set」）。
+- `0 s` 那次執行，是被預設 `sc_clock` 在 0 s 的 posedge 叫醒的。
+- 實測：clock 的 start time 改成 5 ns 時，第一次執行出現在 `5 ns`（scratchpad `mc/ct.cpp`）。
+- 修正範圍：上述各處的理由與 L2-5-a 選項 B 都已改正。輸出不變，所以 MC27、L2-5-a 的正確字母不變。
+- 其餘預測輸出題由 agent 重跑，結果都與答案一致。

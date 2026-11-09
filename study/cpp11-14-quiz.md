@@ -2,24 +2,31 @@
 
 對應 `tasks/learning-plan.md` 第 1 項（C++14）與 `mediatek/prep-notes.md` 第一部分，目標：能說明類別設計、手寫 C++11/14 常考語法，並應對 SystemC / Modeling / 底層系統軟體職缺的面試追問。
 
-用法：先看題目，嘗試在紙上或白板口頭作答/手寫，再展開 `<details><summary>參考答案</summary>` 對照。每題標記常考公司/類型（觀念題、手寫題、陷阱題）。
+用法：先看題目，作答之後再展開 `<details>` 對照。2026-11-09 起，題型比例大約是 **80% 選擇題 + 20% 口述與手寫**：
 
-**難度分級**（標在每題標題後）：L1 學習（看懂概念，附提示）→ L2 應用（預測輸出、找錯、動手改）→ L3 面試（開放式問答與白板題）→ L4 深入（陷阱、效能、原理）。建議順序：先讀「教學導讀」（G1–G12，只讀你還不熟的主題），再做選擇題（MC1–MC43，由淺到深），再做「問答題與手寫題」：第零模組（L1–L2），然後是第一模組之後的 L3、L4 題，最後是第七模組補充問答與第八模組手寫練習。
+- **選擇題**：每題選完都要寫**一句理由**，交出前先自己檢查「理由推不推得出選擇」（見選擇題段開頭的「作答規則」）。
+- **〔口述〕**：Q17、Q22、C2，用講的回答。
+- **〔手寫〕**：短題輪替，每題大約 10 分鐘，依序是 ① L2-4 Rule of Zero → ② C1 `Buffer` 10 分鐘版 → ③ Q20 `make_unique`。只給規格、骨架和提示。
+- **〔選做〕**：E1、E2 不在預設輪替裡。
+
+**風險提醒**：手寫練得少，白板題可能會卡住（例如要從空白寫出 `D(D&&) = default;` 或 move constructor）。技術面試有沒有手寫題還沒確認（見 `tasks/progress.md`）。如果 HR 確認有，手寫的比例要調高，E1、E2 也要排回輪替。
+
+**難度分級**（標在每題標題後）：L1 學習（看懂概念，附提示）→ L2 應用（預測輸出、找錯、動手改）→ L3 面試（概念、設計與白板題）→ L4 深入（陷阱、效能、原理）。建議順序：先讀「教學導讀」（G1–G12，只讀你還不熟的主題），再做選擇題（MC1–MC43，由淺到深），接著做「深入題」：先第零模組（L1–L2），再第一模組之後的 L3、L4 題，口述題和手寫題依上面的輪替穿插著做。
 
 ---
 
 ## 目錄
 - [教學導讀 (G1–G12)](#教學導讀g1g12)（先讀，再做選擇題）
-- [選擇題：先建立直覺 (MC1–MC43)](#選擇題先建立直覺mc1mc43)（再做下面的問答題）
-- [第零模組：L1 入門 與 L2 應用 (L1-1–L1-4、L2-1–L2-4)](#第零模組l1-入門-與-l2-應用)
+- [選擇題：先建立直覺 (MC1–MC43)](#選擇題先建立直覺mc1mc43)（再做下面的深入題）
+- [第零模組：L1 入門 與 L2 應用 (L1-1–L1-4、L2-1–L2-3 選擇題；L2-4 手寫)](#第零模組l1-入門-與-l2-應用)
 - [第一模組：記憶體管理與智慧指標 (Q1–Q3)](#第一模組記憶體管理與智慧指標)
 - [第二模組：Move Semantics、右值與生命週期 (Q4–Q6)](#第二模組move-semantics右值與生命週期)
 - [第三模組：Lambda 表達式與函式物件 (Q7–Q9)](#第三模組lambda-表達式與函式物件)
 - [第四模組：物件導向、型別推導與編譯期計算 (Q10–Q13)](#第四模組物件導向型別推導與編譯期計算)
 - [第五模組：底層系統、並行與 Bit 操作 (Q14–Q15)](#第五模組底層系統並行與-bit-操作)
-- [第六模組：白板手寫實作題 (C1–C2)](#第六模組白板手寫實作題)
-- [第七模組：補充問答 (Q16–Q22)](#第七模組補充問答q16q22)
-- [第八模組：手寫練習 (E1–E2)](#第八模組手寫練習e1e2只給規格與骨架)
+- [第六模組：白板手寫實作題 (C1 手寫、C2 口述)](#第六模組白板手寫實作題)
+- [第七模組：補充問答 (Q16–Q22；Q17、Q22 口述，Q20 手寫)](#第七模組補充問答q16q22)
+- [第八模組：手寫練習 (E1–E2，選做)](#第八模組手寫練習e1e2選做不在預設輪替只給規格與骨架)
 
 ---
 
@@ -190,6 +197,13 @@
 3. 挑幾題自己把程式碼打進編譯器跑一遍（指令：`g++ -std=c++14 -Wall x.cpp -o x && ./x`），看輸出是不是跟你猜的一樣。**手打一次比讀十次有用。**
 
 每題的程式碼與結論都在本機用 g++（`-std=c++14`，另有標明的除外）實際編譯、執行過，驗證紀錄在文末。
+
+**作答規則（2026-11-09 起，適用整份檔案的選擇題，也包含後面由 L、Q 題改成的選擇題）：**
+
+1. 先選答案。標〔複選〕的題目可能有不只一個正確選項，要全部選對才算對。
+2. 寫**一句理由**，說出讓你這樣選的那個事實或規則。不要只寫類別（例如「因為是短字串」），要寫出推導過程（例如「短字串走 SSO，字元是複製過去的，所以位址不同」）。
+3. 交出前自己檢查：**我的理由真的推得出我的選擇嗎？** 理由和結論對不上時，先改其中一個再交。這是 2026-11-09 複習輪最常出現的問題。
+4. 展開答案後，對照「理由要點」。選對了但理由沒講到要點，算半對。
 
 ---
 
@@ -1475,19 +1489,33 @@ int main() {
 - L2-4（RegBank 改 Rule of Zero）仍未交稿。下次從這裡開始：請他貼稿，問他頂部四個 `static_assert` 為什麼不用寫特殊成員函式就會過。
 - 他的答題模式：結論和理由互相矛盾時，沒有回頭對照。請他寫完理由後對一次「理由推得出結論嗎」。
 
-**下一輪可以加考：** 上次的四項已轉成題目：lambda `[=]` 與隱式 `this`（MC35、MC36、Q16、G1）、`shared_ptr` 循環與 `weak_ptr`（L2-3、Q17、MC37、G2）、Rule of Zero（L2-4、MC38、MC39、Q18、G3）、`std::function` 開銷（MC34、Q19、G4）。下一輪口頭先問 MC35、MC39、Q16、Q19 各一題，不先給答案；E1、E2 等 Alan 交稿後再 review。MC29、MC33、Q20 是 forwarding 與 noexcept 的補強，可排在 Q4、Q5 之後。
+**下一輪可以加考：** 上次的四項都已經轉成題目：
+
+- lambda `[=]` 與隱式 `this`：MC35、MC36、Q16、G1
+- `shared_ptr` 循環與 `weak_ptr`：L2-3、Q17、MC37、G2
+- Rule of Zero：L2-4、MC38、MC39、Q18、G3
+- `std::function` 開銷：MC34、Q19、G4
+
+下一輪先從 MC35、MC39、Q16、Q19 各問一題，不先給答案。E1、E2 等 Alan 交稿後再 review。MC29、MC33、Q20 是 forwarding 與 noexcept 的補強，可以排在 Q4、Q5 之後。
+
+（2026-11-09 更新：Q16、Q19 已經改成選擇題，作答時要附一句理由。Q17 是口述題；Q20 改成手寫 `make_unique`；E1、E2 改成選做。）
 
 ---
 
-## 問答題與手寫題（從這裡開始）
+## 深入題：選擇題（約 80%）＋口述與手寫（約 20%）（從這裡開始）
 
-下面是 L1–L2 的問答 / 動手題（第零模組），以及 L3–L4 的面試問答與白板題（第一模組以後）。選擇題熟了再做這一段。
+選擇題段熟了再做這一段。題號都沿用原本的，方便對照練習紀錄和教學導讀裡的「深入：Qn」。
+
+- **選擇題**：L1-1～L1-4、L2-1～L2-3、Q1～Q16、Q18、Q19、Q21。每個子題（例如 `Q11-a`）都照「作答規則」作答。子題的「答案」只列選項和理由要點，整題的「完整解說」放在最後，選完再看。
+- **〔口述〕**：Q17、Q22、C2（以及 Q20 寫完之後的三個追問）。
+- **〔手寫〕輪替**：L2-4 → C1（10 分鐘版）→ Q20。
+- **〔選做〕**：E1、E2。
 
 ---
 
 ## 第零模組：L1 入門 與 L2 應用
 
-先從這裡開始。L1 是「看懂為什麼」，每題附提示，先自己想再看答案；L2 給程式碼，要你預測輸出、找錯或動手改。這一段的程式碼都在本機用 `g++ -std=c++14` 實際編譯、執行過，輸出以實測為準（驗證紀錄在文末）。
+先從這裡開始。L1 是「看懂為什麼」，每題附提示，先自己想再看答案；L2 給程式碼，要你預測輸出或找錯（都已改成選擇題），L2-4 是手寫題。這一段的程式碼都在本機用 `g++ -std=c++14` 實際編譯、執行過，輸出以實測為準（驗證紀錄在文末）。
 
 ### L1-1：`auto` 與 range-based `for`：什麼時候會偷偷複製？〔L1〕
 
@@ -1501,10 +1529,6 @@ for (auto s : names)  s += "!";
 for (auto& s : names) s += "!";
 ```
 
-1. `n1`、`n2`、`n3` 的型別各是什麼？哪一個是複製？
-2. 兩個 `for` 跑完，`names` 的內容各變成什麼？
-3. 為什麼 `auto` 會「丟掉」`const` 和參考？只想讀取每個元素時，迴圈該怎麼寫？
-
 <details>
 <summary>提示</summary>
 
@@ -1513,8 +1537,108 @@ for (auto& s : names) s += "!";
 
 </details>
 
+#### L1-1-a〔單選〕
+
+`n1`、`n2`、`n3` 的型別依序是？
+
+- A. `std::string&`、`std::string&`、`const std::string&`
+- B. `const std::string`、`std::string&`、`const std::string&`
+- C. `std::string`、`std::string&`、`const std::string&`
+- D. `std::string`、`std::string`、`const std::string`
+
+**理由（一句）：** ____
+
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**C。** 只有 `n1` 是複製。
+
+- A 錯：by-value 的 `auto` 會先丟掉 `&`。
+- B 錯：by-value `auto` 會丟掉頂層 const，不管來源是不是 const（就算來源是 `const std::string&`，`auto` 也是 `std::string`）。
+- D 錯：寫了 `&` 就是參考，`auto&` 不會被剝成值。
+
+**理由要點：** 寫的是 `auto`（沒有 `&`）就得到一個新物件；要參考就要自己寫 `&`。
+
+</details>
+
+#### L1-1-b〔單選〕
+
+第一個 `for` 跑完、第二個 `for` 跑完，`names` 各是什麼？
+
+- A. `a!`、`b!`；`a!!`、`b!!`
+- B. `a`、`b`（不變）；`a!`、`b!`
+- C. 兩次都不變
+- D. `a`、`b`；`a!!`、`b!!`
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**B。** 第一個迴圈的 `s` 是每個元素的複本，改的是複本；第二個迴圈的 `s` 是參考。
+
+- D 錯：第一個迴圈沒有改到 `names`，所以第二個迴圈只加一個 `!`。
+
+**理由要點：** `auto s` 是複本，`auto& s` 是參考；只有參考會改到容器裡的元素。
+
+</details>
+
+#### L1-1-c〔複選〕
+
+只想**讀取** `std::vector<std::string>` 的每個元素，下面哪些敘述正確？
+
+- A. `for (auto& s : names)` 會複製每個元素
+- B. `for (auto s : names)` 每次都複製一個 `std::string`
+- C. `for (const auto& s : names)` 不複製，也不能改
+- D. `auto` 推導時會丟掉頂層的 `const` 和 `&`，規則跟值傳遞的函式參數一樣
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**B、C、D。**
+
+- A 錯：`auto&` 是參考，不會複製；只是它也允許修改。
+- 元素是 `int` 這類小型別時，直接用 `for (auto x : v)` 就可以。
+
+**理由要點：** `const auto&` = 不複製 + 唯讀，是讀大物件的預設寫法。
+
+</details>
+
+#### L1-1-d〔複選〕（複習弱點：by-value `auto` 剝什麼、留什麼）
+
+```cpp
+const int ci = 1;
+const int& cr = ci;
+const int* const pp = &ci;
+```
+
+下面哪些推導結果正確？
+
+- A. `auto a = cr;` → `const int`
+- B. `auto& b = ci;` → `const int&`
+- C. `auto q = pp;` → `const int* const`
+- D. `auto q = pp;` → `const int*`
+- E. `auto a = cr;` → `int`
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**B、D、E。**（g++ `static_assert` 實測）
+
+- A 錯：by-value `auto` 會先剝掉 `&`，再剝掉頂層 const。這是 2026-11-09 複習輪答錯的那一題。
+- C 錯：`pp` 右邊的 `const`（指標本身不能改）是頂層，會被剝掉；左邊的 `const`（指向的 int 不能改）是底層，會保留。`q` 是新的變數，`q = nullptr;` 可以編譯。
+- B：寫了 `&`，就不剝 const。
+
+**理由要點：** by-value `auto` 會剝 `&` 和頂層 const（變數「本身」的 const），留下底層 const（「指向的東西」的 const），因為 `q` 是一個新的複本。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 1. `n1` 是 `std::string`（**複製**）、`n2` 是 `std::string&`、`n3` 是 `const std::string&`。
 2. 第一個迴圈的 `s` 是每個元素的**複本**，改的是複本，`names` 仍是 `a`、`b`。第二個迴圈的 `s` 是參考，之後 `names` 變成 `a!`、`b!`。
@@ -1528,7 +1652,7 @@ for (auto& s : names) s += "!";
 
 ### L1-2：`nullptr`、`enum class`、`override`：它們各自在防什麼？〔L1〕
 
-下面三段程式都能編譯（或只有警告），指出各自藏的問題，並說明 C++11 的哪個關鍵字能擋掉：
+下面三段程式：(a)(b) 在 GCC 上是編譯錯誤，(c) 能編譯但不是你想要的行為。指出各自藏的問題，並說明 C++11 的哪個關鍵字能擋掉：
 
 ```cpp
 // (a)
@@ -1554,8 +1678,73 @@ struct Derived : Base { void f(); };   // 想覆寫 Base::f
 
 </details>
 
+#### L1-2-a〔單選〕
+
+(a) `f(NULL)` 在 GCC 上會怎樣？
+
+- A. 呼叫 `f(char*)`
+- B. 呼叫 `f(int)`，沒有任何訊息
+- C. ambiguous（不明確）的編譯錯誤。改用 `nullptr` 就一定選 `f(char*)`
+- D. 執行期 null dereference
+
+**理由（一句）：** ____
+
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**C。**（GCC 實測）`NULL` 是整數常數，`int` 和 `char*` 兩個版本都配得上。
+
+- B：在別的編譯器上，或把 `NULL` 換成 `0` 時，會悄悄選 `f(int)`。這比編譯錯誤更危險。
+
+**理由要點：** `NULL` 是整數，`nullptr` 的型別是 `std::nullptr_t`，只能轉成指標。
+
+</details>
+
+#### L1-2-b〔單選〕
+
+(b) 兩個傳統 `enum` 都定義 `RED`，會怎樣？
+
+- A. 編譯錯誤：`'RED' conflicts with a previous declaration`
+- B. 可以編譯，編譯器會自動加上 `Light::` 前綴
+- C. 只會產生 warning
+- D. 後面的 `RED` 覆蓋前面的
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**A。**（GCC 實測）傳統 `enum` 的列舉值會洩漏到外層作用域。改用 `enum class` 之後，名稱放在 `Color::` 底下，也不會隱含轉成 `int`。
+
+**理由要點：** 傳統 enum 的名稱沒有自己的作用域，所以兩個 `RED` 撞名。
+
+</details>
+
+#### L1-2-c〔單選〕
+
+(c) `Derived::f()` 少了 `const`，會怎樣？
+
+- A. 照樣覆寫 `Base::f`
+- B. 編譯錯誤：const 不符
+- C. 執行期透過 `Base&` 呼叫時 crash
+- D. `Derived::f` 變成另一個新函式，把 `Base::f` 藏起來（hiding），而不是覆寫；`-Wall -Wextra` 沒有警告。加上 `override` 就會報 `marked 'override', but does not override`
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**D。**（實測）
+
+- B 錯：hiding 是合法的 C++，所以編譯器不會擋。這正是 `override` 存在的原因。
+- C 錯：不會 crash，只是呼叫到 `Base::f`，行為跟你想的不一樣。
+
+**理由要點：** 簽名不同就不是覆寫；`override` 把「我想覆寫」這個意圖交給編譯器檢查。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 - (a) `NULL` 是整數常數，`f(NULL)` 在 GCC 上實測是 **ambiguous（不明確）編譯錯誤**；在別的編譯器或把 `NULL` 換成 `0` 時，則會悄悄呼叫 `f(int)`，而你想呼叫的是指標版本。改用 `nullptr`（型別 `std::nullptr_t`，只能轉成指標）：`f(nullptr)` 一定選 `f(char*)`。
 - (b) 傳統 `enum` 的列舉值洩漏到外層作用域，`RED` 重複定義，GCC 實測報 `'RED' conflicts with a previous declaration`；它也能隱含轉成 `int`，所以 `RED == RED2` 這種跨 enum 比較只會得到警告。改用 `enum class Color { RED, GREEN };`：名稱在 `Color::` 底下，且不會隱含轉成整數，要轉就 `static_cast<int>`。
@@ -1578,10 +1767,6 @@ std::string t = "keep";
 std::move(t);
 ```
 
-1. 用一句話說明左值與右值的差別。
-2. `std::move` 本身有沒有搬移任何資料？
-3. 這 3 行執行完，`s`、`cs`、`a`、`b`、`t` 各是什麼？`cs` 為什麼是那個結果？
-
 <details>
 <summary>提示</summary>
 
@@ -1590,8 +1775,107 @@ std::move(t);
 
 </details>
 
+#### L1-3-a〔單選〕
+
+`std::move` 本身做了什麼？
+
+- A. 把物件的位址搬到新物件
+- B. 只把引數 `static_cast` 成右值參考（`T&&`）。真正搬資料的，是之後被選中的 move constructor 或 move assignment
+- C. 把資料複製一份，再清空原物件
+- D. 呼叫 move constructor
+
+**理由（一句）：** ____
+
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**B。** 單獨一行 `std::move(t);` 什麼事都不會發生。
+
+- A 錯：「搬位址」是之前兩輪都出現過的說法。`std::move` 只是一個轉型。至於指標有沒有被轉走，要看 move constructor 怎麼寫，以及物件有沒有 heap 資源（L1-3-d）。
+- D 錯：它不呼叫任何建構子，只改變運算式的值類別，讓多載決議選到 move 版本。
+
+**理由要點：** `std::move` = 轉型；搬東西的是 move constructor。
+
+</details>
+
+#### L1-3-b〔單選〕
+
+這幾行跑完，各變數的值是？（libstdc++ 實測）
+
+- A. `a=hello`、`s=""`、`b=const`、`cs=""`、`t=""`
+- B. `a=hello`、`s` 變成 `nullptr`、`b=const`、`cs=const`、`t=keep`
+- C. `a=hello`、`s=""`、`b=const`、`cs=const`、`t=""`
+- D. `a=hello`、`s=""`、`b=const`、`cs=const`、`t=keep`
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**D。**
+
+- A 錯：`cs` 是 const，搬不走（L1-3-c）。
+- B 錯：`std::string` 不是指標，不會變成 `nullptr`。moved-from 的物件是「有效但未指定」的狀態，在 libstdc++ 上剛好是空字串，但不要依賴這一點。
+- A、C 錯：單獨的 `std::move(t);` 沒有人接，所以 `t` 不變。
+
+**理由要點：** 只有被 move constructor「接走」的物件才會被搬；const 物件和沒人接的 `std::move` 都不會被搬。
+
+</details>
+
+#### L1-3-c〔複選〕
+
+`std::string b = std::move(cs);`（`cs` 是 `const std::string`），哪些敘述正確？
+
+- A. 對 const 物件呼叫 `std::move` 會編譯錯誤
+- B. `std::move(cs)` 的型別是 `const std::string&&`
+- C. move constructor 的參數是 `std::string&&`，收不下 const 右值，所以選了 copy constructor
+- D. 標準保證 moved-from 的 `s` 一定是空字串
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**B、C。**
+
+- A 錯：可以編譯，只是悄悄退化成 copy。
+- D 錯：標準只保證 moved-from 的物件「有效但未指定」，所以之後只能對它賦值或解構。
+
+**理由要點：** const 右值綁不上非 const 的 `T&&`，所以 move constructor 落選，改由 `const T&` 的 copy constructor 接手。
+
+</details>
+
+#### L1-3-d〔單選〕（複習弱點：SSO）
+
+```cpp
+std::string s = "hello";
+const char* before = s.data();
+std::string s2 = std::move(s);
+```
+
+`s2.data() == before` 嗎？（本機 libstdc++）
+
+- A. 一定相同，move 就是把位址搬過去
+- B. 不同：短字串走 SSO，字元存在物件內部的 buffer，move 時被複製到 `s2` 自己的 buffer。超過 SSO 上限（libstdc++ 是 15 個字元）的長字串才會相同
+- C. 不同，因為 `std::string` 的 move 一律複製
+- D. 編譯錯誤
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**B。**（實測 `short_same=0`、`long_same=1`）SSO 的 buffer 大小是 libstdc++ 的實作細節。
+
+- A 錯：「轉移指標」的前提是物件有 heap 資源；SSO 的短字串沒有。
+- C 錯：長字串的 move 確實會轉移 heap 指標。
+
+**理由要點：** 有 heap 資源才轉移指標，沒有（SSO）就複製字元。所以短字串的位址不同。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 1. 左值有名字、有固定位址、可以取址（`s`）；右值是即將消失的暫時值（`std::string("x")`、函式回傳的暫存物件）。一般的規則：能對它取 `&` 的就是左值。
 2. **沒有。** `std::move` 只做一件事：把引數 `static_cast` 成右值參考（`T&&`），告訴編譯器「這個物件可以被搬走」。真正搬資料的是接到右值之後被選中的 move constructor / move assignment。單獨一行 `std::move(t);` 什麼事都沒有，`t` 仍是 `keep`。
@@ -1619,10 +1903,6 @@ auto w = make();               // (5)
 p->use();                      // (6)
 ```
 
-1. 這六行哪些編譯不過？為什麼？
-2. 編譯得過但有問題的是哪一行？問題是什麼？
-3. `get()`、`release()`、`reset()` 各自做什麼？哪一個會讓你自己負責 `delete`？
-
 <details>
 <summary>提示</summary>
 
@@ -1631,8 +1911,96 @@ p->use();                      // (6)
 
 </details>
 
+#### L1-4-a〔複選〕
+
+哪幾行編譯不過？
+
+- A. (1) `auto q = p;`
+- B. (2) `auto r = std::move(p);`
+- C. (3) `take(r);`
+- D. (5) `auto w = make();`
+
+**理由（一句）：** ____
+
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**A、C。** 實測錯誤是 `use of deleted function ... unique_ptr(const unique_ptr&)`。(3) 用傳值把 `r` 複製進參數，所以也是 copy。
+
+- B、D 可以編譯：兩行都是轉移所有權。(5) 回傳的是暫時值，本來就是 move，而且通常會被省略（L2-1）。
+
+**理由要點：** `unique_ptr` 的 copy 是 deleted；從左值初始化（包括用傳值的方式傳參數）就是 copy。
+
+</details>
+
+#### L1-4-b〔單選〕
+
+(6) `p->use();` 會怎樣？
+
+- A. 編譯錯誤
+- B. 能編譯；`p` 是 dangling pointer，指向已經被釋放的 `W`
+- C. 能編譯，而且安全，因為 `p` 仍然擁有 `W`
+- D. 能編譯；`p` 在 (2) 被搬走之後是 `nullptr`，`p->use()` 是 null pointer dereference（UB）
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**D。** 編譯器不會警告。
+
+- B 錯：這是 null 跟 dangling 的混淆。`W` 沒有被釋放，它現在由 `r` 擁有；`p` 是 null，不是 dangling。
+- C 錯：所有權在 (2) 已經轉給 `r`。
+
+**理由要點：** 被 move 走的 `unique_ptr` 保證是 null。解參考 null 是 UB，而這跟 dangling（指向已不存在的物件）是兩回事。
+
+</details>
+
+#### L1-4-c〔單選〕
+
+`p` 被 move 走之後，`p.get()` 回傳什麼？
+
+- A. UB
+- B. 舊的位址
+- C. `nullptr`
+- D. 丟出例外
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**C。**（實測 `moved_get_null=1`）move constructor 用 `u.release()` 實作，標準保證來源會變成 null。只是呼叫 `get()` 不算 UB；`*p` 才是 UB。
+
+**理由要點：** move 等於 `release()`，所以來源變成 null。
+
+</details>
+
+#### L1-4-d〔單選〕
+
+`get()`、`release()`、`reset()` 中，哪一個會讓**你**自己負責 `delete`？
+
+- A. `get()`
+- B. `release()`
+- C. `reset()`
+- D. 三個都不會
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**B。** `release()` 放棄所有權，回傳裸指標。
+
+- A 錯：`get()` 只是借你用，`unique_ptr` 仍然擁有它，你不能拿去 `delete`。
+- C 錯：`reset()` 會由 `unique_ptr` 自己釋放目前的物件。
+
+**理由要點：** 誰放棄所有權，誰就把 delete 的責任交出來。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 1. (1) 和 (3) 編譯錯誤，實測是 `use of deleted function ... unique_ptr(const unique_ptr&)`：獨佔所有權不能複製；(3) 是以傳值把 `r` 複製進參數。(2)、(4)、(5) 都是轉移所有權，合法；(5) 回傳暫時值本來就是 move，（且通常被省略，見 L2-1）。
 2. (6) 能編譯，執行時 `p` 在 (2) 被搬走已經是 `nullptr`，`p->use()` 是 **null pointer dereference（未定義行為）**。編譯器不會警告。規矩：被 `std::move` 走的智慧指標就當它已經失效，除非重新賦值。
@@ -1673,8 +2041,6 @@ int main() {
 }
 ```
 
-特別回答：(1) `make()` 那行有沒有 copy 或 move？(2) `const T e` 被 `std::move` 後是哪個建構子？(3) 最後的解構順序為什麼是那樣？
-
 <details>
 <summary>提示</summary>
 
@@ -1684,8 +2050,72 @@ int main() {
 
 </details>
 
+#### L2-1-a〔單選〕
+
+`T d = make();` 這一行印出什麼？（`g++ -std=c++14`，預設選項）
+
+- A. `ctor m`、`move -> m`
+- B. 只有 `ctor m`
+- C. `ctor m`、`copy m -> m'`
+- D. `ctor m`、`move -> m`、`move -> m`
+
+**理由（一句）：** ____
+
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**B。**（實測）`return t;` 被 NRVO 省略，`t` 直接建在 `d` 的位置。C++14 是「允許省略」，GCC 預設會做；加上 `-fno-elide-constructors` 就看得到 move。
+
+**理由要點：** copy elision 讓回傳的區域變數直接建在接收端，所以沒有 copy 也沒有 move。
+
+</details>
+
+#### L2-1-b〔單選〕
+
+`const T e("e"); T f = std::move(e);` 這一行印出什麼？
+
+- A. `move -> e`
+- B. 編譯錯誤
+- C. `copy e -> e'`
+- D. 什麼都不印（被省略）
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**C。** `std::move(e)` 的型別是 `const T&&`，move constructor 收不下，只好選 copy constructor（同 L1-3-c）。
+
+**理由要點：** const 物件不能被搬，所以 `std::move` 悄悄退化成 copy。
+
+</details>
+
+#### L2-1-c〔單選〕
+
+`end` 之後的六行解構輸出是哪一組？
+
+- A. `dtor (moved)`、`dtor (moved)`、`dtor a`、`dtor (moved)`、`dtor e`、`dtor e'`
+- B. `dtor e'`、`dtor e`、`dtor m`、`dtor a`、`dtor a'`、`dtor a`
+- C. `dtor e'`、`dtor e`、`dtor a`
+- D. `dtor e'`、`dtor e`、`dtor (moved)`、`dtor a`、`dtor (moved)`、`dtor (moved)`
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**D。**（實測）解構順序是 `f, e, d, c, b, a`，跟宣告順序相反。每一行印的是「該物件當下的 `n`」。
+
+- A 錯：照宣告順序解構是錯的。
+- B 錯：沒有追蹤名字的變化（`d` 已被搬走，所以是 `(moved)`；`c` 最後拿到的是 `a`）。
+- C 錯：moved-from 的物件仍然是活的物件，一樣會被解構。
+
+**理由要點：** 解構順序跟宣告相反，印的是「當下」的值；moved-from 的物件也要解構。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 編譯指令 `g++ -std=c++14`，實測輸出：
 
@@ -1734,10 +2164,6 @@ int main() {
 }
 ```
 
-1. 這段程式有什麼問題？執行會發生什麼事？
-2. 為什麼編譯器不報錯？
-3. 給出兩種修法，並說明各自的語意差別。
-
 <details>
 <summary>提示</summary>
 
@@ -1746,8 +2172,75 @@ int main() {
 
 </details>
 
+#### L2-2-a〔單選〕
+
+這段程式執行時會怎樣？
+
+- A. 編譯錯誤：參考捕獲的 lambda 不能放進 `std::function`
+- B. 印出 `1 1`，因為 `count` 每次都重新初始化
+- C. lambda 以參考捕獲區域變數 `count`，`make_counter` 返回後就是懸空參考，屬於 UB（本機實測 segfault）
+- D. 沒有問題，印出 `1 2`
+
+**理由（一句）：** ____
+
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**C。** 用 `-fsanitize=address` 並設定 `ASAN_OPTIONS=detect_stack_use_after_return=1`，會報 `stack-use-after-return`。
+
+- D 錯：「剛好跑出 1 2」也是 UB 可能出現的結果，不代表程式是對的。
+
+**理由要點：** 被參考的區域變數活得比 lambda 短。
+
+</details>
+
+#### L2-2-b〔單選〕
+
+為什麼編譯器不報錯？
+
+- A. 編譯器只檢查語法與型別，不分析「參考會不會活得比被參考的物件久」
+- B. 因為 `std::function` 會延長 `count` 的壽命
+- C. 因為沒有開 `-Wall`
+- D. 因為 `count` 是 `int`
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**A。** 這類問題要靠 sanitizer 或 code review 抓。
+
+- B 錯：`std::function` 只複製 closure，而 closure 裡存的是參考。
+
+**理由要點：** 生命週期不屬於型別系統，所以編譯器看不到。
+
+</details>
+
+#### L2-2-c〔複選〕
+
+哪些改法能修好，而且每個 counter 各自計數？
+
+- A. `return [count]() { return ++count; };`
+- B. 把 `count` 改成 `static int count = 0;`，lambda 照樣用 `[&count]`
+- C. `return [count]() mutable { return ++count; };`
+- D. `return [count = 0]() mutable { return ++count; };`（C++14 init capture）
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**C、D。**
+
+- A 錯：沒有 `mutable` 時 `operator()` 是 const，編譯錯誤 `increment of read-only variable`（實測）。
+- B 錯：不會懸空，但所有 counter 共用同一個計數，語意變了。要共用的話，應該用 `std::shared_ptr<int>` 捕獲，把共用寫明。
+
+**理由要點：** 把狀態**複製進** lambda（值捕獲或 init capture），再用 `mutable` 允許修改。lambda 要離開目前 scope 時，不要用參考捕獲。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 1. lambda 以參考捕獲區域變數 `count`，`make_counter` 返回後 `count` 的 stack 空間已失效，`c()` 讀寫的是**懸空參考（dangling reference）**，屬於未定義行為。本機實測直接 segmentation fault；用 `-fsanitize=address` 並設定 `ASAN_OPTIONS=detect_stack_use_after_return=1`，會報 `stack-use-after-return`。「剛好跑出 1 2」也是 UB 可能的表現，不代表正確。
 2. 編譯器只看語法與型別：`[&count]` 是合法語法，lambda 也確實合法回傳。它不分析參考會不會比被參考的物件活得更久，需要靠 sanitizer 或 code review 抓。
@@ -1782,10 +2275,6 @@ int main() {
 }
 ```
 
-1. 預測輸出，`~A`、`~B` 會不會印出來？
-2. 改哪裡可以修好？修好之後 `use_count()` 會印什麼？
-3. 用什麼工具可以抓到這類問題？
-
 <details>
 <summary>提示</summary>
 
@@ -1794,8 +2283,76 @@ int main() {
 
 </details>
 
+#### L2-3-a〔單選〕
+
+輸出是？
+
+- A. `2 2` / `after scope`
+- B. `2 2` / `~A` / `~B` / `after scope`
+- C. `1 1` / `~A` / `~B` / `after scope`
+- D. `2 2` / `~B` / `~A` / `after scope`
+
+**理由（一句）：** ____
+
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**A。**（實測）每個物件的 count 都是 2（區域變數 + 對方的成員）。離開 scope 時兩邊都只減到 1，永遠不會歸零，造成記憶體洩漏。
+
+**理由要點：** 互相持有 strong reference，所以 count 降不到 0。
+
+</details>
+
+#### L2-3-b〔單選〕
+
+把 `B::a` 改成 `std::weak_ptr<A>` 之後，輸出是？
+
+- A. `1 1` / `~A` / `~B` / `after scope`
+- B. `2 2` / `~A` / `~B` / `after scope`
+- C. `1 2` / `~B` / `~A` / `after scope`
+- D. `1 2` / `~A` / `~B` / `after scope`
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**D。**（實測）`a.use_count()` 是 1，因為 `weak_ptr` 不計入 strong count；`b.use_count()` 是 2（區域變數 + `a->b`）。
+
+離開 scope 時，區域變數依相反順序銷毀：
+
+1. `b` 先離開，count 從 2 變成 1。
+2. `a` 歸零，印出 `~A`。
+3. `A` 被釋放時一併釋放 `A::b`，`B` 的 count 也歸零，印出 `~B`。
+
+- C 錯：決定解構順序的是「count 何時歸零」，不是宣告順序。
+
+**理由要點：** 誰的 strong count 先歸零，誰就先解構；`weak_ptr` 不算在 strong count 裡。
+
+</details>
+
+#### L2-3-c〔單選〕
+
+用什麼工具抓這類洩漏？
+
+- A. `-Wall -Wextra`
+- B. `-O2`
+- C. `g++ -fsanitize=address`（LeakSanitizer，程式結束時會報 `detected memory leaks`），或 valgrind `--leak-check=full`
+- D. `static_assert`
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**C。**（實測有抓到）設計上要先想清楚「誰擁有誰」：有明確擁有者的用 `unique_ptr`，從屬的一方用裸指標或 `weak_ptr`。
+
+**理由要點：** 洩漏是執行期才會發生的事，所以要用執行期工具抓；編譯器的警告看不到。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 1. 實測輸出：
 
@@ -1821,7 +2378,7 @@ int main() {
 
 ---
 
-### L2-4：動手題：改成 Rule of Zero〔L2〕
+### L2-4：動手題：改成 Rule of Zero〔L2〕〔手寫，輪替第 1 題〕
 
 這題是動手練習，只給規格和測試，不提供完成版。請自己改完，編譯、跑過測試，再貼上來我看。
 
@@ -1904,12 +2461,17 @@ int main() {
 }
 ```
 
-**提示**
+**提示**（卡住再展開）
+
+<details>
+<summary>提示</summary>
 
 - 舊版目前編譯就失敗（`static_assert`）。從哪一行失敗，可以看出缺了什麼。
 - 改完之後想一想：為什麼不用寫任何特殊成員，move 操作也自動是 `noexcept`？每個成員的 move 各自是什麼性質？
 - 想一想：為什麼 `RegBank` 變成 move-only？如果業務需要可複製，要怎麼辦（Rule of Five，見 C1）？
 - `assert(a.size() == 0)`：moved-from 的 `std::vector` 為什麼是空的？
+
+</details>
 
 **驗收**：`all passed`，且 sanitizer 沒有任何報告。
 
@@ -1919,12 +2481,78 @@ int main() {
 
 ### Q1：`unique_ptr`、`shared_ptr`、`weak_ptr` 的核心機制與所有權語意〔L3〕
 
-1. 三種智慧指標的所有權（ownership）語意分別為何？在什麼情境下選用哪一個？
-2. `shared_ptr` 的 Control Block 內部包含哪些欄位？copy 和 move 一個 `shared_ptr` 分別會付出什麼成本？
-3. `weak_ptr` 如何解決循環引用（circular reference）？使用 `weak_ptr` 存取物件時為何必須呼叫 `.lock()`？
+#### Q1-a〔複選〕
+
+關於三種智慧指標的所有權語意，哪些正確？
+
+- A. `weak_ptr` 會增加 strong count，所以能保證物件存活
+- B. 預設優先選 `shared_ptr`，因為比較安全
+- C. `unique_ptr` 是獨佔所有權，只能 move；不自訂 deleter 時，大小等同裸指標
+- D. `shared_ptr` 用 reference counting，最後一個持有者解構時釋放物件
+
+**理由（一句）：** ____
 
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**C、D。**
+
+- A 錯：`weak_ptr` 不擁有物件，不增加 strong count，也不阻止物件被銷毀。
+- B 錯：預設應該選 `unique_ptr`。只有生命週期不明確、又沒有明確擁有者時，才用 `shared_ptr`。
+
+**理由要點：** 先問「誰擁有它」：一個擁有者 → `unique_ptr`；共同擁有 → `shared_ptr`；只觀察、不擁有 → `weak_ptr`。
+
+</details>
+
+#### Q1-b〔複選〕
+
+關於 `shared_ptr` 的成本（64-bit），哪些正確？
+
+- A. `sizeof(std::shared_ptr<T>)` 是 16 bytes：一個指向物件，一個指向 control block
+- B. copy 一個 `shared_ptr` 要增加 strong count（多執行緒程式裡是 atomic increment）
+- C. move 一個 `shared_ptr` 也要做 atomic increment
+- D. 計數是 thread-safe 的，所以多個 thread 同時讀寫**同一個** `shared_ptr` 實例也安全
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**A、B。**（`sizeof` 本機實測 16）
+
+- C 錯：move 只是把兩個指標交出去，再把來源清空，不修改計數。
+- D 錯：只有計數本身是 thread-safe 的。同一個實例被並行讀寫並不安全，要用 `std::atomic_load` 和 `std::atomic_store`。
+
+**理由要點：** copy 多了一個擁有者，所以要改計數；move 擁有者人數不變，所以不用改。
+
+</details>
+
+#### Q1-c〔單選〕（複習 G2 弱點）
+
+為什麼存取 `weak_ptr` 指向的物件時，要先呼叫 `.lock()`？
+
+- A. `weak_ptr` 沒有 `operator*`，`lock()` 只是語法上的要求
+- B. `lock()` 會把 `weak_ptr` 永久升級成 `shared_ptr`
+- C. 先呼叫 `expired()` 檢查，再直接使用指標，效果一樣安全
+- D. `lock()` 以原子方式檢查 strong count：物件還活著時，回傳一個增加了計數的 `shared_ptr`，讓物件在使用期間保持存活；已經釋放時，回傳空的 `shared_ptr`
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**D。**
+
+- A 錯：沒有 `operator*` 是結果，不是理由。設計成必須 `lock()`，就是為了在使用期間保住物件。
+- B 錯：回傳的 `shared_ptr` 是一個區域變數，離開 scope 就還回去。
+- C 錯：多執行緒下，「檢查時還在、要用時已經被別的 thread 解構」（TOCTOU）。
+
+**理由要點：** `lock()` 把「檢查」和「保活」合成一個原子動作。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 **1. 所有權語意與選用情境**
 - `std::unique_ptr`：**獨佔所有權（Exclusive Ownership）**。禁止 Copy（copy constructor/assignment 為 `= delete`），只允許 Move。零執行期負擔（Zero-overhead abstraction，不自訂 deleter 時大小等同裸指標）。**預設優先選用**（例如 factory function 回傳物件、物件內部的私有成員資源管理）。
@@ -1957,12 +2585,75 @@ Control Block 包含：
 
 ### Q2：`std::make_shared` vs `std::make_unique` 的底層配置差異與陷阱〔L4〕
 
-1. 比較 `std::shared_ptr<T>(new T())` 與 `std::make_shared<T>()` 在記憶體配置上的差異與優缺點。
-2. 搭配 `std::weak_ptr` 時，`std::make_shared` 可能導致什麼潛在的記憶體問題？
-3. 為什麼 C++11 有 `std::make_shared` 卻沒有 `std::make_unique`？C++14 補上它的主要原因是什麼？
+#### Q2-a〔複選〕
+
+比較 `std::shared_ptr<T>(new T())` 與 `std::make_shared<T>()`，哪些正確？
+
+- A. `shared_ptr<T>(new T())` 做兩次 heap 配置（物件一次、control block 一次）
+- B. `make_shared` 只配置一次，物件與 control block 放在同一塊記憶體
+- C. `make_shared` 可以指定 custom deleter
+- D. `make_shared` 的記憶體局部性比較好
+
+**理由（一句）：** ____
 
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**A、B、D。**
+
+- C 錯：`make_shared` 不能指定 deleter。需要自訂釋放邏輯時，要用 `shared_ptr(p, deleter)`。
+
+**理由要點：** 一次配置 → 比較快、局部性比較好；代價是物件和 control block 綁在一起（Q2-b）。
+
+</details>
+
+#### Q2-b〔單選〕
+
+用 `make_shared` 建立一個 50 MB 的物件，而且有一個存活很久的 `weak_ptr` 指著它。最後一個 `shared_ptr` 消失時，會發生什麼事？
+
+- A. 解構子被呼叫，50 MB 也立刻歸還
+- B. 解構子要等 weak count 也歸零才會被呼叫
+- C. 解構子立刻被呼叫，但整塊記憶體要等 weak count 也歸零才會釋放
+- D. double free
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**C。** 物件和 control block 在同一塊記憶體裡，而 `weak_ptr` 還需要 control block。遇到這種情況，應該改用 `shared_ptr<T>(new T())`。
+
+- A 錯：A 描述的是兩次配置的情況（物件和 control block 分開配置）。
+- B 錯：strong count 一歸零就解構，解構不看 weak count。
+
+**理由要點：** strong count 歸零時呼叫解構子；weak count 歸零時才釋放 control block，而 `make_shared` 讓物件跟 control block 一起釋放。
+
+</details>
+
+#### Q2-c〔複選〕
+
+關於 `make_unique`（C++14）與 `make_shared`，哪些正確？
+
+- A. C++11 沒有 `make_unique`，是標準遺漏了，不是技術上做不到
+- B. 把 `friend std::make_shared<T>()` 加進 class，就能讓 `make_shared` 呼叫 private 建構子
+- C. C++17 之前，`f(std::unique_ptr<T>(new T()), g())` 可能在 `g()` 丟例外時洩漏 `T`；`make_unique` 可以避免這個問題
+- D. `make_unique<T[]>(n)` 在 C++14 就有；`make_shared<T[]>` 要到 C++20
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**A、C、D。**
+
+- B 錯：真正呼叫建構子的是 allocator，friend 宣告不會延伸到那裡（本機 g++ 11 實測報 `T::T() is private`）。可行的做法是 Passkey idiom，或 static factory 加 `new`（見完整解說）。
+
+**理由要點：** `make_*` 讓「配置」和「交給智慧指標」在同一個函式裡完成，中間沒有空隙讓例外造成洩漏。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 **1. 記憶體配置差異**
 - `shared_ptr<T>(new T())`：**兩次獨立 heap 配置**。第一次是 `new T`，第二次是配置 Control Block。缺點是配置開銷大、破壞 CPU cache locality、可能在函式引數求值時發生 exception 導致記憶體洩漏（C++17 前求值順序未完全嚴格定義）。
@@ -2021,11 +2712,52 @@ Control Block 包含：
 
 ### Q3：Custom Deleter 在 `unique_ptr` 與 `shared_ptr` 的設計差異〔L4〕
 
-1. 說明 `std::unique_ptr` 與 `std::shared_ptr` 在指定自訂刪除器（Custom Deleter）時的語法與型別簽章差異。
-2. 為什麼兩者的設計不同？這對物件大小（`sizeof`）與執行期多型有什麼影響？
+#### Q3-a〔單選〕
+
+指定 custom deleter 時，兩者的型別有什麼差別？
+
+- A. 兩者都把 deleter 當成 template 參數
+- B. `unique_ptr<T, Deleter>`：deleter 是型別的一部分。`shared_ptr<T>`：deleter 只在建構時傳入，不影響型別
+- C. 跟 B 相反：`unique_ptr` 只在建構時傳入，`shared_ptr` 把 deleter 當成型別參數
+- D. 兩者都不能自訂 deleter
+
+**理由（一句）：** ____
 
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**B。** `unique_ptr` 追求零開銷，所以 deleter 在編譯期就綁定；`shared_ptr` 把 deleter 存在 control block 裡（type erasure）。
+
+**理由要點：** 編譯期綁定 → deleter 是型別的一部分；type erasure → 型別不變。
+
+</details>
+
+#### Q3-b〔複選〕
+
+64-bit、本機 g++，哪些正確？
+
+- A. 不同 deleter 的 `shared_ptr<FILE>` 是不同的型別，不能放進同一個 `vector`
+- B. `unique_ptr<FILE, FileCloser>`（`FileCloser` 是無狀態的 struct）大小是 8 bytes
+- C. `unique_ptr<FILE, decltype(&fclose)>` 大小是 16 bytes
+- D. `shared_ptr<void>` 可以正確解構，`unique_ptr<void>` 則是編譯錯誤
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**B、C、D。**（實測 `uptr_functor=8`、`uptr_fnptr=16`）
+
+- A 錯：deleter 被擦除了，所以型別一律是 `shared_ptr<FILE>`，可以放進同一個容器。
+- C：函式指標要占 8 bytes，而且不能做 EBO，呼叫時也不能 inline。
+- D：`unique_ptr<void>` 的錯誤來自 `default_delete` 的 `static_assert`（`can't delete pointer to incomplete type`）。
+
+**理由要點：** 無狀態的 functor 不占空間（EBO）；函式指標要占一個指標的大小。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 **1. 型別簽章與語法差異**
 - `std::unique_ptr<T, Deleter>`：Deleter 是 **template 型別參數的一部分**。
@@ -2064,12 +2796,74 @@ Control Block 包含：
 
 ### Q4：值類別（Value Categories）、`std::move` 與 `std::forward`〔L3〕
 
-1. 簡述 C++11 的三大核心值類別：lvalue、prvalue、xvalue。
-2. `std::move(x)` 到底做了什麼？它會在執行期搬移任何位元組嗎？
-3. 何謂 Universal Reference（或 C++ 標準稱的 Forwarding Reference `T&&`）？`std::forward` 如何實現完美轉發（Perfect Forwarding）？
+#### Q4-a〔複選〕
+
+哪些值類別判斷正確？
+
+- A. 字串字面常數 `"hello"` 是 lvalue
+- B. 具名的右值參考變數（`T&& r` 裡的 `r`）是 rvalue
+- C. `42` 是 prvalue
+- D. `std::move(x)` 是 xvalue
+
+**理由（一句）：** ____
 
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**A、C、D。**
+
+- A：`"hello"` 是存在 static storage 的 `const char[6]`，有位址，所以是 lvalue。
+- B 錯：只要有名字，就是 lvalue（MC9）。這也是為什麼轉發時要用 `std::forward`。
+
+**理由要點：** 有名字、能取位址的是 lvalue；`std::move` 的結果是「有身分、但可以被搬走」的 xvalue。
+
+</details>
+
+#### Q4-b〔單選〕
+
+標準庫的 `std::move` 為什麼要用 `std::remove_reference`？
+
+- A. 其實寫 `static_cast<T&&>(t)` 就夠了，`remove_reference` 只是風格
+- B. 因為 `std::move` 要呼叫 move constructor
+- C. 因為 `std::move` 要在執行期複製位元組
+- D. 傳入 lvalue 時，`T` 會被推導成 `Widget&`，`T&&` 經過引用折疊又變回 `Widget&`，就轉不成右值；先剝掉參考，才能得到 `Widget&&`
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**D。** `std::move` 在執行期不產生任何指令。
+
+**理由要點：** 引用折疊（`& &&` → `&`）會讓單純的 `T&&` 對 lvalue 失效。
+
+</details>
+
+#### Q4-c〔複選〕
+
+下面哪些 `&&` 是 forwarding reference？
+
+- A. `template<class T> void f(const T&& x)`
+- B. `template<class T> void f(T&& x)`
+- C. `template<class T> struct vector { void push_back(T&& x); };`
+- D. `auto&& v = expr;`
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**B、D。**
+
+- A 錯：加了 `const`，它就只是 const 右值參考。
+- C 錯：類別實例化時 `T` 已經確定，函式本身沒有型別推導，所以只是一般的右值參考。
+
+**理由要點：** 必須是「需要推導的 `T&&`」（或 `auto&&`），而且前面不能加任何修飾。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 **1. 值類別分類（ISO C++ 集合定義）**
 - **glvalue (generalized lvalue)**：具有物件識別位址（has identity）的運算式。
@@ -2108,11 +2902,50 @@ Control Block 包含：
 
 ### Q5：Move Constructor 為什麼一定要標記 `noexcept`？〔L4〕
 
-1. 如果一個 class 的 Move Constructor 沒有標記 `noexcept`，當它被放入 `std::vector` 並觸發容量擴充（reallocate / resize）時，會發生什麼事？
-2. 說明 C++ 標準程式庫在此處依賴的機制（`std::move_if_noexcept`）與 Strong Exception Guarantee。
+#### Q5-a〔單選〕
+
+一個 class 有 copy constructor，它的 move constructor 沒有標 `noexcept`。放進 `std::vector`，擴容時會怎樣？
+
+- A. 照樣用 move
+- B. 改用 copy（深拷貝）
+- C. 編譯錯誤
+- D. 丟出例外
+
+**理由（一句）：** ____
 
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**B。**（MC20）
+
+**理由要點：** move 可能丟例外，copy 又存在，所以為了 strong guarantee 改用 copy。
+
+</details>
+
+#### Q5-b〔複選〕
+
+關於 `std::move_if_noexcept` 與 strong exception guarantee，哪些正確？
+
+- A. move-only 的型別，如果 move 沒有 `noexcept`，放進 `vector` 會編譯錯誤
+- B. 只有在 `!is_nothrow_move_constructible && is_copy_constructible` 時，才會退回 copy
+- C. move-only 的型別，如果 move 沒有 `noexcept`，`vector` 仍然會 move，但只能保證 basic exception guarantee
+- D. 選 copy 的理由：搬到一半丟出例外時，舊元素還完整，可以完全回滾
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**B、C、D。**
+
+- A 錯：沒有 copy 可以退，所以照樣用 move，只是保證等級降低了。
+
+**理由要點：** move 會改動來源，搬到一半失敗就回不去；copy 不改動來源，失敗了可以回滾。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 **1. `std::vector` resize 的行為變化**
 - 若 class 宣告了 Move Constructor 但**未加上 `noexcept`**：
@@ -2136,12 +2969,73 @@ Control Block 包含：
 
 ### Q6：Rule of Three / Five / Zero 與現代資源管理〔L3〕
 
-1. 解釋什麼是 Rule of Three、Rule of Five、Rule of Zero。
-2. 只要使用者自訂了 Destructor，編譯器對 Copy/Move 成員函式的合成規則（implicit generation）會發生什麼變化？
-3. 為什麼現代 C++ 強烈建議遵循 Rule of Zero？
+#### Q6-a〔單選〕
+
+Rule of Zero 的意思是？
+
+- A. 不自己宣告五個特殊成員函式，把資源交給 RAII 成員（`unique_ptr`、`vector`、`string`）管理
+- B. 五個特殊成員函式都要自己寫
+- C. 只寫 destructor
+- D. 成員都用裸指標，達到零開銷
+
+**理由（一句）：** ____
 
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**A。** B 是 Rule of Five；C 正是 Q6-b 的陷阱。
+
+**理由要點：** 資源交給成員管，類別本身就不需要特殊成員函式。
+
+</details>
+
+#### Q6-b〔複選〕（複習 G3 弱點）
+
+使用者宣告了 destructor（就算只是 `~X() = default;`），哪些正確？
+
+- A. 不再隱式生成 move constructor 和 move assignment
+- B. copy constructor 和 copy assignment 仍會生成（deprecated），所以原本該 move 的地方會悄悄退化成 copy
+- C. 寫成 `~X() = default;` 不算「宣告」，所以 move 照樣會生成
+- D. 宣告了 move constructor 之後，copy 操作會被 delete
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**A、B、D。**
+
+- C 錯：`= default` 也是使用者宣告。
+- D 延伸（G3 實測）：只補 `D(D&&) = default;` 還不夠，`d3 = std::move(d2)` 會報 `use of deleted function 'D::operator=(const D&)'`，要連 `D& operator=(D&&) = default;` 一起寫。
+
+**理由要點：** 宣告了 destructor，就不再自動產生 move；成員是 `unique_ptr` 時，右值只好退回 copy，而 copy 又是 deleted。
+
+</details>
+
+#### Q6-c〔單選〕
+
+為什麼建議遵循 Rule of Zero？
+
+- A. 執行速度一定比 Rule of Five 快
+- B. 少寫容易出錯的樣板程式碼，由編譯器生成正確的 copy、move 和解構，也沒有手動 `delete` 造成洩漏的風險
+- C. 可以避免 vtable
+- D. 讓類別一定可以 copy
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**B。**
+
+- D 錯：成員是 `unique_ptr` 時，類別會變成 move-only（Q18）。
+
+**理由要點：** 正確性交給已經測過的 RAII 類別負責。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 **1. 定義與演進**
 - **Rule of Three (C++98)**：若 class 需要自訂下列三者之一，通常三者都必須自訂：
@@ -2177,12 +3071,93 @@ Control Block 包含：
 
 ### Q7：Lambda 捕獲機制與生命週期陷阱〔L3〕
 
-1. 比較 `[=]`、`[&]`、`[this]` 的捕獲行為差異。
-2. 在非同步工作（thread、event callback、TLM delayed callback）中使用 Lambda 時，最常見的 Memory / Lifetime 陷阱是什麼？如何避免？
-3. 為什麼 C++20 開始強烈不建議（甚至 deprecate）在 `[=]` 中隱式捕獲 `this`？
+#### Q7-a〔複選〕
+
+關於捕獲方式，哪些正確？
+
+- A. 在成員函式裡寫 `[=]`，成員變數 `m_val` 會被複製一份進 lambda
+- B. `[=]` 只複製 lambda 內實際用到（odr-used）的區域變數
+- C. `[this]` 捕獲的是 `this` 指標的值
+- D. `[&]` 以參考捕獲用到的區域變數
+
+**理由（一句）：** ____
 
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**B、C、D。**
+
+- A 錯：成員不是區域變數。`[=]` 裡用到 `m_val`，實際上等於 `this->m_val`，被捕獲的是 `this`（G1）。
+
+**理由要點：** 預設捕獲只會捕獲區域變數；成員是透過 `this` 指標存取的。
+
+</details>
+
+#### Q7-b〔單選〕
+
+成員函式裡把 `[=]() { return m_val; }` 交給非同步 callback，結果物件比 callback 先被釋放。callback 執行時會怎樣？
+
+- A. 安全，`m_val` 已經被複製了
+- B. 編譯錯誤
+- C. 回傳 0
+- D. 這等同 `[this]() { return this->m_val; }`，物件已經釋放，所以是 use-after-free
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**D。** Q16 有實跑（segfault）。
+
+**理由要點：** 被複製的是指標，不是物件本身。
+
+</details>
+
+#### Q7-c〔複選〕
+
+哪些做法能避免 Q7-b 的問題？
+
+- A. 不用預設捕獲，改成明確寫 `[this]`
+- B. 改成 `[&]`
+- C. 用 C++14 init capture 複製成員：`[val = m_val]`
+- D. 用 C++17 的 `[*this]` 複製整個物件
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**C、D。**
+
+- A 錯：寫得更清楚了，但捕獲的仍然是同一個 `this` 指標，物件先釋放一樣懸空（Q16-b）。成員也不能直接寫成 `[m_val]`（實測 `capture of non-variable 'S::m_val'`），所以 C++14 要用 init capture。
+- B 錯：`[&]` 一樣是透過 `this` 存取成員，還會額外讓區域變數也懸空。
+
+**理由要點：** 要讓 lambda 擁有自己的一份資料，而不是指向外部物件的指標。
+
+</details>
+
+#### Q7-d〔單選〕
+
+C++20 為什麼把「`[=]` 隱式捕獲 `this`」列為 deprecated？
+
+- A. 因為 `[=]` 的執行速度太慢
+- B. 要求顯式寫出 `[=, this]` 或 `[*this]`，消除「以為物件被複製了，其實只是指標」的誤解
+- C. 因為 `this` 不能被複製
+- D. 因為 C++20 移除了 `this` 捕獲
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**B。**
+
+**理由要點：** deprecated 的目的是把隱藏的指標捕獲變成看得見的寫法。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 **1. 捕獲行為**
 - `[=]`：以 **by-value（複製）** 捕獲當前 scope 中所有被 **odr-used**（在 lambda 內部實質使用到）的區域變數；未使用到的變數不會被複製或封裝進 closure。
@@ -2209,12 +3184,77 @@ Control Block 包含：
 
 ### Q8：C++14 Generalized Lambda Capture (Init Capture) 與 Generic Lambda〔L4〕
 
-1. 寫出一段代碼，展示如何利用 C++14 的 Init Capture 將一個不可複製的 `std::unique_ptr` 搬移進 Lambda closure 中。
-2. C++14 Generic Lambda（例如 `[](auto x, auto y) { return x + y; }`）在編譯器底層是如何被實現的？
-3. 若需要限制 Generic Lambda 兩個參數必須是同一型別，C++14 該如何做到？
+#### Q8-a〔單選〕
+
+哪一種寫法能把 `std::unique_ptr<Buffer> ptr` 的所有權搬進 lambda？
+
+- A. `[ptr]() { ptr->process(); }`
+- B. `[&ptr]() { ptr->process(); }`
+- C. `[p = std::move(ptr)]() { p->process(); }`（C++14）
+- D. `[std::move(ptr)]() { ptr->process(); }`
+
+**理由（一句）：** ____
 
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**C。**（實測）
+
+- A 錯：這是 copy，報 `use of deleted function ... unique_ptr(const unique_ptr&)`。
+- B 錯：可以編譯，但所有權沒有轉移，`ptr` 離開 scope 之後 lambda 就懸空了。
+- D 錯：語法錯誤（`capture of non-variable 'std'`）。
+
+另外要注意：這個 lambda 是 move-only 的，所以不能放進 `std::function`（MC22，實測 `std::function target must be copy-constructible`）。
+
+**理由要點：** init capture 在 closure 裡建立一個新欄位，並用任意運算式初始化它，所以可以用 move 來初始化。
+
+</details>
+
+#### Q8-b〔單選〕
+
+`[](auto x, auto y) { return x + y; }` 在編譯器底層怎麼實作？
+
+- A. closure type 的 `operator()` 是一個 member function template
+- B. 包成一個 `std::function`
+- C. 每種參數型別各產生一個 lambda 物件
+- D. 參數用 `void*` 傳遞
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**A。** 就像 `template<class T1, class T2> auto operator()(T1 x, T2 y) const`。
+
+**理由要點：** `auto` 參數等於 template 參數。
+
+</details>
+
+#### Q8-c〔複選〕
+
+關於 C++14 的 generic lambda，哪些正確？
+
+- A. C++14 可以寫成 `[]<class T>(T x, T y) { ... }` 來限制兩個參數同型別
+- B. 在函式體內用 `static_assert` 可以擋下不同型別，但這是硬錯誤，不參與 SFINAE
+- C. 用尾置回傳型別加上 `std::enable_if_t`，可以做到 SFINAE 版本的限制
+- D. 沒有捕獲的 generic lambda 可以轉成具體的函式指標，例如 `int (*)(int, int)`
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**B、C、D。**
+
+- A 錯：template lambda 是 C++20 才有的語法。標準 C++14 不允許；g++ 11 在 `-std=c++14` 下會當成擴充悄悄接受，加 `-pedantic` 才警告（實測），所以不能用「編得過」判斷。
+- D：實測 `-std=c++14` 可以通過。
+
+**理由要點：** C++14 的 generic lambda 只有 `auto` 參數；要限制型別，只能在函式體內擋，或用回傳型別做 SFINAE。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 **1. Init Capture 移動 `unique_ptr`**
 C++11 無法在 capture list 中進行 move 操作。C++14 引入 Init Capture（語法：`[var = expr]`），在 closure 內部建立新欄位並以 move 初始化：
@@ -2268,11 +3308,72 @@ public:
 
 ### Q9：Lambda vs `std::function` vs 函式指標的開銷與比較〔L3〕
 
-1. 比較無捕獲 Lambda、有捕獲 Lambda、`std::function`、一般 C 函式指標在大小、間接呼叫開銷與 inline 能力上的差異。
-2. 說明 `std::function` 的底層機制（Type Erasure 與 Small Buffer Optimization）。在高效能模擬環境（如 TLM model）中濫用 `std::function` 會帶來什麼瓶頸？
+#### Q9-a〔複選〕
+
+在 64-bit、本機 libstdc++ 上，哪些正確？
+
+- A. 沒有捕獲的 lambda 可以轉成 C 函式指標
+- B. 有捕獲的 lambda 也可以轉成 C 函式指標
+- C. `sizeof(std::function<void()>)` 是 32
+- D. 直接呼叫 lambda 通常可以 inline；透過 `std::function` 呼叫通常不行
+
+**理由（一句）：** ____
 
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**A、C、D。**（`sizeof` 實測 32）
+
+- B 錯：有捕獲的 lambda 帶有狀態，一個函式指標放不下這些狀態。
+
+**理由要點：** 只有沒有狀態的 lambda 才能變成函式指標；`std::function` 經過型別擦除，所以呼叫時是間接呼叫。
+
+</details>
+
+#### Q9-b〔單選〕
+
+在每秒數百萬筆 transaction 的模擬裡，每個 callback 都包一層 `std::function`，主要的瓶頸是什麼？
+
+- A. `std::function` 每次被呼叫都要 heap 配置
+- B. `std::function` 不能存 lambda
+- C. 只有 debug build 才會慢
+- D. 型別擦除讓呼叫沒辦法 inline；而且捕獲的東西超過 SBO 容量時，綁定 callback 會觸發 heap 配置
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**D。**（MC34）
+
+- A 錯：heap 配置發生在建構或指派 `std::function` 的時候，而且只有捕獲的東西超過 SBO 容量才會配置；呼叫時不會配置。
+
+**理由要點：** 間接呼叫加上可能的 heap 配置；配置發生在綁定的時候，不是呼叫的時候。
+
+</details>
+
+#### Q9-c〔單選〕
+
+SystemC 的標準 socket（`tlm_target_socket`）怎麼把 transport 呼叫接到 module？
+
+- A. module 實作 pure virtual 介面 `tlm_fw_transport_if`；`tlm_utils` 的 simple socket 則是在內部存成員函式指標
+- B. 用 `std::function`
+- C. 用模板參數綁定 lambda
+- D. 用 `sc_signal`
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**A。** 出處是 `tlm_fw_bw_ifs.h` 和 `simple_target_socket.h`。成員函式指標不做型別擦除、不配置 heap，但仍然是間接呼叫。
+
+**理由要點：** 標準 socket 走的是 virtual 介面，不是 `std::function`。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 **1. 性能與大小比較表**
 
@@ -2307,12 +3408,72 @@ public:
 
 ### Q10：`override`、`final` 與虛擬函式去虛化（Devirtualization）〔L3〕
 
-1. `override` 與 `final` 關鍵字分別解決了 C++ 繼承體系中的什麼問題？
-2. 為什麼在 Base Class 中宣告了 `virtual` 函式時，Destructor 也必須是 `virtual`？
-3. 編譯器在什麼情況下能夠對虛擬函式呼叫進行「去虛化（Devirtualization）」優化？`final` 如何協助這項優化？
+#### Q10-a〔複選〕
+
+哪些正確？
+
+- A. 在 base 沒有 `virtual` 的函式上加 `override`，會把它變成 virtual
+- B. `override`：簽名對不上時，編譯器會報錯，防止不小心寫成 hiding
+- C. `final` 用在 class 上，禁止這個 class 被繼承
+- D. `final` 用在虛擬函式上，禁止衍生類別再覆寫它
+
+**理由（一句）：** ____
 
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**B、C、D。**
+
+- A 錯：這樣會編譯錯誤，`marked 'override', but does not override`（實測）。
+
+**理由要點：** `override` 和 `final` 都只是把意圖寫給編譯器檢查，不會改變函式本身的性質。
+
+</details>
+
+#### Q10-b〔單選〕
+
+`Base* p = new Derived(); delete p;`，而 `~Base()` 不是 virtual。會怎樣？
+
+- A. 正常，兩個解構子都會被呼叫
+- B. 編譯錯誤
+- C. 這是 UB；實際上通常只呼叫 `~Base()`，`Derived` 的成員沒有被清理
+- D. 只呼叫 `~Derived()`
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**C。**（MC19）
+
+**理由要點：** 解構子不是 virtual，就只按照靜態型別 `Base` 去呼叫解構子。
+
+</details>
+
+#### Q10-c〔單選〕
+
+編譯器在什麼情況下可以去虛化（把 vtable 呼叫變成直接呼叫）？
+
+- A. 能確定不會有更深的覆寫時，例如靜態型別是 `final` 類別，或函式本身是 `final`。這時可以轉成直接呼叫，甚至 inline
+- B. 只要開 `-O2`，所有 virtual 呼叫一律去虛化
+- C. `final` 會讓函式不再是 virtual
+- D. 只有 inline 函式才能去虛化
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**A。**
+
+- C 錯：函式還是 virtual，只是不能再被覆寫。
+
+**理由要點：** 去虛化的前提是編譯器能證明「只可能呼叫到這一個版本」。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 **1. `override` 與 `final` 的用途**
 - `override`：顯式告知編譯器此函式意在覆寫 base class 的虛擬函式。若 base class 簽名改變（例如多了一個 `const`、參數型別不同），編譯器會直接噴錯，防止意外變成「隱藏（hiding）」或「新增多載」的致命 bug。
@@ -2339,12 +3500,107 @@ public:
 
 ### Q11：型別推導規則：`auto` vs `decltype` vs `decltype(auto)`〔L4〕
 
-1. 說明 `auto` 推導變數型別時的衰減（decay）規則（對 `const` 與 reference 的處理）。
-2. `decltype(expr)` 的推導規則與 `auto` 有何不同？特別是 `decltype(x)` 與 `decltype((x))` 的差異。
-3. C++14 引入的 `decltype(auto)` 解決了什麼問題？請舉一個函式轉發回傳值的例子。
+#### Q11-a〔複選〕（複習弱點：`auto` 與 const）
+
+```cpp
+const int x = 10;
+const int& rx = x;
+const int* p = &x;
+```
+
+哪些推導正確？
+
+- A. `auto d = rx;` → `const int&`
+- B. `auto a = rx;` → `int`
+- C. `auto c = p;` → `int*`
+- D. `const auto& b = rx;` → `const int&`
+
+**理由（一句）：** ____
 
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**B、D。**（`static_assert` 實測）
+
+- A 錯：by-value `auto` 會剝掉 `&` 和頂層 const。
+- C 錯：`p` 的 `const` 是底層的（指向的 int 不能改），會被保留，所以結果是 `const int*`。
+
+**理由要點：** 剝掉 `&` 和頂層 const，留下底層 const。
+
+</details>
+
+#### Q11-b〔單選〕
+
+`int x = 0;`，`decltype(x)` 和 `decltype((x))` 分別是？
+
+- A. `int`、`int`
+- B. `int`、`int&`
+- C. `int&`、`int&`
+- D. `int&`、`int`
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**B。**（實測，MC43）
+
+**理由要點：** 沒有括號時，`decltype` 回傳變數宣告時的型別；加了括號就變成一個 lvalue 運算式，推導結果是 `T&`。
+
+</details>
+
+#### Q11-c〔單選〕
+
+```cpp
+std::vector<int> v{1, 2, 3};
+auto           get_a(int i) { return v[i]; }
+decltype(auto) get_d(int i) { return v[i]; }
+```
+
+兩個函式的回傳型別分別是？
+
+- A. `get_a`：`int`（複製）；`get_d`：`int&`
+- B. 兩個都是 `int&`
+- C. `get_a`：`int&`；`get_d`：`int`
+- D. 兩個都是 `int`
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**A。**（實測）
+
+**理由要點：** `auto` 照 `auto` 的規則剝掉 `&`；`decltype(auto)` 照 `decltype` 的規則保留原本的型別。
+
+</details>
+
+#### Q11-d〔單選〕
+
+```cpp
+decltype(auto) dangerous() { int x = 10; return (x); }
+```
+
+會怎樣？
+
+- A. 回傳 `int`，很安全
+- B. 編譯錯誤
+- C. 推導成 `int&&`
+- D. 推導成 `int&`，回傳的是區域變數的懸空參考，屬於 UB
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**D。**
+
+**理由要點：** `(x)` 是 lvalue 運算式，所以 `decltype` 推導成 `int&`，回傳的就是區域變數的參考。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 **1. `auto` 的推導規則（等同 Template 引數推導）**
 - 當不加 `&` 或 `*` 時（值傳遞），`auto` 會發生 **decay**：
@@ -2394,12 +3650,72 @@ public:
 
 ### Q12：`constexpr` 在 C++11 與 C++14 的限制放寬〔L3〕
 
-1. `constexpr` 與 `const` 的核心區別是什麼？
-2. C++11 的 `constexpr` 函式有哪些嚴苛限制？
-3. C++14 放寬了哪些限制？這些改進對暫存器設定或數學查表計算有什麼好處？
+#### Q12-a〔單選〕
+
+`const` 和 `constexpr` 的核心差別是什麼？
+
+- A. 兩者完全一樣
+- B. `const` 只表示唯讀，不一定在編譯期就知道值（`const int x = rand();` 是合法的）；`constexpr` 變數則必須在編譯期就能算出來
+- C. `constexpr` 只能用在函式上
+- D. `const` 一定在編譯期就確定
+
+**理由（一句）：** ____
 
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**B。** 只有編譯期常數才能拿來當 array 大小、template 引數或 `case` 標籤（MC28）。
+
+**理由要點：** 唯讀不等於編譯期已知。
+
+</details>
+
+#### Q12-b〔複選〕
+
+C++11 的 `constexpr` 函式有哪些限制？
+
+- A. 函式本體基本上只能有一條 `return`
+- B. 不能有迴圈，重複計算要改用遞迴
+- C. 回傳型別可以是 `void`
+- D. `constexpr` 成員函式會隱式加上 `const`
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**A、B、D。**
+
+- C 錯：C++11 的 `constexpr` 函式不能回傳 `void`，C++14 才放寬（MC41）。
+
+**理由要點：** C++11 的 `constexpr` 函式等於一個運算式。
+
+</details>
+
+#### Q12-c〔複選〕
+
+C++14 放寬了哪些限制？
+
+- A. 可以在 `constexpr` 函式裡呼叫非 `constexpr` 函式，結果仍然在編譯期求值
+- B. 可以寫迴圈、`if`、`switch`
+- C. 可以宣告並修改區域變數
+- D. 可以寫 `constexpr void` 函式
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**B、C、D。**（MC24、MC40、MC41）
+
+- A 錯：一旦要在編譯期求值，就只能呼叫 `constexpr` 函式。
+
+**理由要點：** C++14 讓 `constexpr` 函式寫起來像一般函式，但編譯期求值時，用到的每樣東西都必須是編譯期可算的。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 **1. `constexpr` vs `const`**
 - `const`：表示**唯讀（Read-only）**，不代表一定能在編譯期確定。例如 `const int x = rand();` 是合法的執行期 const。
@@ -2429,11 +3745,52 @@ public:
 
 ### Q13：`enum class`（強型別列舉）的優勢〔L3〕
 
-1. 說明傳統 C++ `enum` 存在哪三大缺陷？
-2. C++11 的 `enum class` 如何解決這些問題？底層儲存型別（underlying type）預設是什麼？
+#### Q13-a〔複選〕
+
+傳統 `enum` 的缺陷有哪些？
+
+- A. 列舉值的名稱會洩漏到外層 scope
+- B. 會隱含轉成 `int`，不同的 enum 可以直接拿來比較
+- C. C++98 不能指定底層型別，所以無法 forward declare
+- D. 不能用在 `switch` 裡
+
+**理由（一句）：** ____
 
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**A、B、C。**
+
+- D 錯：`switch` 可以用。
+
+**理由要點：** 傳統 enum 的三個缺陷是：沒有自己的 scope、會隱含轉型、大小不明。`enum class` 三個都解決了。
+
+</details>
+
+#### Q13-b〔單選〕
+
+沒有指定底層型別時，`enum class` 的預設底層型別是？
+
+- A. `char`
+- B. 由列舉值的範圍決定
+- C. `int`
+- D. `unsigned`
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**C。**（實測 `std::underlying_type<E>::type` 是 `int`，MC3）
+
+- B 錯：B 說的是**傳統** enum，它的底層型別由實作決定。
+
+**理由要點：** scoped enum 預設固定是 `int`，所以可以直接 forward declare。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 **1. 傳統 `enum` 的三大缺陷**
 1. **Scope 污染（Namespace Pollution）**：列舉值名稱直接洩漏到外層 scope。若有兩個 enum 同時定義了 `ERROR` 或 `IDLE`，會發生名稱衝突。
@@ -2463,12 +3820,68 @@ public:
 
 ### Q14：`std::atomic` vs `volatile` 的本質差別〔L4〕
 
-1. 在 C/C++ 中，`volatile` 的確切作用是什麼？它能保證多執行緒安全嗎？
-2. `std::atomic` 提供了什麼保證？說明它如何防止編譯器與 CPU 的指令重排（Instruction Reordering）。
-3. 在 Virtual Platform / 硬體暫存器建模與 Embedded FW 中，這兩者應如何正確分工？
+#### Q14-a〔單選〕
+
+`volatile` 實際上做了什麼？
+
+- A. 強制每次存取都產生真實的 load 和 store，不能被優化掉；但不保證原子性，也不插入記憶體屏障
+- B. 保證操作的原子性
+- C. 插入 memory barrier
+- D. 讓變數變成 thread-local
+
+**理由（一句）：** ____
 
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**A。** 所以拿 `volatile` 做多執行緒計數是錯的（MC25 實測會少算）。
+
+**理由要點：** `volatile` 只約束編譯器，不約束 CPU，也不保證原子性。
+
+</details>
+
+#### Q14-b〔複選〕
+
+`std::atomic` 提供哪些保證？
+
+- A. 操作是原子的（沒有 data race）
+- B. 預設的 memory order 是 `memory_order_seq_cst`
+- C. 依照 memory order 插入需要的屏障，防止編譯器與 CPU 重排
+- D. 跟 `volatile` 一樣，只影響編譯器
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**A、B、C。**
+
+**理由要點：** `atomic` 同時約束編譯器和 CPU。
+
+</details>
+
+#### Q14-c〔單選〕
+
+在虛擬平台和 FW 裡，兩者應該怎麼分工？
+
+- A. 兩者都用 `volatile`
+- B. MMIO 暫存器用 `volatile`（在弱記憶體架構上，還要搭配硬體屏障）；多執行緒共享的旗標和計數器用 `std::atomic`
+- C. MMIO 用 `std::atomic`，多執行緒共享變數用 `volatile`
+- D. 兩者都用 `std::atomic`
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**B。**
+
+**理由要點：** `volatile` 解決的是「硬體會在編譯器看不到的地方改值」；`atomic` 解決的是「多個 thread 同時存取」。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 **1. `volatile` 的真實作用**
 - `volatile` 是對**編譯器**的指示：告知該變數可能被編譯器不可見的外部因素修改（例如硬體暫存器、中斷服務常式 ISR、非同步 signal handler）。
@@ -2493,11 +3906,50 @@ public:
 
 ### Q15：C++14 二進位字面值（Binary Literals）與數字分隔符〔L3〕
 
-1. C++14 引入的二進位字面值與數字分隔符語法為何？
-2. 在硬體建模（暫存器遮罩、位址對齊）中，請寫出使用此特性的範例，並說明可讀性優勢。
+#### Q15-a〔複選〕
+
+在 C++14 下，哪些寫法合法，而且值如註解所示？
+
+- A. `0b1011`（等於 11）
+- B. `1'048'576`（等於 1048576）
+- C. `0x8000'0000`
+- D. `0b1012`
+
+**理由（一句）：** ____
 
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**A、B、C。**（實測）
+
+- D 錯：`invalid digit "2" in binary constant`。
+
+**理由要點：** `0b` 開頭的二進位字面值只能有 0 和 1；單引號 `'` 是分隔符，可以放在任何數字字面值裡，編譯器會忽略它。
+
+</details>
+
+#### Q15-b〔單選〕
+
+在暫存器建模裡，用這兩個語法的好處是什麼？
+
+- A. 執行速度比較快
+- B. 對照 datasheet 的 bit field 時，比較不容易數錯 0 的個數
+- C. 編譯器會自動檢查 mask 有沒有重疊
+- D. 會讓值自動變成 `constexpr`
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**B。**
+
+**理由要點：** 這只影響可讀性，產生的值完全一樣。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 **1. 語法**
 - 二進位字面值：前綴 `0b` 或 `0B`（例如 `0b1011`）。
@@ -2524,9 +3976,104 @@ constexpr size_t    BUFFER_SIZE    = 1'048'576; // 1MB
 
 ## 第六模組：白板手寫實作題
 
-### C1：手寫實作 RAII 動態陣列 `Buffer`（Rule of Five + `noexcept`）〔L3〕
+### C1：手寫實作 RAII 動態陣列 `Buffer`（Rule of Five + `noexcept`）〔L3〕〔手寫，輪替第 2 題〕
 
-**題目要求：**
+**10 分鐘版（預設要做的）：** 只寫四個成員：建構子（`n` 個 byte，全部填 0）、解構子、copy constructor（深拷貝）、move constructor（`noexcept`，來源清空）。兩個 assignment 先 `= delete`。骨架與測試在下面，存成 `c1_test.cpp`。骨架還沒寫實作時，連結會報 `undefined reference to Buffer::Buffer(...)`，這是正常的。
+
+```cpp
+// g++ -std=c++11 -Wall -Wextra -fsanitize=address,undefined c1_test.cpp -o c1 && ./c1
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <iostream>
+#include <type_traits>
+#include <utility>
+#include <vector>
+
+class Buffer {
+ public:
+  explicit Buffer(std::size_t n);              // TODO：配置 n 個 byte，全部填 0（n 可以是 0）
+  ~Buffer();                                   // TODO
+  Buffer(const Buffer& other);                 // TODO：深拷貝
+  Buffer(Buffer&& other) noexcept;             // TODO：接手資源，來源清空
+  Buffer& operator=(const Buffer&) = delete;   // 10 分鐘版先不做（選做時改成自己的實作）
+  Buffer& operator=(Buffer&&) = delete;
+
+  std::size_t size() const { return size_; }
+  std::uint8_t* data() { return data_; }
+  const std::uint8_t* data() const { return data_; }
+
+ private:
+  std::size_t size_;
+  std::uint8_t* data_;
+};
+
+// ---- 你的實作寫在這裡 ----
+
+// ---- 測試（不要改） ----
+static_assert(std::is_nothrow_move_constructible<Buffer>::value, "move ctor 要 noexcept");
+
+int main() {
+  Buffer a(4);
+  assert(a.size() == 4 && a.data()[3] == 0);
+  a.data()[0] = 7;
+
+  Buffer b(a);                                   // 深拷貝
+  assert(b.size() == 4 && b.data()[0] == 7 && b.data() != a.data());
+  b.data()[0] = 9;
+  assert(a.data()[0] == 7);                      // 改 b 不影響 a
+
+  const std::uint8_t* p = a.data();
+  Buffer c(std::move(a));                        // move：接手同一塊記憶體
+  assert(c.data() == p && c.size() == 4);
+  assert(a.data() == nullptr && a.size() == 0);  // 來源清空，解構時才不會 double free
+
+  std::vector<Buffer> v;
+  v.push_back(Buffer(2));
+  v.push_back(Buffer(3));                        // 擴容時搬移舊元素
+  assert(v[0].size() == 2 && v[1].size() == 3);
+
+  Buffer z(0);
+  assert(z.size() == 0);
+  std::cout << "all passed\n";
+}
+```
+
+**提示**（卡住再展開，一次一條）：
+
+<details>
+<summary>提示 1：建構子</summary>
+
+配置陣列時，怎麼讓內容全部是 0？（看看 L2-4 的舊版 `RegBank` 是怎麼配置的。）`n == 0` 時，你想讓 `data_` 是什麼？
+
+</details>
+
+<details>
+<summary>提示 2：copy constructor</summary>
+
+如果直接把指標複製過去，`b.data() != a.data()` 那一條會失敗，而且解構時會 double free。那正確的做法需要哪兩步？
+
+</details>
+
+<details>
+<summary>提示 3：move constructor</summary>
+
+接手 `other` 的指標以後，`other` 要處在什麼狀態，它的解構子才不會把你剛接手的記憶體釋放掉？
+
+</details>
+
+<details>
+<summary>提示 4：解構子</summary>
+
+用 `new[]` 配置的記憶體，要用哪一種 delete？對 `nullptr` 做 delete 安全嗎？
+
+</details>
+
+**驗收**：印出 `all passed`，而且 sanitizer 沒有任何報告。寫完之後貼上來 review，再看下面的參考答案。
+
+**選做（10 分鐘版過了再做）：** 把兩個 `= delete` 換成自己的 copy assignment 和 move assignment（可以用 copy-and-swap），再加上 `operator[]` 和它的 const 版本。原題的完整要求如下：
+
+**原題要求：**
 實作一個管理動態配置 `uint8_t` 陣列的 `Buffer` 類別：
 1. 包含指標 `uint8_t* data_` 與長度 `size_t size_`。
 2. 實作建構函式、解構函式。
@@ -2535,7 +4082,7 @@ constexpr size_t    BUFFER_SIZE    = 1'048'576; // 1MB
 5. 確保無記憶體洩漏與 double-free。
 
 <details>
-<summary>參考答案</summary>
+<summary>參考答案（自己寫完、貼上來 review 之後再看）</summary>
 
 ```cpp
 #include <cstddef>
@@ -2635,7 +4182,7 @@ private:
 
 ---
 
-### C2：代碼找錯與現代 C++ 盲點分析（Code Review 題）〔L4〕
+### C2：代碼找錯與現代 C++ 盲點分析（Code Review 題）〔L4〕〔口述〕
 
 請指出下列代碼中的 **3 處嚴重設計缺陷或 Bug**（參考答案另列 1 處次要項目），並提供修正方式：
 
@@ -2748,10 +4295,6 @@ int main() {
 }
 ```
 
-1. 這段程式在執行期會發生什麼事？編譯器為什麼不報錯？
-2. 有人把寫法 A 改成 `[this]`，這樣能解決問題嗎？
-3. 給出一個能讓 callback 在 `Device` 已經消失時安全結束的修法（`Device` 要用 `shared_ptr` 管理）。
-
 <details>
 <summary>提示</summary>
 
@@ -2761,8 +4304,74 @@ int main() {
 
 </details>
 
+#### Q16-a〔單選〕
+
+執行到 `cb()` 時會怎樣？
+
+- A. 印出 `tick 1`
+- B. 編譯錯誤
+- C. `d` 解構之後，lambda 裡的 `this` 已經懸空，寫入已釋放的 `count` 是 UB（本機實測 segfault，exit 139）
+- D. 印出 `tick 1`，因為 `[=]` 已經把 `count` 複製進 lambda
+
+**理由（一句）：** ____
+
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**C。** 編譯器只看語法，不分析物件的生命週期。
+
+- D 錯：`count` 是成員，不是區域變數，所以 `[=]` 捕獲的其實是 `this`（G1、Q7-a）。
+
+**理由要點：** 捕獲的是指標，指標指向的物件已經不在了。
+
+</details>
+
+#### Q16-b〔單選〕
+
+把寫法 A 改成 `[this]`，能解決問題嗎？
+
+- A. 不能。`[this]` 和隱式捕獲 `this` 的 `[=]` 捕獲的是同一個指標
+- B. 能，因為 `[this]` 會複製物件
+- C. 能，因為顯式寫出來比較安全
+- D. 會編譯錯誤
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**A。** 寫法變清楚了，但生命週期問題完全一樣。
+
+**理由要點：** 顯式寫出來只改善可讀性，不會延長物件的壽命。
+
+</details>
+
+#### Q16-c〔單選〕
+
+哪一種修法能讓 callback 在 `Device` 已經消失時安全結束？
+
+- A. callback 存 `std::shared_ptr<Device>`，保證安全，也沒有副作用
+- B. callback 存裸指標，執行前檢查是不是 `nullptr`
+- C. 在 `~Device()` 裡把 `count` 設成 0
+- D. `Device` 繼承 `enable_shared_from_this`，用 `make_shared` 建立；callback 只存 `weak_ptr`，執行時先 `lock()`，拿不到就跳過
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**D。**（實測輸出 `tick 1`、`device gone, skip`、`done`）
+
+- A 錯：存 `shared_ptr` 雖然不會懸空，但會把 `Device` 的壽命延長到 scheduler 清掉 callback 為止，還可能形成循環。這是副作用，不是「沒有副作用」。
+- B 錯：這又是 null 和 dangling 的混淆。`Device` 被解構之後，指標**不會**自己變成 `nullptr`。
+- C 錯：物件已經解構，在解構子裡設值沒有用。
+
+**理由要點：** callback 只觀察、不擁有，所以存 `weak_ptr`；`lock()` 失敗就代表物件已經不在了。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 1. `d` 解構後，lambda 內保存的 `this` 變成懸空指標，執行時寫入已釋放的 `count`，屬於未定義行為。本機實測 segmentation fault（exit 139）。編譯器只看語法，不分析物件的生命週期。
 2. 不能。`[this]` 與 `[=]`（隱式捕獲 `this`）捕獲的都是同一個指標，生命週期問題一樣（見 G1）。
@@ -2779,10 +4388,18 @@ int main() {
        });
      }
    };
-   // main: auto d = std::make_shared<Device>(); d->arm(s); ... 離開 scope 後再執行 cbs
+   int main() {
+     Scheduler s;
+     auto d = std::make_shared<Device>();
+     d->arm(s);
+     for (auto& cb : s.cbs) cb();   // Device 還在
+     d.reset();                     // Device 解構
+     for (auto& cb : s.cbs) cb();   // 安全跳過
+     std::cout << "done\n";
+   }
    ```
 
-   實測輸出 `tick 1`、`device gone, skip`、`done`，`-std=c++11` 與 `c++14` 相同。如果 callback 一定比物件先結束，也可以改成由 owner 持有 callback，而不是反過來；但那是設計上的保證，不是編譯器能幫你檢查的。
+   實測輸出（2026-11-10 補上產生這個輸出的 `main`） `tick 1`、`device gone, skip`、`done`，`-std=c++11` 與 `c++14` 相同。如果 callback 一定比物件先結束，也可以改成由 owner 持有 callback，而不是反過來；但那是設計上的保證，不是編譯器能幫你檢查的。
 
 </details>
 
@@ -2790,7 +4407,7 @@ int main() {
 
 ---
 
-### Q17：設計題：parent / child 樹的所有權〔L3〕
+### Q17：設計題：parent / child 樹的所有權〔L3〕〔口述〕
 
 設計一個樹狀結構 `Node`，每個節點有 `name`、子節點清單、父節點指標。
 
@@ -2831,11 +4448,54 @@ int main() {
 
 規格：把 `std::FILE*` 包成 `LogFile` 類別。要求：destructor 會 `fclose`；類別是 move-only；**不要自己寫任何 destructor、copy 或 move 成員**。
 
-1. 成員型別與 deleter 要怎麼選？struct functor 與 lambda 的差別是什麼（對應 Q3）？
-2. 為什麼 `LogFile` 會變成 move-only？如果業務需要 copy，能不能只靠 Rule of Zero 做到？
+#### Q18-a〔單選〕
+
+成員應該用哪種型別？
+
+- A. `std::unique_ptr<std::FILE, FcloseFn>`，其中 `FcloseFn` 是無狀態的 struct；大小跟裸指標一樣
+- B. `std::shared_ptr<std::FILE>`
+- C. `std::unique_ptr<std::FILE, decltype(&std::fclose)>`，大小跟裸指標一樣
+- D. 裸的 `FILE*`，再自己寫 destructor
+
+**理由（一句）：** ____
 
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**A。**（實測 `sizeof` 等於 `sizeof(void*)`）
+
+- C 錯：函式指標當 deleter 時，大小是兩個指標（Q3-b）。
+- B 錯：規格要求 move-only，`shared_ptr` 會變成共享所有權。
+- D 錯：違反「不自己寫 destructor」的規格。
+
+**理由要點：** 無狀態的 functor 當 deleter，`unique_ptr` 就是零額外開銷的 RAII 外殼。
+
+</details>
+
+#### Q18-b〔複選〕
+
+哪些正確？
+
+- A. 因為有 `unique_ptr` 成員，`LogFile` 變成 move-only
+- B. move 會自動生成，而且是 `noexcept`
+- C. 業務需要 copy 時，可以在 Rule of Zero 的前提下手寫 copy constructor
+- D. 真的需要 copy 語意時，可以改用 `std::shared_ptr<std::FILE>`（語意變成多個擁有者，最後一個關檔）
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**A、B、D。**（`static_assert` 實測 `is_nothrow_move_constructible` 為真，`is_copy_constructible` 為假）
+
+- C 錯：手寫 copy 就不是 Rule of Zero 了。而且「複製一個檔案控制代碼」本身就沒有明確的語意。
+
+**理由要點：** 類別的 copy 和 move 能力由成員決定；想換語意就換成員，不要自己手寫特殊成員函式。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 1. `std::unique_ptr<std::FILE, FcloseFn>`，其中 `FcloseFn` 是無狀態的 struct（`void operator()(std::FILE* f) const noexcept { if (f) std::fclose(f); }`）。這樣 `sizeof` 與裸指標相同（實測 `sizeof(std::unique_ptr<std::FILE, FcloseFn>) == sizeof(void*)`），而函式指標 deleter 會變成兩個指標大小（實測 `2 * sizeof(void*)`）。
 2. `unique_ptr` 的 copy constructor 被刪除，所以 `LogFile` 也隱式地不能 copy，而 move 會自動生成且是 `noexcept`（實測 `is_move_constructible`、`is_nothrow_move_constructible` 為真，`is_copy_constructible` 為假）。如果業務真的需要 copy，要改成 `std::shared_ptr<std::FILE>`（語意改變：多個擁有者，最後一個關檔），而不是手寫 copy。
@@ -2852,11 +4512,50 @@ int main() {
 
 情境：一個 TLM 風格的模型，每個 transaction 完成時要通知一次，模擬跑到每秒數百萬次 transaction。
 
-1. 用 `std::function<void(Payload&)>` 當 callback 與用模板參數 `template <class CB> void run(CB&& cb)` 各有什麼優缺點？
-2. 什麼情況下 `std::function` 仍然是合理選擇？
+#### Q19-a〔複選〕
+
+比較 `std::function<void(Payload&)>` 和模板參數 `template <class CB> void run(CB&& cb)`，哪些正確？
+
+- A. 模板參數：沒有型別擦除，呼叫可以 inline，也不會配置 heap
+- B. `std::function` 可以存 move-only 的 lambda
+- C. 模板參數：每種 callable 都會實例化一份程式碼
+- D. `std::function`：型別統一，可以放進容器或當成員
+
+**理由（一句）：** ____
 
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**A、C、D。**
+
+- B 錯：`std::function` 要求 callable 可以 copy（MC22，實測 `std::function target must be copy-constructible`）。
+
+**理由要點：** 模板快，但每種型別各一份；`std::function` 統一型別，代價是間接呼叫和可能的 heap 配置。
+
+</details>
+
+#### Q19-b〔單選〕
+
+什麼情況下 `std::function` 仍然是合理的選擇？
+
+- A. 每個 transaction 的熱路徑上
+- B. 需要 inline 的時候
+- C. 捕獲的東西很大的時候
+- D. 初始化時註冊一次、不在熱路徑上，或者需要在執行期替換 callback
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**D。** 成本是否可以接受，要用 profiler 量，不要靠直覺。
+
+**理由要點：** 呼叫次數少、又需要執行期的彈性時，間接呼叫的成本可以忽略。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 1. 模板參數：沒有 type erasure，呼叫可以 inline，沒有 heap 配置；代價是每種 callable 會實例化一份程式碼，而且要把型別存進 class 時必須再加一個模板參數。`std::function`：型別統一，可以放進容器或成員；代價是間接呼叫（通常不能 inline）、捕獲大時 heap 配置（MC34）、而且必須是 copy-constructible（MC22）。
 2. 在初始化時註冊一次、不在每個 transaction 的熱路徑上，或是需要在執行期替換 callback 的情況。SystemC 的 standard socket 本身就不用 `std::function`，而是綁 pure virtual 介面（見 Q9）。
@@ -2869,27 +4568,99 @@ int main() {
 
 ---
 
-### Q20：寫一個 `make` 工廠（完美轉發）〔L3〕
+### Q20：手寫 `make_unique`（完美轉發）〔L3〕〔手寫，輪替第 3 題，約 10 分鐘〕
 
-規格：`template <class T, class... Args> std::unique_ptr<T> make(Args&&... args)`，內部用 `new T(...)` 轉交參數。
+C++11 沒有 `std::make_unique`，請自己寫一個。
 
-1. 為什麼參數要寫成 `Args&&...`，而不是 `Args...`？
-2. 把 `std::forward<Args>(args)...` 拿掉，改成 `args...`，會發生什麼事？
-3. 給定 `S` 有 `explicit S(std::string&&)` 與 `explicit S(const std::string&)` 兩個建構子，`make<S>(std::string("x"))` 與 `make<S>(y)`（`y` 是 `std::string` 的左值）各會選哪個？
+**規格**：`template <class T, class... Args> std::unique_ptr<T> my_make_unique(Args&&... args)`，內部用 `new T(...)` 轉交參數。左值要照左值傳、右值要照右值傳。
+
+**骨架與測試**（存成 `q20_test.cpp`；還沒寫的時候，編譯會報 `'my_make_unique' was not declared`）：
+
+```cpp
+// g++ -std=c++11 -Wall -Wextra -fsanitize=address,undefined q20_test.cpp -o q20 && ./q20
+#include <cassert>
+#include <iostream>
+#include <memory>
+#include <string>
+#include <utility>
+
+// ---- TODO：在這裡寫 my_make_unique ----
+// template <class T, class... Args>
+// std::unique_ptr<T> my_make_unique(Args&&... args);
+
+// ---- 測試（不要改） ----
+struct S {
+  std::string how;
+  explicit S(std::string&&) : how("rvalue") {}
+  explicit S(const std::string&) : how("lvalue") {}
+};
+struct P {
+  int a;
+  double b;
+  P(int x, double y) : a(x), b(y) {}
+};
+
+int main() {
+  std::string y = "y";
+  auto r = my_make_unique<S>(std::string("x"));
+  auto l = my_make_unique<S>(y);
+  assert(r->how == "rvalue");                // 右值要選到 S(std::string&&)
+  assert(l->how == "lvalue" && y == "y");    // 左值選 S(const std::string&)，y 不能被搬走
+  auto p = my_make_unique<P>(1, 2.5);        // 多個參數
+  assert(p->a == 1 && p->b == 2.5);
+  std::unique_ptr<int> z = my_make_unique<int>(42);
+  assert(*z == 42);
+  std::cout << "all passed\n";
+}
+```
+
+**提示**（卡住再展開，一次一條）：
 
 <details>
-<summary>參考答案</summary>
+<summary>提示 1</summary>
+
+參數包 `args` 要在 `new T(...)` 裡展開。展開時，每個參數保留原本的左值／右值身分了嗎？
+
+</details>
+
+<details>
+<summary>提示 2</summary>
+
+如果 `r->how == "rvalue"` 那一條失敗，代表右值進了函式之後變成了什麼？（Q4-a：有名字的就是 lvalue）標準庫裡有一個工具，可以依照 `Args` 把身分還原。
+
+</details>
+
+<details>
+<summary>提示 3</summary>
+
+回傳型別是 `std::unique_ptr<T>`，而它從裸指標建構的建構子是 `explicit`。你能直接 `return` 一個裸指標嗎？
+
+</details>
+
+**驗收**：印出 `all passed`，sanitizer 沒有報告。
+
+<details>
+<summary>寫完、跑過測試之後再展開：口頭追問</summary>
+
+1. 為什麼參數要寫成 `Args&&...`，而不是 `Args...`？
+2. 在 `new T(...)` 裡如果只寫 `args...`，會發生什麼事？哪一條 assert 會失敗？
+3. 給定 `S` 有 `explicit S(std::string&&)` 與 `explicit S(const std::string&)` 兩個建構子，`my_make_unique<S>(std::string("x"))` 與 `my_make_unique<S>(y)`（`y` 是 `std::string` 的左值）各會選哪個？
+
+</details>
+
+<details>
+<summary>參考答案（寫完、跑過測試再看）</summary>
 
 1. `Args&&` 是 forwarding reference，可以接受 lvalue 與 rvalue，不會多做一次 copy 或 move。用值傳遞 `Args...` 會先複製一份，再交給 `new`。
 2. 參數在 `make` 內都有名字，全部變成 lvalue，所以 rvalue 也會選 `const std::string&` 的建構子，失去移動的機會。實測：
 
    ```text
-   make_good<S>(std::string("x"))  -> rvalue ctor
-   make_bad<S>(std::string("x"))   -> lvalue ctor
-   make_good<S>(y)                 -> lvalue ctor
+   有 std::forward，右值 std::string("x")  -> rvalue ctor
+   沒有 std::forward，右值 std::string("x") -> lvalue ctor
+   有 std::forward，左值 y               -> lvalue ctor
    ```
 
-3. `make<S>(std::string("x"))` 選 `explicit S(std::string&&)`（rvalue ctor）；`make<S>(y)` 選 `explicit S(const std::string&)`（lvalue ctor）。這就是 forwarding 的效果。`Args&&...`（variadic template）與 `std::forward` 都是 C++11 語法，`-std=c++11` 可以直接編譯。
+3. `my_make_unique<S>(std::string("x"))` 選 `explicit S(std::string&&)`（rvalue ctor）；`my_make_unique<S>(y)` 選 `explicit S(const std::string&)`（lvalue ctor）。這就是 forwarding 的效果。`Args&&...`（variadic template）與 `std::forward` 都是 C++11 語法，`-std=c++11` 可以直接編譯。
 
 </details>
 
@@ -2913,12 +4684,68 @@ int main() {
 }
 ```
 
-1. 三個 `sizeof` 各是多少？為什麼 `raw` 裡的 `sizeof(a)` 不是 16？
-2. `by_value(sa)` 會發生什麼事？改成 `const std::array<int, 4>&` 有什麼差別？
-3. 暫存器庫應該用 `std::array` 還是 `std::vector`？各說一個理由。
+#### Q21-a〔單選〕
+
+`int` 是 4 bytes 的 64-bit 平台上，`sizeof(arr)`、`sizeof(sa)`、`raw` 裡的 `sizeof(a)` 依序是？
+
+- A. 16、16、16
+- B. 16、8、8
+- C. 16、16、8
+- D. 16、16、4
+
+**理由（一句）：** ____
 
 <details>
-<summary>參考答案</summary>
+<summary>答案</summary>
+
+**C。**（實測；g++ 會對 `sizeof(a)` 發出 `-Wsizeof-array-argument` 警告）
+
+**理由要點：** C 陣列當參數時會退化成指標；`std::array` 不會退化，大小就是元素總和。
+
+</details>
+
+#### Q21-b〔單選〕
+
+`by_value(sa)` 會怎樣？
+
+- A. 只傳一個指標
+- B. 整個 16 bytes 的陣列都被複製；改成 `const std::array<int, 4>&` 就不會複製
+- C. 編譯錯誤
+- D. 退化成 `int*`
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**B。**（實測 `copy size=4`）
+
+**理由要點：** `std::array` 是一個值型別，傳值就會整個複製。
+
+</details>
+
+#### Q21-c〔單選〕
+
+固定數量的暫存器庫，應該用哪一種？
+
+- A. `std::array`：大小在編譯期固定、不需要 heap、`at()` 有邊界檢查。大小要到執行期才知道，才用 `std::vector`
+- B. 一律用 `std::vector`
+- C. 一律用 C 陣列
+- D. 用 `std::array`，因為它會配置 heap，比較彈性
+
+**理由（一句）：** ____
+
+<details>
+<summary>答案</summary>
+
+**A。**（L2-4 的 `RegBank` 大小是執行期才決定的，所以那一題用 `std::vector`。）
+
+**理由要點：** 大小在編譯期已知就用 `array`，執行期才知道就用 `vector`。
+
+</details>
+
+<details>
+<summary>完整解說（選完、寫完理由再看）</summary>
 
 1. 本平台（`int` 4 bytes）：C 陣列 `sizeof(arr) == 16`、`std::array` 也是 16。`raw` 的參數 `int a[4]` 會退化成 `int*`，所以 `sizeof(a) == 8`；g++ 會給 `-Wsizeof-array-argument` 警告。實測輸出與此相同。
 2. 傳值會整個複製 16 bytes 的陣列（實測 `copy size=4`）。改成 `const std::array<int, 4>&` 就沒有複製，只傳參考。
@@ -2931,7 +4758,7 @@ int main() {
 
 ---
 
-### Q22：設計題：`noexcept`、move 與封包池〔L4〕
+### Q22：設計題：`noexcept`、move 與封包池〔L4〕〔口述〕
 
 情境：一個 `Packet` 類別有 `std::string name` 與 `std::vector<uint8_t> payload`，放在 `std::vector<Packet>` 裡，模擬器會 `push_back` 與 `reserve`。
 
@@ -2954,7 +4781,9 @@ int main() {
 
 ---
 
-## 第八模組：手寫練習（E1–E2，只給規格與骨架）
+## 第八模組：手寫練習（E1–E2，選做，不在預設輪替，只給規格與骨架）
+
+2026-11-09 起，手寫題只排輪替裡的三個短題（L2-4 → C1 10 分鐘版 → Q20）。E1、E2 保留原樣；如果 HR 確認技術面試有手寫題，再把它們排回輪替。
 
 這一模組是**你自己寫**的練習：只給規格、測試骨架與提示，**不附完成版**。寫完貼上來，我再做 review（符合 Alan 的練習規則）。驗收方式一律是：骨架中的 `main` 與 `assert` 全部通過，且 `-fsanitize=address,undefined` 沒有報告。
 
@@ -3014,12 +4843,17 @@ int main() {
 }
 ```
 
-**提示**
+**提示**（卡住再展開）
+
+<details>
+<summary>提示</summary>
 
 - 清單的元素應該是哪一種智慧指標？為什麼？（對應 Q1）
 - 要使用物件之前，要用哪個成員函式確認它還活著？它回傳什麼型別？
 - `expired()` 與 `lock()` 有什麼不同？`live_count()` 需要 `lock()` 嗎？
 - 一次移除多個元素可以用 erase-remove idiom（`std::remove_if` 加上 `erase`）。
+
+</details>
 
 **驗收**：印出 `all passed`，sanitizer 沒有報告。
 
@@ -3090,13 +4924,18 @@ int main() {
 }
 ```
 
-**提示**
+**提示**（卡住再展開）
+
+<details>
+<summary>提示</summary>
 
 - `enum class` 的 `|` 不會自動存在。operator 要宣告在 enum 所在的 namespace，才找得到（ADL）。
 - 轉成底層整數做位元運算（`static_cast<std::uint8_t>`），結果再轉回 `Access`。
-- `allows` 可以寫成「`(have & need) == need`」的形式，注意兩邊都要先轉成整數。
+- `allows`：`have` 要包含 `need` 的**每一個**位元才算允許。用 `&` 取出 `have` 裡和 `need` 重疊的部分之後，要拿它跟什麼比？
 - `std::array::at()` 越界時丟 `std::out_of_range`，`operator[]` 越界是 UB。
 - 「不寫特殊成員」成立的前提，是每個成員本身都能正確 move。`std::array<Access, 4>` 滿足嗎？（對應 G3、G10）
+
+</details>
 
 **驗收**：印出 `all passed`，sanitizer 沒有報告，`-std=c++11` 與 `-std=c++14` 都能編譯。
 
@@ -3186,7 +5025,7 @@ int main() {
   - Q17：`1 2`、`parent=root`、`~root`、`~child`、`end`。
   - Q18：三個 `static_assert` 通過；`LogFile b(std::move(a));` 編譯執行通過。
   - Q19：`run_fast` 與 `run_slow` 輸出 `2`（見 G4）。
-  - Q20：`rvalue ctor`、`lvalue ctor`、`lvalue ctor`（第二行是 `make_bad` 的輸出）。
+  - Q20：`rvalue ctor`、`lvalue ctor`、`lvalue ctor`（第二行是沒有 `std::forward` 的版本的輸出）。
   - Q21：C 陣列與 `std::array` 的 `sizeof` 都是 16；`raw` 參數 `sizeof` 是 8（`-Wsizeof-array-argument`）；`copy size=4`；`static_assert(ca[1] == 2)` 與 `static_assert(ca.size() == 3)` 在兩個標準都通過。
   - Q22：`std::vector<int>` 與 `std::string` 的 move ctor 為 `is_nothrow_move_constructible` 真（libstdc++）；`unique_ptr<FILE, FcloseFn>` 為 1 個指標大小，函式指標 deleter 為 2 個指標大小。
 - 手寫練習（E1、E2）：參考解放在 scratchpad（不在檔案裡），在 `-std=c++11` 與 `c++14`、`-fsanitize=address,undefined` 下輸出 `all passed`。骨架本身不能編譯（預期，TODO 尚未完成）。
@@ -3202,3 +5041,29 @@ int main() {
   - MC12（既有題）本輪未更動，仍只驗證了 libstdc++ 的行為。
 - 範圍決定：
   - 「structured use in SystemC-style code」若指 structured bindings，那是 C++17，不在本檔範圍；G12 只說明為何不教。
+
+### 選擇題化驗證紀錄（2026-11-09）
+
+- 範圍：L1-1～L1-4、L2-1～L2-3、Q1～Q16、Q18、Q19、Q21 改成選擇題（子題 `Q11-a` 起），共 77 個子題，其中 27 個是複選題。正確選項都取自同一題原本已經實測過的參考答案；原答案保留在各題的「完整解說」裡，內容沒有改。新增的兩個複習子題（L1-1-d、L1-3-d）是依 2026-11-05 與 2026-11-09 複習輪的弱點出的。
+- 新寫進選項、原答案沒有直接寫到的說法，另外用 g++ 11 實測（測試程式在 scratchpad 的 `mc/cpp_ok.cpp`，以及逐行的編譯失敗測試）：
+  - `static_assert` 通過的推導：`auto a = cr` → `int`；`auto& b = ci` → `const int&`；`const int* const pp` 經 `auto q = pp` → `const int*`；`decltype((x))` → `int&`；`auto get_a()` 回傳 `int`、`decltype(auto) get_d()` 回傳 `int&`；`enum class` 的 underlying type 是 `int`；`0b1011`、`1'048'576`、`0x8000'0000` 的值。
+  - 大小：`unique_ptr<FILE, FileCloser>` = 8、`unique_ptr<FILE, decltype(&fclose)>` = 16、`shared_ptr<int>` = 16、`std::function<void()>` = 32。
+  - SSO：`"hello"` 被 move 後 `same=0`，100 個 `x` 的長字串 `same=1`；moved-from 的 `unique_ptr::get()` 是 `nullptr`。
+  - 編譯失敗（錯誤訊息與選項說明一致）：`[c](){ return ++c; }` → `increment of read-only variable`；`0b1012` → `invalid digit "2" in binary constant`；在非 virtual 的函式上加 `override` → `marked 'override', but does not override`；`[ptr]` 捕獲 `unique_ptr` → `use of deleted function`；`[std::move(ptr)]` → `capture of non-variable 'std'`；move-only 的 lambda 放進 `std::function` → `std::function target must be copy-constructible`。
+- 手寫題骨架：C1 的 10 分鐘版和 Q20 的 `my_make_unique` 都附了測試。兩者都用 scratchpad 裡的參考實作驗證過，在 `-std=c++11 -fsanitize=address,undefined` 下印出 `all passed`。參考實作不放進 repo。骨架本身沒寫實作時，C1 會在連結時報 `undefined reference`，Q20 會報 `'my_make_unique' was not declared`。Q20 如果少了 `std::forward`，會在 `r->how == "rvalue"` 那條 assert 失敗（實測）。
+- Q17、Q22、C2 標成〔口述〕，E1、E2 標成〔選做〕，內容都沒有改。
+
+### Agent 審查修正（2026-11-10）
+
+三個唯讀 subagent 各審一份題庫。本檔修正如下（每項都在本機 g++ 11 重新實測過）：
+
+- L1-2 題幹原本寫「三段都能編譯」，改成「(a)(b) 是編譯錯誤」。
+- L1-3-d 選項 B 原本寫「要 100 個字元才相同」。實測 15 個字元 `same=0`、16 個字元 `same=1`，改成「超過 SSO 上限（libstdc++ 是 15 個字元）」。
+- Q7-c 選項 A 原本寫「明確列出捕獲」，算正確；改成「改寫 `[this]`」並列為錯，答案從 A、C、D 改成 C、D。實測 `[m_val]` 報 `capture of non-variable`。
+- L1-1-a 的 B 錯理由改成「by-value `auto` 一律丟掉頂層 const」。
+- Q8-c 補上：g++ 11 在 `-std=c++14` 下會當成擴充接受 template lambda。
+- L1-2-b 正確選項裡原本附了修法，移到答案裡。
+- Q1-b 選項 B 的 atomic 說法加上前提。
+- Q16-c 補上產生 `tick 1`、`device gone, skip`、`done` 的 `main`（`-std=c++11`／`c++14` 加 ASan 都已實跑）。
+- Q20 的追問與參考答案改用 `my_make_unique` 的名稱。
+- L2-4、E1、E2 的提示改成折疊。E2 原本直接寫出 `allows` 的實作，改成提問。
