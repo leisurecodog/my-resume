@@ -1467,6 +1467,14 @@ int main() {
 - G3（Rule of Zero，先教再考）：`struct D { unique_ptr<int> p; ~D(){} }; D d2(std::move(d1));` 答對不能編譯；原因的第二句說成「destructor can't be moved」（應為：自己宣告 destructor 就不隱式生成 move ctor，右值退到 copy ctor，而 copy 因 `unique_ptr` 是 deleted）。修法一：刪掉 `~D()`（答對，未附理由）。修法二：第一次答「不知道」，給 `= default` 提示後先寫成 `~D(const&)=default`（destructor 不能有參數，`const&` 是 copy），第二層提示後寫出 `D(D&&) = default;` 並正確說明理由。實測：只加 move ctor 時，`d3 = std::move(d2)` 仍報 `use of deleted function 'D::operator=(const D&)'`，要連 `D& operator=(D&&) = default;` 一起寫才過（宣告 move ctor 會讓 move assignment 不再隱式生成）。
 - **L2-4（RegBank 改 Rule of Zero）已出題、Alan 尚未交稿**。已給第一層提示（`std::vector<uint32_t>(n)` 自動填 0）；待他貼稿 review，不先給解。review 時問他：為什麼頂部四個 `static_assert`（move-only、noexcept）不用自己寫任何東西就會通過。
 
+**第二次複習輪（2026-11-09，回顧 2026-11-05 的三個弱點；已用 g++ 11 `-std=c++11` 驗證）：**
+
+- `auto` 與 const：`auto a = ci` 答對 `int`、`auto& c = ci` 答對 `const int&`；`auto b = cr`（`cr` 是 `const int&`）答成 `const int`（應為 `int`，理由與 `a` 相同：by-value `auto` 先剝 `&` 再剝頂層 const，他停在第一步，且與自己對 `a` 的理由互相矛盾）。追問 `const int* const p; auto q = p;` 答成 `const int* const`（應為 `const int*`，只剝右邊的頂層 const，左邊的底層 const 保留）；他用「p 不能改、值也不能改」描述 `p`，沒想到 `q` 是新變數。**仍是最弱的一塊**：「by-value `auto` 剝 `&` 與頂層 const、留底層 const」連續兩輪沒穩。
+- `std::string` move 後：答成 `s` 變 `nullptr`（錯，`string` 不是指標；moved-from 是有效但未指定狀態，libstdc++ 實測 `size()==0`）。位址答「相同」，但理由寫「短字串會用複製」（理由對、結論矛盾；複製就表示位址不同）。實測短字串 `same=0`，長字串 100 個 `x` `same=1`、`capacity` 變 15。SSO 緩衝大小是 libstdc++ 實作細節。第二次把 move 說成「搬位址」的前提；改記成「有資源才轉移，沒有（SSO）就複製」。
+- `unique_ptr` move 後：`p.get()` 答對 `nullptr`（move ctor 用 `u.release()`，標準保證），沒有說是 UB；null vs dangling 答「dangling 是指向未配置位址」（對），但「nullptr 是 C++ null」只是重複名稱，補了差別：null 是刻意指向無物、可用 `if (p)` 檢查；dangling 指向已不存在的物件、看起來像正常位址、無法檢查。這一塊算修好。
+- L2-4（RegBank 改 Rule of Zero）仍未交稿。下次從這裡開始：請他貼稿，問他頂部四個 `static_assert` 為什麼不用寫特殊成員函式就會過。
+- 他的答題模式：結論和理由互相矛盾時，沒有回頭對照。請他寫完理由後對一次「理由推得出結論嗎」。
+
 **下一輪可以加考：** 上次的四項已轉成題目：lambda `[=]` 與隱式 `this`（MC35、MC36、Q16、G1）、`shared_ptr` 循環與 `weak_ptr`（L2-3、Q17、MC37、G2）、Rule of Zero（L2-4、MC38、MC39、Q18、G3）、`std::function` 開銷（MC34、Q19、G4）。下一輪口頭先問 MC35、MC39、Q16、Q19 各一題，不先給答案；E1、E2 等 Alan 交稿後再 review。MC29、MC33、Q20 是 forwarding 與 noexcept 的補強，可排在 Q4、Q5 之後。
 
 ---

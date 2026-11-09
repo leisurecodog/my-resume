@@ -7,6 +7,7 @@
 - 已完成：四份履歷的 AMBA 措辭改為整合與 spec 閱讀層級（見 `progress.md`）；`prep-notes.md` 第三部分 CI/CD 說法已改為「個人專案自己架過 CI，工作上沒用過」。
 
 ## Files touched
+- 2026-11-09（第二次複習輪）：`study/cpp11-14-quiz.md`（新增「第二次複習輪（2026-11-09）」）、`tasks/progress.md`、`tasks/handoff.md`。**下次仍從 L2-4 開始**：先抽問兩題（`const int* const p; auto q = p;`、`auto b = cr`；短字串 SSO move 位址不同），再請他貼 L2-4 稿，review 時問頂部四個 `static_assert` 為什麼不用寫就會過；之後考 MC35、MC37、MC39、Q16、Q17。他的結論與理由常互相矛盾，請他寫完理由後自己對一次。
 - 2026-11-05（複習輪）：`study/cpp11-14-quiz.md`（「口頭練習紀錄」新增「複習輪（2026-11-05）」）、`tasks/progress.md`、`tasks/handoff.md`。下一個 session 開頭再抽問：頂層 vs 底層 const、`auto` 剝 `&`、SSO move 位址、null vs dangling；G1、G2、G3 已教並口頭考過一輪（細節在題庫「複習輪」段）。**下次從 L2-4 開始**（`study/cpp11-14-quiz.md` 約第 1814 行）：先複習 G1–G3 弱點（`this` 捕獲的 const 語意、`weak_ptr::lock()` 設計理由、宣告 move ctor 後 move assignment 不再生成），再問他 L2-4 做到哪、有沒有卡住；他貼稿後 review，不先給解，並問頂部四個 `static_assert` 為什麼不用寫就會通過。之後考 MC35、MC37、MC39、Q16、Q17。每題請他多寫一句理由。
 - 2026-11-05（題庫擴充 + 教學導讀）：`study/cpp11-14-quiz.md`、`study/systemc-core-quiz.md`、`study/tlm-quiz.md`（細節見 `progress.md` Done 2026-11-05）、`CLAUDE.md`（study/ 一行）、`tasks/progress.md`、`tasks/handoff.md`、`tasks/lesson.md`。未 commit。
 - 2026-11-05（study mode 規則）：`CLAUDE.md`「Study mode」段改為：每次開始先複習上次內容（回顧＋2–3 題弱點複習題）；預設 Alan 不會，先教再考，他說會才直接考。`tasks/progress.md`、`tasks/handoff.md`。
