@@ -12,6 +12,11 @@
   - 三份題庫已經照這個比例改好，題號沿用原本的，子題寫成 `Q11-a` 這種格式。
 
 ## Files touched
+- 2026-11-17（群聯板橋客製履歷）：
+  - 新增 `phison/resume-phison-banqiao.tex` 與編譯好的 PDF（1 頁）。從 `base/resume.tex` 複製後只改 Summary、Chief Engineer 第一條、Skills；經歷其餘 bullet 未動。第二輪潤稿把 Summary 與全部 bullet 順過一次，Skills 移除 Waveform Parsing、Simulation Speed Tuning。
+  - `CLAUDE.md` Layout 的 per-employer 清單加入 `phison/`。
+  - `tasks/progress.md`、`tasks/handoff.md`。
+  - 台南 FW 還沒做版本；若要做，`credo/resume-credo-fw.tex` 比 `base` 更適合當起點（C/C++、HW/FW boundary、virtual platform bring-up），但要先確認群聯台南韌體 JD 的條件。
 - 2026-11-09（題型改成 80% 選擇題）：
   - `study/tlm-quiz.md`、`study/systemc-core-quiz.md`、`study/cpp11-14-quiz.md`：深入題改成選擇題子題，加了「作答規則」，標上〔口述〕／〔手寫〕／〔選做〕，C1 加 10 分鐘版骨架與測試，Q20 改成手寫 `my_make_unique`，每份檔尾加「選擇題化驗證紀錄（2026-11-09）」。
   - `CLAUDE.md`：Study mode 第 2、4 條，Layout 的 `study/` 一行。
@@ -49,6 +54,7 @@
 - `mediatek/resume-mediatek-vdk.tex`（加一條 bullet）與重新編譯的 `mediatek/resume-mediatek-vdk.pdf`
 
 ## Next steps
+- 群聯板橋版履歷已完成（`phison/resume-phison-banqiao.tex`）。竹南是同一份 JD，可直接沿用；板橋通勤扣分（竹北→板橋）。台南 FW 若要投，從 `credo/resume-credo-fw.tex` 起另做一份，先確認「韌體工程師03(台南)」的完整條件。
 - 題型照 80/20 執行。這個比例指的是**練習時間**，不是題數：選擇題約 290 題，口述加手寫只有 13 題，但每題要 5 到 10 分鐘，所以每次 session 要排一段口述或手寫，不要整節都做選擇題。
 - 口述／手寫連續被跳過時，提醒他一次白板題會卡住的風險，不要默默把它拿掉。
 - 若 HR 確認技術面試有手寫題，就提高手寫比例，把 E1／E2／EX-1／EX-2 排回輪替，並告訴他。

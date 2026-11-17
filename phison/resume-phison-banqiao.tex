@@ -1,0 +1,151 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[a4paper,margin=0.5in]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage{mdwlist}
+\usepackage[default]{lato}
+\usepackage[T1]{fontenc}
+\usepackage{textcomp}
+\usepackage{fontawesome}
+\usepackage{enumitem}
+\usepackage{newunicodechar}
+\newunicodechar{（}{(}
+\newunicodechar{）}{)}
+\DeclareFontFamily{U}{fontawesomeOne}{}
+\DeclareFontShape{U}{fontawesomeOne}{m}{n}
+{<-> FontAwesome--fontawesomeone}{}
+\DeclareRobustCommand\FAone{\fontencoding{U}\fontfamily{fontawesomeOne}\selectfont}
+\pagestyle{empty}
+\setlength{\tabcolsep}{0em}
+
+% indentsection style, used for sections that aren't already in lists
+% that need indentation to the level of all text in the document
+\newenvironment{indentsection}[1]%
+{\begin{list}{}%
+{\setlength{\leftmargin}{#1}}%
+     \item[]
+}
+{\end{list}}
+
+% opposite of above; bump a section back toward the left margin
+\newenvironment{unindentsection}[1]%
+{\begin{list}{}%
+{\setlength{\leftmargin}{-0.5#1}}%
+\item[]%
+}
+{\end{list}}
+
+% format two pieces of text, one left aligned and one right aligned
+\newcommand{\headerrow}[2]
+{\begin{tabular*}{\linewidth}{l@{\extracolsep{\fill}}r}
+#1 &
+#2 \\
+\end{tabular*}}
+
+% make "C++" look pretty when used in text by touching up the plus signs
+\newcommand{\CPP}
+{C\nolinebreak[4]\hspace{-.05em}\raisebox{.22ex}{\footnotesize\bf ++}}
+
+% and the actual content starts here
+\begin{document}
+
+\begin{center}
+	{\LARGE \textbf{FENG-AN (Alan) HSIEH}}\\
+	Zhubei, Hsinchu, Taiwan
+	\vspace{0.05cm}
+	\\
+	\raisebox{-0.2\height}{\Large \faPhoneSquare} \ \ (+886) 986161907 
+    \raisebox{-0.2\height}{\Large \faEnvelopeSquare} \ \ xiefengan013@gmail.com 
+    \raisebox{-0.2\height}{\Large \faLinkedinSquare} \ \ linkedin.com/in/feng-an-hsieh-a0a69a15a/
+\end{center}
+
+\subsection*{\large Summary}
+\hrule
+\vspace{0.3em}
+
+\hyphenpenalty=1000
+\begin{itemize}[leftmargin=1em,noitemsep]
+	\item[]
+    ESL Modeling Engineer with 4 years of experience building C++/SystemC TLM-2.0 models and Synopsys VDK virtual platforms for enterprise and client SSD controllers. Owns 6 IP models end to end, including the NAND Flash Controller (register map, interrupt, arbitration, DMA, command decode), used by firmware teams and shipped to external customers. Turns RTL specifications into executable models and debugs HW/FW boundary issues through co-simulation. M.E. in Electrical Engineering with a PyTorch-based computer vision thesis.
+\end{itemize}
+
+% ======================== Experience Section ==========================
+\subsection*{\large Experience}
+\hrule
+\vspace{0.3em}
+
+\renewcommand\labelitemi{}
+\renewcommand\labelitemii{$\bullet$}
+\begin{itemize}[leftmargin=1em]
+	\parskip=0.1em
+		
+	\item
+	      \headerrow
+	      {\textbf{SiliconMotion} -- \textbf{ESL Modeling Team}}
+	      {\textbf{Zhubei, Hsinchu}}
+	      \headerrow
+	      {\emph{Chief Engineer}}
+	      {\emph{July 2026 -- Present}}
+	      \begin{itemize*}
+	      	\item Architect and maintain 6 C++/SystemC TLM-2.0 IP models (4 enterprise, 2 client) from RTL specifications, including the shared inter-engine messaging IP and the NAND Flash Controller with register map, interrupt, arbitration, DMA, and command decode.
+	      	\item Profiled the messaging IP model with VDK top-down profiling and Valgrind, then replaced per-clock-cycle \texttt{wait()} polling with coarser time-based waits, reducing scheduler wake-ups and simulation time.
+	      	\item Deliver verified virtual platform releases to 5+ firmware engineers and external customers; mentor engineers on ESL design patterns and TLM-2.0 modeling.
+	      	\item Built agentic developer workflows (Claude Code, Cursor) for model boilerplate, spec-to-model scaffolding, and automated regression, reducing new NAND model delivery from $\sim$2 weeks to 2--3 days.
+	      \end{itemize*}
+	      \headerrow
+	      {\emph{Senior Engineer}}
+	      {\emph{November 2022 -- June 2026}}
+	      \begin{itemize*}
+	      	\item Built full-system virtual platforms on Synopsys VDK, integrating processor fast models with peripheral TLM models so firmware teams could bring up and test software months before tape-out.
+	      	\item Ran HW/SW co-simulation with DV test suites and verified models against RTL specifications, isolating and resolving boundary bugs across hardware and firmware.
+	      	\item Automated RTL waveform parsing (FSDB/VCD) with Python and shell scripts, making test creation 3x faster and saving about one week of manual work per cycle.
+	      	\item Built Python utilities for platform trace analysis and debugging, shortening issue isolation for firmware teams.
+	      \end{itemize*}
+\end{itemize}
+
+% ============================ Skill Section ===============================
+\subsection*{\large Skills}
+\hrule
+\vspace{0.3em}
+
+\hyphenpenalty=1000
+\begin{itemize}[leftmargin=1em,noitemsep]
+	\item \textbf{Languages \& Modeling:}
+	      C/C++ (C++14), SystemC, TLM-2.0, Python, Linux, Shell, Verilog, Assembly
+	\item \textbf{Virtual Platforms \& Debugging:}
+	      Synopsys VDK, Virtual Prototyping, HW/SW Co-simulation, Simulation Profiling (VDK top-down, Valgrind), Trace-based Debugging, Git
+	\item \textbf{Architecture \& Storage:}
+	      NAND Flash Controller Architecture (register map, interrupt, arbitration, DMA), AMBA spec \& bus integration (AXI, AHB, APB, CHI)
+	\item \textbf{AI \& Engineering Tooling:}
+	      PyTorch, CNN / YOLO Object Detection, Multi-Object Tracking (M.E. thesis), Claude Code, Cursor, Regression Automation, Test Generation
+    \item \textbf{Languages:}
+          Mandarin (Native), English (TOEIC 780)
+\end{itemize}
+
+% ======================== Education Section ==========================
+\subsection*{\large Education}
+\hrule
+\vspace{0.3em}
+
+\begin{itemize}[leftmargin=1em]
+	\parskip=0.1em
+		
+	\item
+	      \headerrow
+	      {\textbf{National Chung Cheng University}}
+	      {\textbf{Chiayi, Taiwan}}
+	      \headerrow
+	      {\emph{M.E. in Electrical Engineering}}
+	      {\emph{August 2020 -- July 2022}}
+          \headerrow
+          {\emph{Thesis: An End-to-End System for Road-Agent Behavior Classification (PyTorch, YOLO detection, object tracking)}}
+          {\emph{}}
+          
+	      \headerrow
+          {\textbf{National University of Kaohsiung}}
+	      {\textbf{Kaohsiung, Taiwan}}
+          \headerrow
+	      {\emph{B.E. in Computer Science and Information Engineering}}
+	      {\emph{September 2016 -- June 2020}}
+\end{itemize}
+
+\end{document}

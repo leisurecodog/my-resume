@@ -1,6 +1,7 @@
 # Progress
 
 ## Done
+- 2026-11-17：新增群聯板橋客製版 `phison/resume-phison-banqiao.tex`（1 頁）。Summary 改為 SSD controller 虛擬平台＋NAND controller＋simulation profiling＋碩論 DL/CV；Skills 重排（C/C++、Python、Linux 提前，新增 Virtual Platforms & Performance、Architecture & Storage、Deep Learning 關鍵字）。沒有寫 AI 效能建模、operator tiling、RTL 設計。台南 FW 另議。碩論細節已確認：PyTorch、CNN/YOLO、物件追蹤，寫進 Summary、Skills、Education 三處。使用者確認 NAND controller 模型的 register map 與 interrupt 都是真的，第一條 bullet 另補「from RTL design specifications」，整體以 ESL 經驗為主、AI 只放碩論。2026-11-17 第二輪潤稿：Skills 移除 Waveform Parsing、Simulation Speed Tuning，類別改為 Virtual Platforms \& Debugging；Summary 與 8 條 bullet 全部重寫順句（去掉 performance 主導與 CModels 混用），PDF 重新編譯（1 頁）。使用者確認定稿，交由朋友代投板橋（竹南可沿用同一份）。
 - 2026-11-10：派三個唯讀 subagent 審查 2026-11-09 改好的選擇題，各負責一份檔案，用原始碼核對並實跑。發現的問題都已修正，紀錄寫在各檔尾「Agent 審查修正（2026-11-10）」：
   - **SystemC**：抓到一個舊錯誤「`SC_CTHREAD` 在初始化時執行」。實際上 `m_dont_init = true`，0 s 那次是被 clock 的 0 s posedge 叫醒的。T4、MC27、L2-5-a、EX-2 已一起改正。
   - **C++**：
@@ -68,6 +69,7 @@
 - 文件：只寫過 msg IP 的文件，平台層沒寫過（與先前「三種都寫過」對照，以此為準）。
 
 ## 回答結論
+- 2026-11-17 群聯評估：板橋與竹南是同一份 JD（AI/SoC 架構設計），fit 60（C，板橋通勤扣分）／66（B）。履歷沒有群聯版、沒有 AI/DL 關鍵字，基本條件「AI 運算架構/演算法、DL 框架原理」只有碩論可講。台南歸仁沒有建模或架構職；使用者想投台南 FW，需另做客製版（起點用 `credo/resume-credo-fw.tex`），並先補齊該 JD 條件。
 - A 效能建模：沒做過 timing / latency 建模，但有優化過 simulation speed（VDK top-down profiling、valgrind）→ 主打 VDK 職缺，履歷可補一條 profiling bullet；純效能建模類仍不主投。
 - B Bus：只讀過 spec，並把 fast model IP 接到 bus（Synopsys VDK 工具）→ 整合經驗，不是 interconnect 建模；Designer 吻合度低。
 - C 文件：model spec、user guide、release note 寫過，但只針對 msg IP，平台層沒寫過。
