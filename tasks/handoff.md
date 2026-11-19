@@ -12,6 +12,12 @@
   - 三份題庫已經照這個比例改好，題號沿用原本的，子題寫成 `Q11-a` 這種格式。
 
 ## Files touched
+- 2026-11-18（VDK 職缺減為一份）：
+  - 刪除 `JD/SystemC_TLM Modeling Engineer (VDK Virtual Platform) - 2｜聯發科技｜新竹縣－104 人力銀行.pdf`（104 93a5b 已下架）。保留 `SystemC_TLM Modeling Engineer (VDK Virtual Platform)｜…pdf`（896h2，2 年以上、1–2 人）。
+  - `JD/fit-ranking.md`：#2 標為已下架、編號不重排；檔頭加註、截斷註記、逐項說明 A 級、缺口表 CI/CD 次數、投遞順序、補強影響同步。
+  - `tasks/learning-plan.md` 第 2、12 項的「VDK 兩份」改為單一 VDK。
+  - `tasks/progress.md`、`tasks/handoff.md`。
+  - **已改** `mediatek/resume-mediatek-vdk.tex`（同日稍後）：使用者確認「SystemVerilog 只讀過 DV testbench 程式碼」、「ACE 只知道是 coherence」，故兩者都不寫進履歷。改動見 `progress.md` 2026-11-18；PDF 重新編譯為 1 頁。
 - 2026-11-17（群聯板橋客製履歷）：
   - 新增 `phison/resume-phison-banqiao.tex` 與編譯好的 PDF（1 頁）。從 `base/resume.tex` 複製後只改 Summary、Chief Engineer 第一條、Skills；經歷其餘 bullet 未動。第二輪潤稿把 Summary 與全部 bullet 順過一次，Skills 移除 Waveform Parsing、Simulation Speed Tuning。
   - `CLAUDE.md` Layout 的 per-employer 清單加入 `phison/`。
@@ -54,6 +60,8 @@
 - `mediatek/resume-mediatek-vdk.tex`（加一條 bullet）與重新編譯的 `mediatek/resume-mediatek-vdk.pdf`
 
 ## Next steps
+- 朋友內推 MTK：履歷用 `mediatek/resume-mediatek-vdk.tex` 編出的 PDF，職缺只報 #1（896h2，2 年以上）、#4（8dfg1）、#5（91k46），#8（8gwrv）可選。#10、#12 不要用同一份投。注意 104 頁面寫「公司網站與 104 擇一投遞，勿重複傳送」，先問朋友是走內部推薦系統（本人還要上 careers.mediatek.com 補登）還是直接轉給 hiring manager，避免重複投遞拖慢審閱。
+- 履歷已於 2026-11-18 微調完（`mediatek/resume-mediatek-vdk.tex`，1 頁）。**不要**再加：SystemVerilog（只讀過 DV testbench 程式碼）、ACE（只知道是 coherence）、AT、cycle-accurate、工作上的 CI/CD、AI/NPU。**CHI 保留**：使用者讀的是 Arm CI-700 的 spec（CHI-based interconnect），屬「有點讀過」，口頭可以講交易流程但沒實作過 interconnect model；刻意不把 `CI-700` 寫進履歷（空間不足，且含糊的「熟悉」反而被抓）。被問時的標準答法：讀過 CI-700 spec、抓得到 CHI 交易流程，但沒有實作 interconnect model。目前同一份可投 #1／#4／#5；#8 偏弱（只有碩論的 PyTorch/CNN 可講）；#10、#12 不要用同一份投。下一步：等朋友回覆內推管道，必要時把履歷轉成 PDF 檔名 `Feng-An_Hsieh_Resume_MediaTek_ESL.pdf`。
 - 群聯板橋版履歷已完成（`phison/resume-phison-banqiao.tex`）。竹南是同一份 JD，可直接沿用；板橋通勤扣分（竹北→板橋）。台南 FW 若要投，從 `credo/resume-credo-fw.tex` 起另做一份，先確認「韌體工程師03(台南)」的完整條件。
 - 題型照 80/20 執行。這個比例指的是**練習時間**，不是題數：選擇題約 290 題，口述加手寫只有 13 題，但每題要 5 到 10 分鐘，所以每次 session 要排一段口述或手寫，不要整節都做選擇題。
 - 口述／手寫連續被跳過時，提醒他一次白板題會卡住的風險，不要默默把它拿掉。
@@ -66,7 +74,7 @@
 - `study/tlm-quiz.md` 先做選擇題 MC1–MC36（MC23 起是 AT 專題）（可自己手打程式碼驗證），再做口述題 Q1–Q8。
 - TLM-2.0 口試已做一輪（結果在 `progress.md` Done 2026-10-20）。下次複習要練「元件、事件、軟體看到的現象」三段式具體情境（例如 DMA+CPU contention、boot remap、debugger watchpoint、DMA 完成 interrupt 延遲），以及 30 秒講完 `b_transport` 完整路徑。`study/tlm-quiz.md` 已補 Q6–Q8（`transport_dbg`、socket binding、payload 進階），尚未口試。Q7 第 4 小題要使用者用自己 msg IP 接 bus 的實際細節回答，不要替使用者編。可以再口試一輪，重點放 Q6–Q8 與 AT 細節（`tlm_sync_enum`、fw/bw 各走哪些 phase）。
 - C++：利用 `study/cpp11-14-quiz.md` 口頭與白板自測，並依 `tasks/learning-plan.md`「第 1 項：C++11/14 最小練習」做 4 步練習（Buffer rule of five → unique_ptr → lambda → 小 TLM initiator/target），第 4 步可與 TLM-2.0 複習合併。
-- 新排名（`JD/fit-ranking.md`，編號已重排）：#1–2 VDK 92、#3 耐能 Co-Sim 71、#4 Performance 70、#5 Designer 68、#6 耐能 C-Model 67、#7 群聯竹南 66、#8 AI 處理器 62。使用者對 Performance 與 AI 處理器有興趣，建議跟 VDK 一起投；尚未做這兩份的客製履歷（可放 `mediatek/`），使用者要求才動。
+- 新排名（`JD/fit-ranking.md`，編號已重排）：#1 VDK 92（原 #2「VDK - 2」已於 2026-11-18 下架，編號保留為空號）、#3 耐能 Co-Sim 71、#4 Performance 70、#5 Designer 68、#6 耐能 C-Model 67、#7 群聯竹南 66、#8 AI 處理器 62。使用者對 Performance 與 AI 處理器有興趣，建議跟 VDK 一起投；尚未做這兩份的客製履歷（可放 `mediatek/`），使用者要求才動。
 - 被截斷、投遞前須到 104 看完整條件的 JD：6G/5G、群聯兩份、耐能三份、晶心、Designer、記憶體系統。其餘六份條件區完整。
 - `tasks/learning-plan.md` 的職缺名稱對照仍有效（用名稱而非編號），不需改。
 - 學習順序以 `tasks/learning-plan.md` 為準；第 1–6 項的細項仍在 `mediatek/prep-notes.md`，改動時兩邊對照。

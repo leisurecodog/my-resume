@@ -8,7 +8,7 @@ VDK 面試複習（C++14、TLM-2.0、VDK 流程）的細項清單在 `mediatek/p
 | 順序 | 主題 | 目標 | 細節與做法 | 影響的職缺 |
 |---|---|---|---|---|
 | 1 | C++14 | 能說明自己 model 的類別設計，並能手寫 C++11/14 常考寫法 | `mediatek/prep-notes.md` 第一部分與第四部分；動手練習見下方「第 1 項：C++11/14 最小練習」 | VDK、耐能 C-Model（OOP / 設計模式） |
-| 2 | TLM-2.0 LT、DMI、quantum | 能畫出 read/write 流程並解釋加速原理 | 同上 | VDK 兩份 |
+| 2 | TLM-2.0 LT、DMI、quantum | 能畫出 read/write 流程並解釋加速原理 | 同上 | VDK（#1） |
 | 3 | AT / non-blocking | 能說明四個 phase 與回傳值 | 同上，第四部分第 3 項 | VDK（加分）、Designer、Performance 驗證 |
 | 4 | Bus 建模 | 會寫簡單 interconnect | 同上，第四部分第 4 項（router + arbiter 小專案） | Designer、Performance 驗證、群聯、記憶體系統 |
 | 5 | 效能建模入門 | 能解釋並量測 latency / throughput | 同上，第四部分第 5 項（在 router 加 latency 與 bandwidth） | 10 份 JD，缺口統計第一名 |
@@ -18,7 +18,7 @@ VDK 面試複習（C++14、TLM-2.0、VDK 流程）的細項清單在 `mediatek/p
 | 9 | RTL 小專案 | 能寫簡單 RTL 並與自己的 C model 比對 | 用同一個 router 或 DMA 寫 RTL，與 TLM 版本比對 | MediaTek AI 處理器建模（條件 1 必要，但未寫年資與程度，可先用 CModel vs RTL 驗證經驗說明，不必等做完才投）、Performance 驗證（加分） |
 | 10 | C/C++ 基礎題與 bit 操作 | 能在白板上寫出並解釋基礎題與 register field 操作 | C/C++：pointer 與 reference、memory layout、`virtual` 與 vtable、copy / move、`volatile`、`const`、struct 對齊。Bit：mask、set / clear field、endianness、位址對齊。再加約 20 到 30 題簡單到中等的 LeetCode（C++，陣列、字串、linked list、hash map、queue / stack），不練 DP 與進階 graph。每週 2 到 3 題維持手感，面試前兩週加量，總量不超過學習時間約 15% | 所有職缺的技術面（群聯、耐能、千逢較可能出現手寫題） |
 | 11 | Co-sim 框架與 bit-true 驗證 | 能說明 C model 與 RTL 如何通訊、同步與自動比對，並解釋定點與浮點差異 | 讀 DPI-C / PLI 基礎，做一個小範例（C model 與簡單 RTL module 以 DPI-C 互呼並比對輸出）；讀 fixed-point 表示與捨入、溢位處理；整理過去 CModel vs RTL 驗證中自己負責的部分 | 耐能 Co-Sim（4 項必要缺口都在此）、千逢、耐能 C-Model |
-| 12 | VDK 流程與 debug | 能講清楚 FW 在 VDK 上出 bug 時的 debug 流程 | 依 `mediatek/prep-notes.md` 第三部分清單；實際整理一個你處理過的 bug（現象、gdb / log / trace 怎麼用、root cause、怎麼確認修好）作為可講的案例 | VDK 兩份（JD 第 4 條 solid debugging skills） |
+| 12 | VDK 流程與 debug | 能講清楚 FW 在 VDK 上出 bug 時的 debug 流程 | 依 `mediatek/prep-notes.md` 第三部分清單；實際整理一個你處理過的 bug（現象、gdb / log / trace 怎麼用、root cause、怎麼確認修好）作為可講的案例 | VDK（JD 第 4 條 solid debugging skills） |
 | 13 | Computer architecture 與 ACE / CHI | 能說明 cache 階層、coherency、memory ordering，以及 CHI 一次 read / write 的交易流程 | 複習 cache（associativity、write policy）、MESI、memory ordering；讀 CHI 交易流程（requester / home / snoop）並準備一個能講的案例。你有 spec 閱讀與 IP 接線，目標是「familiar」層級 | Performance 驗證（條件 2、3 是必要的「familiar」）、群聯、記憶體系統 |
 
 ## 第 1 項：C++11/14 最小練習

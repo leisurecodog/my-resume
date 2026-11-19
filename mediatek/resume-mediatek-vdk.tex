@@ -65,7 +65,7 @@
 \hyphenpenalty=1000
 \begin{itemize}[leftmargin=1em,noitemsep]
 	\item[]
-    ESL Modeling Engineer with 4 years of experience building C++/SystemC TLM-2.0 functional models (LT / behavior-level) and integrating them into Synopsys VDK virtual platforms for enterprise and client SSD controllers. End-to-end owner of 6 peripheral and controller IP models, delivered to firmware teams and external customers to enable software bring-up ahead of silicon. Python automation builder for trace analysis, regression, and model delivery.
+    ESL Modeling Engineer with 4 years of experience building C++/SystemC TLM-2.0 models (LT / behavior-level) and integrating them into Synopsys VDK full-system virtual platforms for storage SoCs. End-to-end owner of 6 reusable IP models (memory-mapped register maps, interrupts, DMA, state machines), delivered to firmware teams and customers ahead of silicon. Python tooling for trace analysis, automated regression, and model delivery; profiled and sped up model simulation.
 \end{itemize}
 
 % ======================== Experience Section ==========================
@@ -86,7 +86,7 @@
 	      {\emph{Chief Engineer}}
 	      {\emph{July 2026 -- Present}}
 	      \begin{itemize*}
-	      	\item Architect and maintain 6 C++/SystemC TLM IP models (4 enterprise, 2 client), including the shared inter-engine messaging IP and core NAND Flash Controller (register map, interrupt, arbitration, DMA, command decode).
+	      	\item Architect and maintain 6 C++/SystemC TLM IP models (4 enterprise, 2 client), including the shared, reusable inter-engine messaging IP and core NAND Flash Controller (register map, interrupt, arbitration, DMA, command decode).
 	      	\item Profiled the messaging IP model with VDK top-down profiling and Valgrind, and replaced per-clock-cycle \texttt{wait()} polling with coarser time-based waits, reducing scheduler wake-ups and speeding up simulation.
 	      	\item Deliver verified virtual platform releases and model documentation to 5+ firmware engineers and external customers; mentor engineers on ESL design patterns and TLM-2.0 modeling standards.
 	      	\item Built agentic developer workflows (Claude Code, Cursor) for model boilerplate generation, spec-to-model scaffolding, and automated regression, reducing new NAND model delivery from $\sim$2 weeks to 2--3 days.
@@ -103,7 +103,7 @@
 \end{itemize}
 
 % ============================ Skill Section ===============================
-\subsection*{\large Skills}
+\subsection*{\large Skills\vphantom{y}}
 \hrule
 \vspace{0.3em}
 
@@ -114,9 +114,9 @@
 	\item \textbf{EDA \& Virtual Platforms:}
 	      Synopsys VDK, Virtual Prototyping, HW/SW Co-simulation, Linux, Git
 	\item \textbf{Protocols \& Architecture:}
-	      AMBA spec \& bus integration (AXI, AHB, APB, CHI), NAND Flash Controller Architecture, DMA, Register Maps, Interrupts, State Machines
+	      AMBA spec \& bus integration (AXI, AHB, APB, CHI), NAND Flash Controller Architecture, Memory-Mapped I/O, Register Maps, Interrupts, DMA, State Machines
 	\item \textbf{Engineering Tooling:}
-	      Debugging (gdb, Platform Trace Analysis), Automated Regression, Claude Code, Cursor, Waveform Parsing (FSDB/VCD)
+	      Performance Profiling (VDK top-down, Valgrind), Debugging (gdb, Platform Trace Analysis), Automated Regression, Claude Code, Cursor
     \item \textbf{Languages:}
           Mandarin (Native), English (TOEIC 780)
 \end{itemize}
@@ -136,7 +136,7 @@
 	      \headerrow
 	      {\emph{M.E. in Electrical Engineering}}
 	      {\emph{August 2020 -- July 2022}}
-          \par\noindent{\emph{Thesis: An End-To-End System For Road Agent Behavior Classification (CNN, LSTM, Object Detection, Tracking)}}\par
+          \par\noindent{\emph{Thesis: An End-To-End System For Road Agent Behavior Classification (PyTorch, CNN, LSTM, Object Detection, Tracking)}}\par
           
 	      \headerrow
           {\textbf{National University of Kaohsiung}}

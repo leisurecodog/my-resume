@@ -1,12 +1,14 @@
 # JD 適合度評分（2026-10-13 初評，2026-10-20 重評）
 
-依據：`JD/` 內 15 份 104 職缺 PDF 的可見文字，對照 `base/resume.tex` 與 `tasks/progress.md` 的自我回答結論。
+> 2026-11-18：MediaTek VDK 第二份（#2，104 職缺 93a5b，經歷不拘、1~4 人）已下架，PDF 已刪除，全庫剩 14 份。**編號不重排**，以維持其他文件的交叉引用；#2 保留為歷史紀錄。留著的是 #1（896h2，2 年以上、1–2 人）。
+
+依據：`JD/` 內 14 份 104 職缺 PDF 的可見文字，對照 `base/resume.tex` 與 `tasks/progress.md` 的自我回答結論。
 
 ## 截斷註記（2026-10-20 重新逐份檢查 PDF）
 
-- **PDF 條件區完整**（沒有「顯示全部」）：MediaTek VDK 兩份、MediaTek Performance 驗證、MediaTek AI 處理器建模、千逢 NPU、百仕聯 GPU。評分可信度較高。
+- **PDF 條件區完整**（沒有「顯示全部」）：MediaTek VDK（#1）、MediaTek Performance 驗證、MediaTek AI 處理器建模、千逢 NPU、百仕聯 GPU。評分可信度較高。
 - **PDF 在「其他條件」處被「顯示全部」截斷**：MediaTek 6G/5G、MediaTek Designer、MediaTek 記憶體系統、群聯（竹南、板橋）、耐能三份（Co-Sim、C-Model、Embedded）、晶心。評分只依可見部分，投遞前到 104 看完整條件再校正。
-- 10-13 初評的截斷清單有誤：VDK 兩份與 Performance、AI 處理器實際上是完整的，已更正。
+- 10-13 初評的截斷清單有誤：VDK 與 Performance、AI 處理器實際上是完整的，已更正。
 
 ## 重評變動摘要（2026-10-20）
 
@@ -14,7 +16,7 @@
 |---|---|---|---|
 | MediaTek Performance 驗證 | 58 (C) | **70 (B)** | 條件區只要求「Familiar with」Verilog/C++/Python、computer architecture、APB/AXI/ACE/CHI，經歷不拘；sign-off 與 cycle approximate model 只在工作內容，不是資格門檻。SystemC/TLM 是加分，你有 |
 | MediaTek AI 處理器建模 | 55 (C) | **62 (C 上緣)** | 條件區完整：經歷不拘；只有 RTL design experience 是非加分項（未寫年資與程度），其餘 4 項加分你大多有（SystemC/TLM/ESL、C/C++、SW emulator）。應徵人數 0~5 人 |
-| MediaTek VDK 第 2 份 | 90 (A) | **92 (A)** | 原以為沒有工作內容，實際有（與第 1 份相同的 5 條職責）；兩份條件相同，差別只在年資（2 年以上 vs. 不拘）與人數 |
+| MediaTek VDK 第 2 份 | 90 (A) | **92 (A)** | 原以為沒有工作內容，實際有（與第 1 份相同的 5 條職責）；兩份條件相同，差別只在年資（2 年以上 vs. 不拘）與人數。**2026-11-18 該職缺已下架，僅保留紀錄** |
 | MediaTek 記憶體系統 | 50 (C) | **55 (C)** | 「基本要求」只要碩士、熟悉 SystemC/C++/Python、記憶體系統「基礎知識」；DRAM/SRAM 架構與最佳化、真實環境功耗分析是「進階」。仍被截斷 |
 | MediaTek 6G/5G 基頻 | 38 (D) | **40 (D)** | 條件 1（ESL/SystemC 建模、SW/FW control-path simulation 的實務經驗）你符合；條件 2 仍是二選一都沒有 |
 | 其餘 10 份 | | 不變 | 重讀後內容與初評一致 |
@@ -43,8 +45,8 @@
 
 | # | 職缺 | 地點 | 核心 40 | 領域 25 | 條件 10 | 可補 15 | 加分 10 | 總分 | 級 |
 |---|---|---|---|---|---|---|---|---|---|
-| 1 | MediaTek SystemC/TLM Modeling Engineer (VDK) | 竹北 | 38 | 23 | 10 | 13 | 8 | **92** | A |
-| 2 | MediaTek SystemC/TLM Modeling Engineer (VDK) - 2 | 竹北 | 38 | 23 | 10 | 13 | 8 | **92** | A |
+| 1 | MediaTek SystemC/TLM Modeling Engineer (VDK)（2 年以上） | 竹北 | 38 | 23 | 10 | 13 | 8 | **92** | A |
+| 2 | ~~MediaTek VDK - 2~~（2026-11-18 下架，104 93a5b，PDF 已刪） | 竹北 | — | — | — | — | — | — | — |
 | 3 | 耐能 C Model / RTL Co-Simulation and Verification | 台北內湖 | 30 | 17 | 7 | 10 | 7 | **71** | B |
 | 4 | MediaTek 數位IC設計工程師（Performance 驗證與分析） | 竹北 | 31 | 16 | 10 | 8 | 5 | **70** | B |
 | 5 | MediaTek SystemC Modeling Designer | 新竹市 | 30 | 15 | 10 | 8 | 5 | **68** | B |
@@ -63,10 +65,10 @@
 
 ### A：主投
 
-**1–2. MediaTek SystemC/TLM Modeling Engineer (VDK)（兩份，PDF 完整）**
+**1. MediaTek SystemC/TLM Modeling Engineer (VDK)（PDF 完整）**
 - 吻合：JD 要求的 SystemC/TLM-2.0（LT 即可）、MMIO / interrupt / DMA / register map / state machine、gdb 與 trace debug，全部是你每天做的事。VDK 也是你用的工具。
 - 缺口：AT（加分項）、CI/CD automation（職責第 5 條）、bootable vSOC 的 boot FW / system bring-up（職責第 3 條）。三項都有誠實說法（見 `mediatek/prep-notes.md` 第三部分）。條件區沒有把 CI/CD 或 bring-up 列為資格。
-- 兩份的職責與條件清單相同；差別是第 1 份寫 2 年以上、1–2 人，並多一段 Summary（VDK team、bootable virtual SoC）；第 2 份寫經歷不拘、1–4 人。
+- 條件：碩士、2 年以上、1–2 人、竹北。你 4 年年資符合。原第 2 份（經歷不拘、1–4 人）2026-11-18 已下架。
 - 面試風險：simulation speed 案例會被追問原理與精度取捨。
 
 ### B：可投
@@ -124,7 +126,7 @@
 
 「必要」指 JD 條件區明列為必要的條件；「職責」指只出現在工作內容；「加分」指 JD 列為加分或尤佳。「補法」是面試前可做的事，不代表能補成經驗。
 
-### 1–2. MediaTek VDK（92 / 92）
+### 1. MediaTek VDK（92）
 | 缺的能力 | 性質 | 補法 |
 |---|---|---|
 | AT / non-blocking transport 實作 | 加分 | 用現有 model 寫一個 AT 版 initiator/target，理解四個 phase |
@@ -250,12 +252,12 @@
 | AI / NPU 領域知識 | 5 份（#6–#9、#11） | 高，但需較長時間 |
 | Bus / interconnect 與記憶體系統 | 5 份（#4、#5、#7、#9、#10） | 中 |
 | RTL 設計 / Verilog 層級建模 | 4 份（#4 加分、#8 必要、#11、#15） | 中 |
-| CI/CD | 3 份（#1–#2、#13） | 低（有個人專案說法） |
+| CI/CD | 2 份（#1、#13） | 低（有個人專案說法） |
 | OS / driver / FPGA | 1 份（#14） | 不補，不投 |
 
 ## 結論與投遞順序
 
-1. 先投 #1、#2（MediaTek VDK）。這是唯一 A 級，且履歷已針對它調整（`mediatek/resume-mediatek-vdk.tex`）。
+1. 先投 #1（MediaTek VDK，2 年以上那份）。這是唯一 A 級，且履歷已針對它調整（`mediatek/resume-mediatek-vdk.tex`）。
 2. 第二批：#4 MediaTek Performance 驗證（條件寬鬆、你有興趣）、#8 MediaTek AI 處理器建模（條件區完整、應徵人數少、你有興趣；RTL 一條靠 CModel vs RTL 驗證經驗說明），以及 #3 耐能 Co-Simulation、#5 MediaTek Designer、#7 群聯竹南。#6 耐能 C-Model 地點同 #3，可一併投，但內容相對平淡。
 3. 其餘 C 級（#9、#10）先不投，等補強後再看（見下節）；D 級不投。
 4. #4、#8 履歷不用先做 timing model 才能投；先投，面試前再補。履歷不要寫成效能建模或 RTL 設計經驗。
@@ -264,7 +266,7 @@
 
 | 補強 | 影響的職缺 | 預估變化 |
 |---|---|---|
-| 做一個小型 timing model（LT + `b_transport` delay、quantum、再加一個 AT 版本，並量 latency / throughput） | #5 Designer、#4 Performance、#7/#9 群聯、#1/#2 的 AT 加分 | #5 +8~10、#4 +6~8（可補性與領域面向）、群聯 +6~8 |
+| 做一個小型 timing model（LT + `b_transport` delay、quantum、再加一個 AT 版本，並量 latency / throughput） | #5 Designer、#4 Performance、#7/#9 群聯、#1 的 AT 加分 | #5 +8~10、#4 +6~8（可補性與領域面向）、群聯 +6~8 |
 | 找回 simulation speed 的加速倍數（舊 profiling 報告或 commit 紀錄） | 所有 VDK 與 Designer 類 | 面試說服力提升，不改變分數 |
 | 補 RTL design 小專案或把現有 CModel vs RTL 驗證寫成具體成果 | #3 耐能 Co-Sim、#8 MediaTek AI、#4 Performance（加分） | #3 +4、#8 +6、#4 +2 |
 | 補 AI/NPU 基礎（DL framework、operator、tiling） | 群聯、#8、#11 | 群聯 +6~8 |
